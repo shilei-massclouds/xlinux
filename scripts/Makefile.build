@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0
+
+PHONY := _build
+
+curdir := $(obj)
+
+CROSS_ := riscv64-linux-gnu-
+
+CC	:= @$(CROSS_)gcc
+CPP	:= $(CC) -E
+AR	:= $(CROSS_)ar
+LD  := @$(CROSS_)ld
+
+INCLUDES := -I./include/
+AS_FLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
+	-mcmodel=medany -D__ASSEMBLY__
+
+CFLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
+	-mcmodel=medany -D__KERNEL__
+
+LDFLAGS := -melf64lriscv --build-id=none --strip-debug
+
+include $(curdir)/Makefile
+
+obj_y	:= $(addprefix $(curdir)/, $(obj_y))
+extra_y := $(addprefix $(curdir)/, $(extra_y))
+
+$(curdir)/%.o: $(curdir)/%.S
+	@printf "CC\t$<\n"
+	$(CC) $(AS_FLAGS) $(INCLUDES) -c -o $@ $<
+
+$(curdir)/%.o: $(curdir)/%.c
+	@printf "CC\t$<\n"
+	$(CC) $(CFLAGS) $(CFLAGS_$(@F)) $(INCLUDES) -c -o $@ $<
+
+$(curdir)/%.lds: $(curdir)/%.lds.S
+	@printf "AS\t$<\n"
+	$(CPP) $(INCLUDES) -P -Uriscv -D__ASSEMBLY__ -o $@ $<
+
+_build: $(extra_y) $(curdir)/$(obj).ko
+	@:
+
+$(curdir)/$(obj).ko: $(obj_y)
+	$(LD) -r $(LDFLAGS) -o $@ $^
+
+.PHONY: $(PHONY)
