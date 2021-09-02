@@ -4,5 +4,11 @@
 .section .text
 .globl _start
 _start:
-    li a0, 'A'
-#call sbi_console_putchar
+    li sp, 0x80200000
+    la a0, info
+    call sbi_console_puts
+
+.balign 4
+.section .data
+info:
+    .string "Hello! World!\n"

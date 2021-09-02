@@ -18,11 +18,13 @@ MAKE	:= @make --no-print-directory
 PHONY += $(SUBDIRS)
 
 all: $(SUBDIRS) startup.bin
+	@cp ./startup.bin ../xemu/image/payload.bin
 
 $(SUBDIRS):
 	@$(MAKE) -f ./scripts/Makefile.build obj=$@
 
 startup.bin: startup.elf
+	@printf "LD\t$@\n"
 	$(OBJCOPY) $(OBJCOPYFLAGS) $< $@
 
 startup.elf: startup/startup.ko
