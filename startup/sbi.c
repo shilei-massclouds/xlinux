@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <export.h>
 #include <types.h>
+#include <bug.h>
 
 enum sbi_ext_id {
     SBI_EXT_0_1_SET_TIMER = 0x0,
@@ -60,3 +61,23 @@ void sbi_console_puts(const char *s)
     }
 }
 EXPORT_SYMBOL(sbi_console_puts);
+
+const char hex_asc_upper[] = "0123456789ABCDEF";
+void hex_to_str(unsigned long num, char *buf, size_t size)
+{
+    size_t i = 0;
+    char tmp[64];
+
+    do {
+        tmp[i++] = (hex_asc_upper[num & 0xF]);
+        num >>= 4;
+
+        BUG_ON(i >= size || i >= sizeof(tmp));
+    } while (num);
+
+    while (--i >= 0) {
+        *buf = tmp[i];
+        buf++;
+    }
+}
+EXPORT_SYMBOL(hex_to_str);

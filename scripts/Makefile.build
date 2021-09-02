@@ -15,10 +15,10 @@ LDS := ./startup/module.lds
 
 INCLUDES := -I./include/
 AS_FLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
-	-mcmodel=medany -D__ASSEMBLY__
+	-fno-stack-protector -mcmodel=medany -D__ASSEMBLY__
 
 CFLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
-	-mcmodel=medany -D__KERNEL__
+	-fno-stack-protector -mcmodel=medany -D__KERNEL__
 
 LDFLAGS := -melf64lriscv --build-id=none --strip-debug
 

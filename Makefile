@@ -7,6 +7,7 @@ CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 
 CROSS_ := riscv64-linux-gnu-
 LD := @$(CROSS_)ld
+NM := @$(CROSS_)nm
 OBJCOPY := @$(CROSS_)objcopy
 OBJDUMP := @$(CROSS_)objdump
 OBJCOPYFLAGS := -O binary -R .note -R .note.gnu.build-id -R .comment -S
@@ -23,13 +24,17 @@ all: $(SUBDIRS) startup.bin
 $(SUBDIRS):
 	@$(MAKE) -f ./scripts/Makefile.build obj=$@
 
-startup.bin: startup.elf
+startup.bin: startup.elf System.map
 	@printf "LD\t$@\n"
 	$(OBJCOPY) $(OBJCOPYFLAGS) $< $@
 
-startup.elf: startup/startup.ko
+startup.elf: startup/startup.ko startup/module.lds
 	@printf "LD\t$@\n"
-	$(LD) $(LDFLAGS) -T ./startup/module.lds -o $@ $^
+	$(LD) $(LDFLAGS) -T ./startup/module.lds -o $@ $<
+
+System.map: startup.elf
+	$(NM) -n $< | \
+		grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)\|\( \.L\)' > $@
 
 PHONY += $(CLEAN_DIRS)
 
