@@ -26,8 +26,7 @@ void startup_init(void)
         sbi_console_puts(_start_ksymtab[i].name);
         sbi_console_puts("\n");
 
-        //hex_to_str(_start_ksymtab[i].value, tmp, sizeof(tmp));
-        hex_to_str(0x1234, tmp, sizeof(tmp));
+        hex_to_str(_start_ksymtab[i].value, tmp, sizeof(tmp));
         sbi_console_puts(tmp);
         sbi_console_puts("\n");
     }

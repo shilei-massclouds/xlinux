@@ -65,7 +65,7 @@ EXPORT_SYMBOL(sbi_console_puts);
 const char hex_asc_upper[] = "0123456789ABCDEF";
 void hex_to_str(unsigned long num, char *buf, size_t size)
 {
-    size_t i = 0;
+    int i = 0;
     char tmp[64];
 
     do {
