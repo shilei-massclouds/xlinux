@@ -29,7 +29,7 @@ startup.bin: startup.elf
 
 startup.elf: startup/startup.ko
 	@printf "LD\t$@\n"
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -T ./startup/module.lds -o $@ $^
 
 PHONY += $(CLEAN_DIRS)
 

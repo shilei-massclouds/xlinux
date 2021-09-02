@@ -11,6 +11,8 @@ CPP	:= $(CC) -E
 AR	:= $(CROSS_)ar
 LD  := @$(CROSS_)ld
 
+LDS := ./startup/module.lds
+
 INCLUDES := -I./include/
 AS_FLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
 	-mcmodel=medany -D__ASSEMBLY__
@@ -40,7 +42,7 @@ $(curdir)/%.lds: $(curdir)/%.lds.S
 _build: $(extra_y) $(curdir)/$(obj).ko
 	@:
 
-$(curdir)/$(obj).ko: $(obj_y)
-	$(LD) -r $(LDFLAGS) -o $@ $^
+$(curdir)/$(obj).ko: $(obj_y) $(LDS)
+	$(LD) -r $(LDFLAGS) -T $(LDS) -o $@ $^
 
 .PHONY: $(PHONY)
