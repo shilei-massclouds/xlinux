@@ -1,20 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
+include scripts/Makefile.include
+
 PHONY := all clean
 
 SUBDIRS		:= startup kernel
 CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
-
-CROSS_ := riscv64-linux-gnu-
-LD := @$(CROSS_)ld
-NM := @$(CROSS_)nm
-OBJCOPY := @$(CROSS_)objcopy
-OBJDUMP := @$(CROSS_)objdump
-OBJCOPYFLAGS := -O binary -R .note -R .note.gnu.build-id -R .comment -S
-
-LDFLAGS := -melf64lriscv --build-id=none --strip-debug
-
-MAKE	:= @make --no-print-directory
 
 PHONY += $(SUBDIRS)
 
@@ -29,9 +20,9 @@ startup.bin: startup.elf System.map
 	@printf "LD\t$@\n"
 	$(OBJCOPY) $(OBJCOPYFLAGS) $< $@
 
-startup.elf: startup/startup.ko startup/module.lds
+startup.elf: startup/startup.ko $(LDS_FILE)
 	@printf "LD\t$@\n"
-	$(LD) $(LDFLAGS) -T ./startup/module.lds -o $@ $<
+	$(LD) $(LDFLAGS) -T $(LDS_FILE) -o $@ $<
 
 System.map: startup.elf
 	$(NM) -n $< | \

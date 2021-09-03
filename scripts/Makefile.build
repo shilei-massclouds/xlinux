@@ -4,24 +4,7 @@ PHONY := _build
 
 curdir := $(obj)
 
-CROSS_ := riscv64-linux-gnu-
-
-CC	:= @$(CROSS_)gcc
-CPP	:= $(CC) -E
-AR	:= $(CROSS_)ar
-LD  := @$(CROSS_)ld
-
-LDS := ./startup/module.lds
-
-INCLUDES := -I./include/
-AS_FLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
-	-fno-stack-protector -mcmodel=medany -D__ASSEMBLY__
-
-CFLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
-	-fno-stack-protector -mcmodel=medany -D__KERNEL__
-
-LDFLAGS := -melf64lriscv --build-id=none --strip-debug
-
+include scripts/Makefile.include
 include $(curdir)/Makefile
 
 obj_y	:= $(addprefix $(curdir)/, $(obj_y))
@@ -42,7 +25,7 @@ $(curdir)/%.lds: $(curdir)/%.lds.S
 _build: $(extra_y) $(curdir)/$(obj).ko
 	@:
 
-$(curdir)/$(obj).ko: $(obj_y) $(LDS)
-	$(LD) -r $(LDFLAGS) -T $(LDS) -o $@ $^
+$(curdir)/$(obj).ko: $(obj_y) $(LDS_FILE)
+	$(LD) -r $(LDFLAGS) -T $(LDS_FILE) -o $@ $^
 
 .PHONY: $(PHONY)
