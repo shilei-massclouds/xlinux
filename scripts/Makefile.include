@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0
+
+CROSS_ := riscv64-linux-gnu-
+
+CC  := @$(CROSS_)gcc
+CPP := $(CC) -E
+AR  := $(CROSS_)ar
+LD  := @$(CROSS_)ld
+NM  := @$(CROSS_)nm
+
+MAKE := @make --no-print-directory
+
+OBJCOPY := @$(CROSS_)objcopy
+OBJDUMP := @$(CROSS_)objdump
+
+OBJCOPYFLAGS := -O binary -R .note -R .note.gnu.build-id -R .comment -S
+
+INCLUDES := -I./include/
+AS_FLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
+	-fno-stack-protector -mcmodel=medany -D__ASSEMBLY__
+CFLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
+	-fno-stack-protector -mcmodel=medany -D__KERNEL__
+LDFLAGS := -melf64lriscv --build-id=none --strip-debug
+
+LDS_FILE := startup/module.lds

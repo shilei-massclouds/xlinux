@@ -12,10 +12,14 @@ _start:
     la gp, __global_pointer$
 .option pop
 
+    # Init stack for C function
     la sp, init_stack_top
 
     la a0, info
     call sbi_console_puts
+
+    call setup_trampoline
+
     call startup_init
 
 .balign 4
