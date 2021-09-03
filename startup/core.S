@@ -6,10 +6,15 @@
 .section .text
 .globl _start
 _start:
-#la sp, __end_init_task
-    li sp, 0x80200000
-    la a0, info
+
+.option push
+.option norelax
     la gp, __global_pointer$
+.option pop
+
+    la sp, init_stack_top
+
+    la a0, info
     call sbi_console_puts
     call startup_init
 

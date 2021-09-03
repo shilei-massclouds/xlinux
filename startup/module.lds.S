@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <page.h>
+#include <thread_info.h>
 
-#define LOAD_OFFSET 0x80200000
+#define LOAD_OFFSET PAGE_OFFSET
 
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
@@ -33,10 +33,9 @@ SECTIONS
 
     .data : AT(ADDR(.data) - LOAD_OFFSET) {
         . = ALIGN(PAGE_SIZE);
-        __start_init_task = .;
-        init_thread_union = .;
-        . = __start_init_task + 4*PAGE_SIZE;
-        __end_init_task = .;
+        init_stack = .;
+        . = init_stack + THREAD_SIZE;
+        init_stack_top = .;
         *(.data);
         __global_pointer$ = . + 0x800;
     }

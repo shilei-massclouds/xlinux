@@ -20,6 +20,7 @@ PHONY += $(SUBDIRS)
 
 all: $(SUBDIRS) startup.bin
 	@cp ./startup.bin ../xemu/image/payload.bin
+	@cp ./System.map ../xemu/image/System.map
 
 $(SUBDIRS):
 	@$(MAKE) -f ./scripts/Makefile.build obj=$@
