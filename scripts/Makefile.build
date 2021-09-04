@@ -7,6 +7,7 @@ curdir := $(obj)
 include scripts/Makefile.include
 include $(curdir)/Makefile
 
+_target	:= $(curdir)/$(obj).$(target_y)
 obj_y	:= $(addprefix $(curdir)/, $(obj_y))
 extra_y := $(addprefix $(curdir)/, $(extra_y))
 
@@ -22,10 +23,23 @@ $(curdir)/%.lds: $(curdir)/%.lds.S
 	@printf "AS\t$<\n"
 	$(CPP) $(INCLUDES) -P -Uriscv -D__ASSEMBLY__ -o $@ $<
 
-_build: $(extra_y) $(curdir)/$(obj).ko
+_build: $(extra_y) $(_target)
 	@:
 
 $(curdir)/$(obj).ko: $(obj_y) $(LDS_FILE)
+	@printf "LD\t$@\n"
 	$(LD) -r $(LDFLAGS) -T $(LDS_FILE) -o $@ $^
+
+$(curdir)/$(obj).elf: $(obj_y) $(LDS_FILE)
+	@printf "LD\t$@\n"
+	$(LD) $(LDFLAGS) -T $(LDS_FILE) -o $@ $^
+
+$(curdir)/$(obj).bin: $(curdir)/$(obj).elf $(curdir)/System.map
+	@printf "COPY\t$@\n"
+	$(OBJCOPY) $(OBJCOPYFLAGS) $< $@
+
+$(curdir)/System.map: $(curdir)/$(obj).elf
+	$(NM) -n $< | \
+		grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)\|\( \.L\)' > $@
 
 .PHONY: $(PHONY)

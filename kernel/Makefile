@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-obj_y := head.o
+target_y := ko
 
-clean_files := $(extra_y) $(obj_y) *.ko
+obj_y := head.o
