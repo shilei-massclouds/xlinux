@@ -13,6 +13,12 @@ SECTIONS
 
     _start = .;
 
+    .head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {
+        *(.head.text);
+    }
+
+    . = ALIGN(PAGE_SIZE);
+
     .text : AT(ADDR(.text) - LOAD_OFFSET) {
         *(.text);
     }

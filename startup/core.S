@@ -2,10 +2,13 @@
 
 #include <page.h>
 
-.balign 4
-.section .text
+.section .head.text, "ax"
 .globl _start
 _start:
+    j _start_kernel
+
+.section .text, "ax"
+_start_kernel:
 
 .option push
 .option norelax
@@ -23,6 +26,6 @@ _start:
     call startup_init
 
 .balign 4
-.section .data
+.section .data, "aw"
 info:
     .string "Hello! World!\n"
