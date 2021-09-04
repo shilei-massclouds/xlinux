@@ -21,6 +21,7 @@ void startup_init(void)
     kernel_module.syms = _start_ksymtab;
     kernel_module.num_syms = ksymtab_num;
 
+    sbi_console_puts("init ... \n");
     /*
     for (i = 0; i < kernel_module.num_syms; i++) {
         char tmp[64];
