@@ -7,6 +7,8 @@ curdir := $(obj)
 include scripts/Makefile.include
 include $(curdir)/Makefile
 
+mod_lds := scripts/module.lds
+elf_lds := $(curdir)/$(elf_lds)
 _target	:= $(curdir)/$(obj).$(target_y)
 obj_y	:= $(addprefix $(curdir)/, $(obj_y))
 extra_y := $(addprefix $(curdir)/, $(extra_y))
@@ -26,13 +28,13 @@ $(curdir)/%.lds: $(curdir)/%.lds.S
 _build: $(extra_y) $(_target)
 	@:
 
-$(curdir)/$(obj).ko: $(obj_y) $(LDS_FILE)
+$(curdir)/$(obj).ko: $(obj_y) $(mod_lds)
 	@printf "LD\t$@\n"
-	$(LD) -r $(LDFLAGS) -T $(LDS_FILE) -o $@ $^
+	$(LD) -r $(LDFLAGS) -T $(mod_lds) -o $@ $(obj_y)
 
-$(curdir)/$(obj).elf: $(obj_y) $(LDS_FILE)
+$(curdir)/$(obj).elf: $(obj_y) $(elf_lds)
 	@printf "LD\t$@\n"
-	$(LD) $(LDFLAGS) -T $(LDS_FILE) -o $@ $^
+	$(LD) $(LDFLAGS) -T $(elf_lds) -o $@ $(obj_y)
 
 $(curdir)/$(obj).bin: $(curdir)/$(obj).elf $(curdir)/System.map
 	@printf "COPY\t$@\n"

@@ -21,5 +21,3 @@ AS_FLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
 CFLAGS := -nostdinc -fno-PIE -mabi=lp64 -march=rv64imafdc \
 	-fno-stack-protector -mcmodel=medany -D__KERNEL__
 LDFLAGS := -melf64lriscv --build-id=none --strip-debug
-
-LDS_FILE := startup/module.lds

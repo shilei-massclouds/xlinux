@@ -2,8 +2,10 @@
 
 target_y := bin
 
-extra_y := module.lds
 obj_y := core.o
 obj_y += mm.o
 obj_y += sbi.o
 obj_y += init.o
+
+extra_y := startup.lds
+elf_lds := startup.lds
