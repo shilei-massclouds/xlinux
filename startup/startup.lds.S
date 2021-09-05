@@ -19,6 +19,14 @@ SECTIONS
 
     . = ALIGN(PAGE_SIZE);
 
+    .init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
+        *(.init.text);
+    }
+
+    .init.data : AT(ADDR(.init.data) - LOAD_OFFSET) {
+        *(.init.data);
+    }
+
     .text : AT(ADDR(.text) - LOAD_OFFSET) {
         *(.text);
     }

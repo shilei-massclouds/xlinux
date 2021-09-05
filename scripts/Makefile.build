@@ -15,7 +15,7 @@ extra_y := $(addprefix $(curdir)/, $(extra_y))
 
 $(curdir)/%.o: $(curdir)/%.S
 	@printf "CC\t$<\n"
-	$(CC) $(AS_FLAGS) $(INCLUDES) -c -o $@ $<
+	$(CC) $(AS_FLAGS) $(INCLUDES) -D__ASSEMBLY__ -c -o $@ $<
 
 $(curdir)/%.o: $(curdir)/%.c
 	@printf "CC\t$<\n"

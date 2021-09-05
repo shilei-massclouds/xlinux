@@ -23,12 +23,15 @@ relocate:
     add a2, a2, a1
     csrw CSR_STVEC, a2
 
-    la a0, trampoline_pgd
+    # Prepare for paging
+    la a0, early_pgd
     srl a0, a0, PAGE_SHIFT
     li a1, SATP_MODE
     or a0, a0, a1
     sfence.vma
     csrw CSR_SATP, a0
+
+    # Switch point for paging
 .align 2
 1:
     la a2, .Lforever_park
@@ -45,8 +48,10 @@ relocate:
     wfi
     j .Lforever_park
 
-.section .text, "ax"
+.section .init.text, "ax"
 _start_kernel:
+    mv s0, a0
+    mv s1, a1
 
 .option push
 .option norelax
@@ -59,8 +64,13 @@ _start_kernel:
     la a0, info
     call sbi_console_puts
 
-    call setup_trampoline
+    # Init pgd
+    call setup_early_pge
 
+    mv a0, s1
+    call setup_fixmap_pge
+
+    # Enable paging
     call relocate
 
     # Restore stack for C function

@@ -5,6 +5,8 @@
 #include <page.h>
 #include <compiler_attributes.h>
 
+#define __initdata __section(.init.data)
+
 #define __page_aligned_bss \
     __section(.bss..page_aligned) __aligned(PAGE_SIZE)
 

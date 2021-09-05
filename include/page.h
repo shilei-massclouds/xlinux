@@ -46,7 +46,7 @@
 
 /* Number of pte in a pt */
 #define PTRS_PER_PT     (PAGE_SIZE / sizeof(pte_t))
-#define pte_index(a)    (((a) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define pte_index(a)    (((a) >> PAGE_SHIFT) & (PTRS_PER_PT - 1))
 #define pte_val(x)      ((x).pte)
 #define __pte(x)        ((pte_t) { (x) })
 
@@ -65,6 +65,8 @@
 #define pfn_pme(pfn, prot) \
     __pme(((pfn) << _PAGE_PFN_SHIFT) | pgprot_val((prot)))
 
+#define pfn_pte(pfn, prot) \
+    __pte(((pfn) << _PAGE_PFN_SHIFT) | pgprot_val((prot)))
 
 #define _PAGE_BASE  (_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)
 
@@ -106,6 +108,16 @@ typedef struct {
 } pfn_t;
 
 typedef struct page *pgtable_t;
+
+extern inline int pge_none(pge_t pge) { return !pge_val(pge); }
+extern inline int pme_none(pme_t pme) { return !pme_val(pme); }
+extern inline int pte_none(pte_t pte) { return !pte_val(pte); }
+
+struct page {
+};
+
+#include <log2.h>
+#define STRUCT_PAGE_MAX_SHIFT   (order_base_2(sizeof(struct page)))
 
 #endif /* !__ASSEMBLY__ */
 
