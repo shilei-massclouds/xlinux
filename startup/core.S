@@ -65,10 +65,9 @@ _start_kernel:
     call sbi_console_puts
 
     # Init pgd
-    call setup_early_pge
-
     mv a0, s1
     call setup_fixmap_pge
+    call setup_early_pge
 
     # Enable paging
     call relocate
