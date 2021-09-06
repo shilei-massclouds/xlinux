@@ -45,6 +45,7 @@ SECTIONS
         KEEP(*(_ksymtab_strings));
     }
 
+    _data_start = .;
     .data : AT(ADDR(.data) - LOAD_OFFSET) {
         . = ALIGN(PAGE_SIZE);
         init_stack = .;
@@ -53,6 +54,9 @@ SECTIONS
         *(.data);
         __global_pointer$ = . + 0x800;
     }
+    _data_end = .;
+
+    . = ALIGN(PAGE_SIZE);
 
     _bss_start = .;
     .bss : AT(ADDR(.bss) - LOAD_OFFSET) {

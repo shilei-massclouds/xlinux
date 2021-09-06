@@ -2,6 +2,7 @@
 #ifndef __LINUX_COMPILER_ATTRIBUTES_H
 #define __LINUX_COMPILER_ATTRIBUTES_H
 
+#define __packed                __attribute__((__packed__))
 #define __section(S)            __attribute__((__section__(#S)))
 #define __cold                  __attribute__((__cold__))
 #define __aligned(x)            __attribute__((__aligned__(x)))

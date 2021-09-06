@@ -12,7 +12,7 @@ typedef unsigned long   uintptr_t;
 
 typedef _Bool           bool;
 
-typedef unsigned long   u32;
+typedef unsigned int    u32;
 typedef unsigned long   u64;
 
 typedef u64 phys_addr_t;

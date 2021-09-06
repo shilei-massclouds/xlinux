@@ -3,10 +3,27 @@
 #include <page.h>
 #include <csr.h>
 
+#define RISCV_SZPTR 8
+
+#define RISCV_HEADER_VERSION    2
+#define RISCV_IMAGE_MAGIC       "RISCV\0\0\0"
+#define RISCV_IMAGE_MAGIC2      "RSC\x05"
+
 .section .head.text, "ax"
 .globl _start
 _start:
-    j _start_kernel
+    j _start_kernel                 /* code0 */
+    .word  0                        /* code1 */
+    .dword 0x200000                 /* text_offset: Image load offset */
+    .dword _end - _start            /* image_size: Effective image size */
+    .dword 0                        /* flags: kernel flags */
+    .word  RISCV_HEADER_VERSION     /* version */
+    .word  0                        /* res1 */
+    .dword _data_end - _start       /* res2: Image file size on disk */
+    .ascii RISCV_IMAGE_MAGIC        /* magic */
+    .balign 4
+    .ascii RISCV_IMAGE_MAGIC2       /* magic2 */
+    .word  0                        /* res3 */
 
 .align 2
 relocate:
@@ -57,6 +74,16 @@ _start_kernel:
 .option norelax
     la gp, __global_pointer$
 .option pop
+
+    /* Clear BSS for flat non-ELF images */
+    la a3, _bss_start
+    la a4, _bss_stop
+    ble a4, a3, clear_bss_done
+clear_bss:
+    sd zero, (a3)
+    add a3, a3, RISCV_SZPTR
+    blt a3, a4, clear_bss
+clear_bss_done:
 
     # Init stack for C function
     la sp, init_stack_top

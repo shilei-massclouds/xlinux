@@ -10,8 +10,9 @@ CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 PHONY += $(SUBDIRS)
 
 all: $(SUBDIRS) startup/startup.bin
-	@cp ./startup/startup.bin ../xemu/image/payload.bin
 	@cp ./startup/System.map ../xemu/image/System.map
+	@cp ./startup/startup.bin ../xemu/image/startup.bin
+	@cp ./kernel/kernel.ko ../xemu/image/kernel.ko
 
 $(SUBDIRS):
 	@$(MAKE) -f ./scripts/Makefile.build obj=$@

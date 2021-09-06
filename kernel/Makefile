@@ -2,4 +2,4 @@
 
 target_y := ko
 
-obj_y := head.o
+obj_y := test.o
