@@ -109,10 +109,6 @@ typedef struct {
 
 typedef struct page *pgtable_t;
 
-extern inline int pge_none(pge_t pge) { return !pge_val(pge); }
-extern inline int pme_none(pme_t pme) { return !pme_val(pme); }
-extern inline int pte_none(pte_t pte) { return !pte_val(pte); }
-
 struct page {
 };
 
@@ -120,5 +116,17 @@ struct page {
 #define STRUCT_PAGE_MAX_SHIFT   (order_base_2(sizeof(struct page)))
 
 #endif /* !__ASSEMBLY__ */
+
+#ifndef pte_none
+#define pte_none(pte) (!pte_val(pte))
+#endif
+
+#ifndef pme_none
+#define pme_none(pme) (!pme_val(pme))
+#endif
+
+#ifndef pge_none
+#define pge_none(pge) (!pge_val(pge))
+#endif
 
 #endif /* _PAGE_H */

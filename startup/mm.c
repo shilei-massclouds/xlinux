@@ -56,3 +56,11 @@ void setup_fixmap_pge(uintptr_t dtb_pa)
         fixmap_pt[pte_idx] = pfn_pte(PFN_DOWN(pa), PAGE_KERNEL);
     }
 }
+
+void setup_flash_pge(void)
+{
+    uintptr_t pge_idx = pge_index(FLASH_VA);
+    BUG_ON(!pge_none(early_pgd[pge_idx]));
+
+    early_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
+}

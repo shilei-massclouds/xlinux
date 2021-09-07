@@ -4,8 +4,11 @@
 #include <module.h>
 #include <sbi.h>
 #include <image.h>
+#include <fixmap.h>
+#include <elf.h>
 
-#define FLASH_START 0x20000000UL
+/* n must be power of 2 */
+#define ROUND_UP(x, n) (((x) + (n) - 1ul) & ~((n) - 1ul))
 
 extern char _start[];
 
@@ -23,13 +26,23 @@ static void init_kernel_module(void)
     kernel_module.num_syms = ksymtab_num;
 }
 
-static void load_modules(void)
+static uintptr_t modules_base(void)
 {
-    struct image_header *header = (struct image_header *)(&_start);
+    uintptr_t base = (FLASH_VA + FLASH_HEAD_SIZE);
+    struct image_header *hdr = (struct image_header *) base;
+
+    return ROUND_UP((base + hdr->res2), 8);
+}
+
+static void load_modules(uintptr_t base)
+{
+    Elf64_Ehdr *header = (Elf64_Ehdr *) base;
 
     {
         char tmp[64] = {0};
-        hex_to_str(header->res2, tmp, sizeof(tmp));
+        sbi_console_puts(header->e_ident);
+        sbi_console_puts("\n");
+        hex_to_str(header->e_shoff, tmp, sizeof(tmp));
         sbi_console_puts(tmp);
         sbi_console_puts("\n");
     }
@@ -41,7 +54,8 @@ void startup_init(void)
 
     init_kernel_module();
 
-    load_modules();
+    load_modules(modules_base());
+
     /*
     int i;
     for (i = 0; i < kernel_module.num_syms; i++) {
