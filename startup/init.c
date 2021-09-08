@@ -34,6 +34,12 @@ struct load_info {
     Elf64_Shdr *sechdrs;
     char *secstrings;
     char *strtab;
+
+    struct {
+        unsigned int sym;
+        unsigned int str;
+    } index;
+
     struct layout layout;
 };
 
@@ -110,15 +116,27 @@ rewrite_section_headers(struct load_info *info)
     }
 }
 
-static int
+static void
 setup_load_info(uintptr_t base, struct load_info *info)
 {
+    int i;
+
     info->name = NULL;
     info->hdr = (Elf64_Ehdr *)base;
     info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
     info->secstrings = (void *)info->hdr +
         info->sechdrs[info->hdr->e_shstrndx].sh_offset;
     info->strtab = NULL;
+
+    for (i = 1; i < info->hdr->e_shnum; i++) {
+        if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
+            info->index.sym = i;
+            info->index.str = info->sechdrs[i].sh_link;
+            info->strtab = (char *)info->hdr
+                + info->sechdrs[info->index.str].sh_offset;
+            break;
+        }
+    }
 }
 
 static void
@@ -180,6 +198,57 @@ move_module(uintptr_t addr, struct load_info *info)
 }
 
 static void
+simplify_symbols(const struct load_info *info)
+{
+    int i;
+    Elf64_Shdr *symsec = &info->sechdrs[info->index.sym];
+    Elf64_Sym *sym = (void *)symsec->sh_addr;
+
+    for (i = 1; i < symsec->sh_size / sizeof(Elf64_Sym); i++) {
+        const char *name = info->strtab + sym[i].st_name;
+
+        switch (sym[i].st_shndx) {
+        case SHN_COMMON:
+        case SHN_ABS:
+        case SHN_LIVEPATCH:
+            break;
+        case SHN_UNDEF:
+            sbi_console_puts("[");
+            sbi_console_puts(name);
+            sbi_console_puts("]\n");
+            break;
+        default:
+            sym[i].st_value += info->sechdrs[sym[i].st_shndx].sh_addr;
+            /*
+            {
+                char tmp[64] = {0};
+                hex_to_str(sym[i].st_value, tmp, sizeof(tmp));
+                sbi_console_puts(tmp);
+                sbi_console_puts("\n");
+            }
+            */
+            break;
+        }
+    }
+}
+
+static void
+apply_relocations(const struct load_info *info)
+{
+    int i;
+
+    for (i = 1; i < info->hdr->e_shnum; i++) {
+        unsigned int infosec = info->sechdrs[i].sh_info;
+        {
+            char tmp[64] = {0};
+            hex_to_str(infosec, tmp, sizeof(tmp));
+            sbi_console_puts(tmp);
+            sbi_console_puts("\n");
+        }
+    }
+}
+
+static void
 load_modules(void)
 {
     int i;
@@ -199,6 +268,11 @@ load_modules(void)
 
     move_module(dst_addr, &info);
 
+    simplify_symbols(&info);
+
+    apply_relocations(&info);
+
+    /* next */
     dst_addr += info.layout.size;
 }
 

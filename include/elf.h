@@ -31,6 +31,16 @@
 #define SHT_LOUSER  0x80000000
 #define SHT_HIUSER  0xffffffff
 
+/* special section indexes */
+#define SHN_UNDEF       0x0
+#define SHN_LORESERVE   0xff00
+#define SHN_LOPROC      0xff00
+#define SHN_HIPROC      0xff1f
+#define SHN_LIVEPATCH   0xff20
+#define SHN_ABS         0xfff1
+#define SHN_COMMON      0xfff2
+#define SHN_HIRESERVE   0xffff
+
 #define EI_NIDENT   16
 
 typedef struct elf64_hdr {
@@ -62,5 +72,14 @@ typedef struct elf64_shdr {
   u64 sh_addralign; /* Section alignment */
   u64 sh_entsize;   /* Entry size if section holds table */
 } Elf64_Shdr;
+
+typedef struct elf64_sym {
+  u32 st_name;      /* Symbol name, index in string tbl */
+  u8  st_info;      /* Type and binding attributes */
+  u8  st_other;     /* No defined meaning, 0 */
+  u16 st_shndx;     /* Associated section index */
+  u64 st_value;     /* Value of the symbol */
+  u64 st_size;      /* Associated symbol size */
+} Elf64_Sym;
 
 #endif /* _UAPI_LINUX_ELF_H */
