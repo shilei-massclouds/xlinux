@@ -29,6 +29,7 @@ typedef __kernel_size_t     size_t;
 #endif
 
 extern void *memset(void *, int, __kernel_size_t);
+extern void *memcpy(void *, const void *, size_t);
 
 #endif /*  __ASSEMBLY__ */
 
