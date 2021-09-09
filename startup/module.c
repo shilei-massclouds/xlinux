@@ -20,6 +20,9 @@ extern const char _start_ksymtab_strings[];
 
 #define ksymtab_num (_stop_ksymtab - _start_ksymtab)
 
+LIST_HEAD(modules);
+EXPORT_SYMBOL(modules);
+
 struct module kernel_module;
 
 struct layout {
@@ -44,10 +47,13 @@ struct load_info {
     struct layout layout;
 };
 
-static void init_kernel_module(void)
+static void
+init_kernel_module(void)
 {
     kernel_module.syms = _start_ksymtab;
     kernel_module.num_syms = ksymtab_num;
+
+    list_add_tail(&kernel_module.list, &modules);
 }
 
 static long
@@ -180,10 +186,28 @@ move_module(uintptr_t addr, struct load_info *info)
     }
 }
 
+static const struct kernel_symbol *
+resolve_symbol(const struct load_info *info, const char *name)
+{
+    int i;
+    struct module *mod;
+
+    list_for_each_entry(mod, &modules, list) {
+        for (i = 0; i < mod->num_syms; i++) {
+            const struct kernel_symbol *ksym = mod->syms + i;
+            if (!strcmp(ksym->name, name))
+                return ksym;
+        }
+    }
+
+    return NULL;
+}
+
 static void
 simplify_symbols(const struct load_info *info)
 {
     int i;
+    const struct kernel_symbol *ksym;
     Elf64_Shdr *symsec = &info->sechdrs[info->index.sym];
     Elf64_Sym *sym = (void *)symsec->sh_addr;
 
@@ -192,16 +216,26 @@ simplify_symbols(const struct load_info *info)
 
         switch (sym[i].st_shndx) {
         case SHN_COMMON:
+            BUG_ON(true);
+            break;
         case SHN_ABS:
         case SHN_LIVEPATCH:
             break;
         case SHN_UNDEF:
-            sbi_console_printf("SHN_UNDEF: %s: %lx\n",
-                               name, sym[i].st_shndx);
+            ksym = resolve_symbol(info, name);
+            if (ksym && !IS_ERR(ksym)) {
+                sym[i].st_value = ksym->value;
+                sbi_console_printf("SHN_UNDEF [%s]: %lx\n",
+                                   name, sym[i].st_value);
+
+                break;
+            }
+
+            BUG_ON(true);
             break;
         default:
             sym[i].st_value += info->sechdrs[sym[i].st_shndx].sh_addr;
-            sbi_console_printf("%lx\n", sym[i].st_value);
+            //sbi_console_printf("%lx\n", sym[i].st_value);
             break;
         }
     }

@@ -3,8 +3,11 @@
 #define _LINUX_MODULE_H
 
 #include <export.h>
+#include <list.h>
 
 struct module {
+    list_head list;
+
     const struct kernel_symbol *syms;
     unsigned int num_syms;
 };
