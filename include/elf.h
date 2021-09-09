@@ -41,7 +41,35 @@
 #define SHN_COMMON      0xfff2
 #define SHN_HIRESERVE   0xffff
 
+#define ELF64_R_SYM(i)  ((i) >> 32)
+#define ELF64_R_TYPE(i) ((i) & 0xffffffff)
+
 #define EI_NIDENT   16
+
+/* Relocation types used by the dynamic linker */
+#define R_RISCV_NONE            0
+#define R_RISCV_32              1
+#define R_RISCV_64              2
+#define R_RISCV_RELATIVE        3
+#define R_RISCV_COPY            4
+#define R_RISCV_JUMP_SLOT       5
+#define R_RISCV_TLS_DTPMOD32    6
+#define R_RISCV_TLS_DTPMOD64    7
+#define R_RISCV_TLS_DTPREL32    8
+#define R_RISCV_TLS_DTPREL64    9
+#define R_RISCV_TLS_TPREL32     10
+#define R_RISCV_TLS_TPREL64     11
+
+/* Relocation types not used by the dynamic linker */
+#define R_RISCV_CALL            18
+#define R_RISCV_GOT_HI20        20
+#define R_RISCV_TLS_GOT_HI20    21
+#define R_RISCV_TLS_GD_HI20     22
+#define R_RISCV_PCREL_HI20      23
+#define R_RISCV_PCREL_LO12_I    24
+#define R_RISCV_PCREL_LO12_S    25
+
+#define R_RISCV_RELAX           51
 
 typedef struct elf64_hdr {
   unsigned char e_ident[EI_NIDENT]; /* ELF "magic number" */
@@ -81,5 +109,11 @@ typedef struct elf64_sym {
   u64 st_value;     /* Value of the symbol */
   u64 st_size;      /* Associated symbol size */
 } Elf64_Sym;
+
+typedef struct elf64_rela {
+  u64 r_offset; /* Location at which to apply the action */
+  u64 r_info;   /* index and type of relocation */
+  s64 r_addend; /* Constant addend used to compute value */
+} Elf64_Rela;
 
 #endif /* _UAPI_LINUX_ELF_H */

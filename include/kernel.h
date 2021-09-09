@@ -15,4 +15,8 @@
  */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#define MAX_ERRNO   4095
+#define IS_ERR_VALUE(x) \
+    ((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
+
 #endif /* _UAPI_LINUX_KERNEL_H */

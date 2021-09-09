@@ -12,6 +12,9 @@ typedef unsigned long   uintptr_t;
 
 typedef _Bool           bool;
 
+typedef int     s32;
+typedef long    s64;
+
 typedef unsigned char   u8;
 typedef unsigned short  u16;
 typedef unsigned int    u32;
@@ -22,6 +25,9 @@ typedef u64 phys_addr_t;
 typedef long                __kernel_long_t;
 typedef unsigned long       __kernel_ulong_t;
 typedef __kernel_ulong_t    __kernel_size_t;
+
+typedef __kernel_long_t     __kernel_ptrdiff_t;
+typedef __kernel_ptrdiff_t  ptrdiff_t;
 
 #ifndef _SIZE_T
 #define _SIZE_T
