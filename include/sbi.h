@@ -6,6 +6,6 @@
 #include <types.h>
 
 void sbi_console_puts(const char *s);
-void hex_to_str(unsigned long num, char *str, size_t size);
+void sbi_console_printf(const char *fmt, ...);
 
 #endif /* _SBI_H */

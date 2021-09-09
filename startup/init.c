@@ -107,13 +107,6 @@ rewrite_section_headers(struct load_info *info)
     for (i = 1; i < info->hdr->e_shnum; i++) {
         Elf64_Shdr *s = info->sechdrs + i;
         s->sh_addr = (size_t)info->hdr + s->sh_offset;
-        /*
-        char tmp[64] = {0};
-        //hex_to_str(shdr->sh_offset, tmp, sizeof(tmp));
-        hex_to_str(shdr->sh_flags, tmp, sizeof(tmp));
-        sbi_console_puts(tmp);
-        sbi_console_puts("\n");
-        */
     }
 }
 
@@ -150,17 +143,6 @@ load_module(uintptr_t base, struct load_info *info)
     rewrite_section_headers(info);
 
     layout_sections(info);
-
-    /*
-    {
-        char tmp[64] = {0};
-        sbi_console_puts(hdr->e_ident);
-        sbi_console_puts("\n");
-        hex_to_str(hdr->e_shoff, tmp, sizeof(tmp));
-        sbi_console_puts(tmp);
-        sbi_console_puts("\n");
-    }
-    */
 }
 
 static uintptr_t
@@ -214,20 +196,12 @@ simplify_symbols(const struct load_info *info)
         case SHN_LIVEPATCH:
             break;
         case SHN_UNDEF:
-            sbi_console_puts("[");
-            sbi_console_puts(name);
-            sbi_console_puts("]\n");
+            sbi_console_printf("SHN_UNDEF: %s: %lx\n",
+                               name, sym[i].st_shndx);
             break;
         default:
             sym[i].st_value += info->sechdrs[sym[i].st_shndx].sh_addr;
-            /*
-            {
-                char tmp[64] = {0};
-                hex_to_str(sym[i].st_value, tmp, sizeof(tmp));
-                sbi_console_puts(tmp);
-                sbi_console_puts("\n");
-            }
-            */
+            sbi_console_printf("%lx\n", sym[i].st_value);
             break;
         }
     }
@@ -304,41 +278,16 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
                     hi20 = (offset + 0x800) & 0xfffff000;
                     lo12 = offset - hi20;
                     *location = lo12;
-
-                    /*
-                    {
-                        char tmp[64] = {0};
-                        hex_to_str(*location, tmp, sizeof(tmp));
-                        sbi_console_puts(tmp);
-                        sbi_console_puts("\n");
-                    }
-                    */
                     break;
                 }
             }
             break;
         }
         default:
-            {
-                char tmp[64] = {0};
-                hex_to_str(type, tmp, sizeof(tmp));
-                sbi_console_puts(tmp);
-                sbi_console_puts("\n");
-            }
+            sbi_console_printf("[%s]: \n", __func__);
             BUG_ON(type);
             break;
         }
-
-        /*
-        {
-            char tmp[64] = {0};
-            //hex_to_str(*location, tmp, sizeof(tmp));
-            hex_to_str(type, tmp, sizeof(tmp));
-            //hex_to_str(sym->st_value, tmp, sizeof(tmp));
-            sbi_console_puts(tmp);
-            sbi_console_puts("\n");
-        }
-        */
     }
 }
 
@@ -361,19 +310,6 @@ apply_relocations(const struct load_info *info)
         if (info->sechdrs[i].sh_type == SHT_RELA)
             apply_relocate_add(info->sechdrs,
                                info->strtab, info->index.sym, i);
-
-        /*
-        Elf64_Shdr *s = info->sechdrs + i;
-        const char *sname = info->secstrings + s->sh_name;
-        {
-            char tmp[64] = {0};
-            hex_to_str(infosec, tmp, sizeof(tmp));
-            sbi_console_puts(tmp);
-            sbi_console_puts("\n");
-            sbi_console_puts(sname);
-            sbi_console_puts("\n");
-        }
-        */
     }
 }
 
@@ -385,13 +321,6 @@ load_modules(void)
 
     uintptr_t src_addr = modules_source_base();
     uintptr_t dst_addr = (uintptr_t)_end;
-
-    {
-        char tmp[64] = {0};
-        hex_to_str(dst_addr, tmp, sizeof(tmp));
-        sbi_console_puts(tmp);
-        sbi_console_puts("\n");
-    }
 
     load_module(src_addr, &info);
 
@@ -407,22 +336,9 @@ load_modules(void)
 
 void startup_init(void)
 {
-    sbi_console_puts("init ... \n");
+    sbi_console_printf("%s: init ... \n", __func__);
 
     init_kernel_module();
 
     load_modules();
-
-    /*
-    int i;
-    for (i = 0; i < kernel_module.num_syms; i++) {
-        char tmp[64];
-        sbi_console_puts(_start_ksymtab[i].name);
-        sbi_console_puts("\n");
-
-        hex_to_str(_start_ksymtab[i].value, tmp, sizeof(tmp));
-        sbi_console_puts(tmp);
-        sbi_console_puts("\n");
-    }
-    */
 }

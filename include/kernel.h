@@ -2,8 +2,6 @@
 #ifndef _UAPI_LINUX_KERNEL_H
 #define _UAPI_LINUX_KERNEL_H
 
-#define NULL ((void *)0)
-
 #define ALIGN_KERNEL(x, a)  ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
 #define ALIGN_KERNEL_MASK(x, mask)  (((x) + (mask)) & ~(mask))
 

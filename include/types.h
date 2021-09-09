@@ -4,6 +4,8 @@
 
 #ifndef __ASSEMBLY__
 
+#define NULL ((void *)0)
+
 typedef struct {
     int counter;
 } atomic_t;
@@ -11,6 +13,11 @@ typedef struct {
 typedef unsigned long   uintptr_t;
 
 typedef _Bool           bool;
+
+enum {
+    false   = 0,
+    true    = 1
+};
 
 typedef int     s32;
 typedef long    s64;
