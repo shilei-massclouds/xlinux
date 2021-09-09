@@ -103,7 +103,7 @@ clear_bss_done:
     # Restore stack for C function
     la sp, init_stack_top
 
-    call startup_init
+    call load_modules
 
 .balign 4
 .section .data, "aw"

@@ -314,7 +314,7 @@ apply_relocations(const struct load_info *info)
 }
 
 static void
-load_modules(void)
+init_other_modules(void)
 {
     int i;
     struct load_info info;
@@ -334,11 +334,11 @@ load_modules(void)
     dst_addr += info.layout.size;
 }
 
-void startup_init(void)
+void load_modules(void)
 {
     sbi_console_printf("%s: init ... \n", __func__);
 
     init_kernel_module();
 
-    load_modules();
+    init_other_modules();
 }
