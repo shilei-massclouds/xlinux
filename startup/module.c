@@ -12,6 +12,8 @@
 /* n must be power of 2 */
 #define ROUND_UP(x, n) (((x) + (n) - 1ul) & ~((n) - 1ul))
 
+typedef int (*init_module_t)(void);
+
 extern char _end[];
 
 extern const struct kernel_symbol _start_ksymtab[];
@@ -83,7 +85,6 @@ layout_sections(struct load_info *info)
     for (m = 0; m < ARRAY_SIZE(masks); ++m) {
         for (i = 0; i < info->hdr->e_shnum; ++i) {
             Elf64_Shdr *s = info->sechdrs + i;
-            const char *sname = info->secstrings + s->sh_name;
 
             if ((s->sh_flags & masks[m][0]) != masks[m][0]
                 || (s->sh_flags & masks[m][1])
@@ -91,6 +92,8 @@ layout_sections(struct load_info *info)
                 continue;
 
             s->sh_entsize = get_offset(&(info->layout.size), s);
+            sbi_printf("%s: %s %lx\n", __func__,
+                       info->secstrings + s->sh_name, s->sh_entsize);
         }
 
         switch (m) {
@@ -139,18 +142,6 @@ setup_load_info(uintptr_t base, struct load_info *info)
     }
 }
 
-static void
-load_module(uintptr_t base, struct load_info *info)
-{
-    memset((void*)info, 0, sizeof(struct load_info));
-
-    setup_load_info(base, info);
-
-    rewrite_section_headers(info);
-
-    layout_sections(info);
-}
-
 static uintptr_t
 modules_source_base(void)
 {
@@ -183,6 +174,10 @@ move_module(uintptr_t addr, struct load_info *info)
 
         /* Update sh_addr to point to copy in image. */
         s->sh_addr = (unsigned long)p;
+
+        sbi_printf("%s: %s %lx, %lx\n", __func__,
+                   info->secstrings + s->sh_name, s->sh_addr,
+                   *((u64*)p));
     }
 }
 
@@ -225,8 +220,8 @@ simplify_symbols(const struct load_info *info)
             ksym = resolve_symbol(info, name);
             if (ksym && !IS_ERR(ksym)) {
                 sym[i].st_value = ksym->value;
-                sbi_console_printf("SHN_UNDEF [%s]: %lx\n",
-                                   name, sym[i].st_value);
+                sbi_printf("SHN_UNDEF [%s]: %lx\n",
+                           name, sym[i].st_value);
 
                 break;
             }
@@ -235,7 +230,7 @@ simplify_symbols(const struct load_info *info)
             break;
         default:
             sym[i].st_value += info->sechdrs[sym[i].st_shndx].sh_addr;
-            //sbi_console_printf("%lx\n", sym[i].st_value);
+            //sbi_printf("%lx\n", sym[i].st_value);
             break;
         }
     }
@@ -246,7 +241,7 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
                    unsigned int symindex, unsigned int relsec)
 {
     int i;
-    u64 *location;
+    u32 *location;
     Elf64_Sym *sym;
     unsigned int type;
     u64 v;
@@ -265,9 +260,13 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
         v = sym->st_value + rel[i].r_addend;
 
         type = ELF64_R_TYPE(rel[i].r_info);
+
+        sbi_printf("%s: %lx, %lx(%lx), %lx\n", __func__,
+                   type, location, (*location), v);
+
         switch (type) {
         case R_RISCV_64:
-            *location = v;
+            *(u64 *)location = v;
             break;
         case R_RISCV_PCREL_HI20: {
             ptrdiff_t offset = (void *)v - (void *)location;
@@ -311,14 +310,21 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
 
                     hi20 = (offset + 0x800) & 0xfffff000;
                     lo12 = offset - hi20;
-                    *location = lo12;
+
+                    if (type == R_RISCV_PCREL_LO12_I) {
+                        *location = (*location & 0xfffff) | ((lo12 & 0xfff) << 20);
+                    } else {
+                        u32 imm11_5 = (lo12 & 0xfe0) << (31 - 11);
+                        u32 imm4_0 = (lo12 & 0x1f) << (11 - 4);
+                        *location = (*location & 0x1fff07f) | imm11_5 | imm4_0;
+                    }
                     break;
                 }
             }
             break;
         }
         default:
-            sbi_console_printf("[%s]: \n", __func__);
+            sbi_printf("[%s]: \n", __func__);
             BUG_ON(type);
             break;
         }
@@ -348,6 +354,41 @@ apply_relocations(const struct load_info *info)
 }
 
 static void
+do_init_module(init_module_t fn)
+{
+    fn();
+}
+
+static void
+finalize_module(struct load_info *info)
+{
+    int i;
+    init_module_t fn = NULL;
+    Elf64_Shdr *symsec = &info->sechdrs[info->index.sym];
+    Elf64_Sym *sym = (void *)symsec->sh_addr;
+
+    for (i = 1; i < symsec->sh_size / sizeof(Elf64_Sym); i++) {
+        const char *name = info->strtab + sym[i].st_name;
+        if (!strcmp(name, "init_module")) {
+            sbi_printf("%s: %lx\n", __func__, sym[i].st_value);
+            fn = (init_module_t) sym[i].st_value;
+            break;
+        }
+    }
+
+    do_init_module(fn);
+
+    /*
+    for (i = 0; i < info->hdr->e_shnum; ++i) {
+        Elf64_Shdr *s = info->sechdrs + i;
+        const char *sname = info->secstrings + s->sh_name;
+        sbi_printf("%s: [%s] entsize(%lx) sh_addr(%lx)\n",
+                   __func__, sname, s->sh_entsize, s->sh_addr);
+    }
+    */
+}
+
+static void
 init_other_modules(void)
 {
     int i;
@@ -356,7 +397,13 @@ init_other_modules(void)
     uintptr_t src_addr = modules_source_base();
     uintptr_t dst_addr = (uintptr_t)_end;
 
-    load_module(src_addr, &info);
+    memset((void*)&info, 0, sizeof(struct load_info));
+
+    setup_load_info(src_addr, &info);
+
+    rewrite_section_headers(&info);
+
+    layout_sections(&info);
 
     move_module(dst_addr, &info);
 
@@ -364,13 +411,17 @@ init_other_modules(void)
 
     apply_relocations(&info);
 
+    finalize_module(&info);
+
+    //do_init_module();
+
     /* next */
     dst_addr += info.layout.size;
 }
 
 void load_modules(void)
 {
-    sbi_console_printf("%s: init ... \n", __func__);
+    sbi_printf("%s: init ... \n", __func__);
 
     init_kernel_module();
 

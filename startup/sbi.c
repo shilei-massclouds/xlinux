@@ -90,21 +90,21 @@ sbi_ecall(int ext, int fid,
 }
 EXPORT_SYMBOL(sbi_ecall);
 
-void sbi_console_putchar(int ch)
+void sbi_putchar(int ch)
 {
     sbi_ecall(SBI_EXT_0_1_CONSOLE_PUTCHAR, 0, ch, 0, 0, 0, 0, 0);
 }
-EXPORT_SYMBOL(sbi_console_putchar);
+EXPORT_SYMBOL(sbi_putchar);
 
-void sbi_console_puts(const char *s)
+void sbi_puts(const char *s)
 {
     for (; *s; s++) {
         if (*s == '\n')
-            sbi_console_putchar('\r');
-        sbi_console_putchar(*s);
+            sbi_putchar('\r');
+        sbi_putchar(*s);
     }
 }
-EXPORT_SYMBOL(sbi_console_puts);
+EXPORT_SYMBOL(sbi_puts);
 
 static int
 format_decode(const char *fmt, struct printf_spec *spec)
@@ -294,14 +294,14 @@ vprintk_func(const char *fmt, va_list args)
     else
         end[-1] = '\0';
 
-    sbi_console_puts(textbuf);
+    sbi_puts(textbuf);
 }
 
-void sbi_console_printf(const char *fmt, ...)
+void sbi_printf(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
     vprintk_func(fmt, args);
     va_end(args);
 }
-EXPORT_SYMBOL(sbi_console_printf);
+EXPORT_SYMBOL(sbi_printf);

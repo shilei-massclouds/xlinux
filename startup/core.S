@@ -89,7 +89,7 @@ clear_bss_done:
     la sp, init_stack_top
 
     la a0, info
-    call sbi_console_puts
+    call sbi_puts
 
     # Init pgd
     mv a0, s1

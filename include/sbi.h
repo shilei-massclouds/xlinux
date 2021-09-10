@@ -5,7 +5,7 @@
 
 #include <types.h>
 
-void sbi_console_puts(const char *s);
-void sbi_console_printf(const char *fmt, ...);
+void sbi_puts(const char *s);
+void sbi_printf(const char *fmt, ...);
 
 #endif /* _SBI_H */

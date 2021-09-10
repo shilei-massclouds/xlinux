@@ -4,12 +4,8 @@
 
 //const char info[] = "]\n";
 
-void test_print(unsigned long num)
+static int init_module(void)
 {
-    //char str[64];
-    sbi_console_puts("test_print: [\n");
-    //hex_to_str(num, str, sizeof(str));
-    //sbi_console_puts(str);
-    //sbi_console_puts(info);
+    sbi_puts("test_print: [\n");
 }
-EXPORT_SYMBOL(test_print);
+//EXPORT_SYMBOL(test);
