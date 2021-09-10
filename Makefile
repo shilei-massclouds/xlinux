@@ -4,7 +4,7 @@ include scripts/Makefile.include
 
 PHONY := all clean
 
-SUBDIRS		:= startup kernel
+SUBDIRS		:= startup test
 CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 
 PHONY += $(SUBDIRS)
@@ -12,7 +12,7 @@ PHONY += $(SUBDIRS)
 all: $(SUBDIRS) startup/startup.bin
 	@cp ./startup/System.map ../xemu/image/System.map
 	@cp ./startup/startup.bin ../xemu/image/startup.bin
-	@cp ./kernel/kernel.ko ../xemu/image/kernel.ko
+	@cp ./test/test.ko ../xemu/image/test.ko
 
 $(SUBDIRS):
 	@$(MAKE) -f ./scripts/Makefile.build obj=$@
