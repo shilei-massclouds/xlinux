@@ -38,7 +38,7 @@ SECTIONS
     _ksymtab : AT(ADDR(_ksymtab) - LOAD_OFFSET) {
         _start_ksymtab = .;
         KEEP(*(SORT(_ksymtab)));
-        _stop_ksymtab = .;
+        _end_ksymtab = .;
     }
 
     _ksymtab_strings : AT(ADDR(_ksymtab_strings) - LOAD_OFFSET) {

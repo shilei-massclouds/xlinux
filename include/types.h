@@ -43,6 +43,7 @@ typedef __kernel_size_t     size_t;
 
 extern void *memset(void *, int, __kernel_size_t);
 extern void *memcpy(void *, const void *, size_t);
+extern int memcmp(const void *cs, const void *ct, size_t count);
 extern int strcmp(const char *cs, const char *ct);
 
 #endif /*  __ASSEMBLY__ */

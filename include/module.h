@@ -5,6 +5,9 @@
 #include <export.h>
 #include <list.h>
 
+typedef int (*init_module_t)(void);
+typedef void (*exit_module_t)(void);
+
 struct module {
     list_head list;
 
@@ -12,10 +15,10 @@ struct module {
     unsigned int num_syms;
 
     /* Startup function. */
-    int (*init)(void);
+    init_module_t init;
 
     /* Destruction function. */
-    void (*exit)(void);
+    exit_module_t exit;
 };
 
 #endif /* _LINUX_MODULE_H */

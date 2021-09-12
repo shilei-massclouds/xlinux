@@ -12,15 +12,12 @@
 /* n must be power of 2 */
 #define ROUND_UP(x, n) (((x) + (n) - 1ul) & ~((n) - 1ul))
 
-typedef int (*init_module_t)(void);
-
 extern char _end[];
 
 extern const struct kernel_symbol _start_ksymtab[];
-extern const struct kernel_symbol _stop_ksymtab[];
-extern const char _start_ksymtab_strings[];
+extern const struct kernel_symbol _end_ksymtab[];
 
-#define ksymtab_num (_stop_ksymtab - _start_ksymtab)
+#define ksymtab_num (_end_ksymtab - _start_ksymtab)
 
 LIST_HEAD(modules);
 EXPORT_SYMBOL(modules);
@@ -126,11 +123,14 @@ setup_load_info(uintptr_t base, struct load_info *info)
 
     info->name = NULL;
     info->hdr = (Elf64_Ehdr *)base;
+    info->len = info->hdr->e_phoff;
     info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
     info->secstrings = (void *)info->hdr +
         info->sechdrs[info->hdr->e_shstrndx].sh_offset;
     info->strtab = NULL;
 
+    sbi_printf("%s: load info len(%lx) [%lx]\n",
+               __func__, info->len, (uintptr_t)info->sechdrs);
     for (i = 1; i < info->hdr->e_shnum; i++) {
         if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
             info->index.sym = i;
@@ -155,8 +155,6 @@ static void
 move_module(uintptr_t addr, struct load_info *info)
 {
     int i;
-
-    addr = ROUND_UP(addr, 8);
 
     memset((void*)addr, 0, info->layout.size);
 
@@ -359,24 +357,49 @@ do_init_module(init_module_t fn)
     fn();
 }
 
-static void
-finalize_module(struct load_info *info)
+static u64
+query_sym(const char *target, struct load_info *info)
 {
     int i;
-    init_module_t fn = NULL;
     Elf64_Shdr *symsec = &info->sechdrs[info->index.sym];
     Elf64_Sym *sym = (void *)symsec->sh_addr;
 
     for (i = 1; i < symsec->sh_size / sizeof(Elf64_Sym); i++) {
-        const char *name = info->strtab + sym[i].st_name;
-        if (!strcmp(name, "init_module")) {
+        const char *sname = info->strtab + sym[i].st_name;
+        if (!strcmp(sname, target)) {
             sbi_printf("%s: %lx\n", __func__, sym[i].st_value);
-            fn = (init_module_t) sym[i].st_value;
-            break;
+            return sym[i].st_value;
         }
     }
 
-    do_init_module(fn);
+    return 0;
+}
+
+static void
+finalize_module(uintptr_t addr, struct load_info *info)
+{
+    int i;
+    struct kernel_symbol *start;
+    struct kernel_symbol *end;
+    struct module *mod;
+
+    mod = (struct module *) (addr + info->layout.size);
+    info->layout.size += sizeof(struct module);
+
+    memset((void*)mod, 0, sizeof(struct module));
+    INIT_LIST_HEAD(&mod->list);
+    list_add_tail(&mod->list, &modules);
+
+    start = (struct kernel_symbol *) query_sym("_start_mod_ksymtab", info);
+    end = (struct kernel_symbol *) query_sym("_end_mod_ksymtab", info);
+
+    mod->syms = start;
+    mod->num_syms = end - start;
+
+    mod->init = (init_module_t) query_sym("init_module", info);
+    mod->exit = (exit_module_t) query_sym("exit_module", info);
+
+    do_init_module(mod->init);
 
     /*
     for (i = 0; i < info->hdr->e_shnum; ++i) {
@@ -395,28 +418,35 @@ init_other_modules(void)
     struct load_info info;
 
     uintptr_t src_addr = modules_source_base();
-    uintptr_t dst_addr = (uintptr_t)_end;
+    uintptr_t dst_addr = ROUND_UP((uintptr_t)_end, 8);
 
-    memset((void*)&info, 0, sizeof(struct load_info));
+    while (1) {
+        /* should start with "ELF" magic number */
+        if (memcmp((void *)src_addr, ELFMAG, SELFMAG))
+            break;
 
-    setup_load_info(src_addr, &info);
+        memset((void*)&info, 0, sizeof(struct load_info));
 
-    rewrite_section_headers(&info);
+        setup_load_info(src_addr, &info);
 
-    layout_sections(&info);
+        rewrite_section_headers(&info);
 
-    move_module(dst_addr, &info);
+        layout_sections(&info);
 
-    simplify_symbols(&info);
+        move_module(dst_addr, &info);
 
-    apply_relocations(&info);
+        simplify_symbols(&info);
 
-    finalize_module(&info);
+        apply_relocations(&info);
 
-    //do_init_module();
+        finalize_module(dst_addr, &info);
 
-    /* next */
-    dst_addr += info.layout.size;
+        //do_init_module();
+
+        /* next */
+        src_addr += ROUND_UP(info.len, 8);
+        dst_addr += ROUND_UP(info.layout.size, 8);
+    }
 }
 
 void load_modules(void)
@@ -426,4 +456,6 @@ void load_modules(void)
     init_kernel_module();
 
     init_other_modules();
+
+    sbi_printf("%s: load all modules!\n", __func__);
 }

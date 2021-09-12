@@ -2,6 +2,8 @@
 #ifndef _UAPI_LINUX_KERNEL_H
 #define _UAPI_LINUX_KERNEL_H
 
+#include <types.h>
+
 #define ALIGN_KERNEL(x, a)  ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
 #define ALIGN_KERNEL_MASK(x, mask)  (((x) + (mask)) & ~(mask))
 
@@ -22,5 +24,8 @@ IS_ERR(const void *ptr)
 {
     return IS_ERR_VALUE((unsigned long)ptr);
 }
+
+typedef void (*start_kernel_t)(void);
+extern start_kernel_t start_kernel;
 
 #endif /* _UAPI_LINUX_KERNEL_H */

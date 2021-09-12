@@ -44,6 +44,9 @@
 #define ELF64_R_SYM(i)  ((i) >> 32)
 #define ELF64_R_TYPE(i) ((i) & 0xffffffff)
 
+#define ELFMAG      "\177ELF"
+#define SELFMAG     4
+
 #define EI_NIDENT   16
 
 /* Relocation types used by the dynamic linker */

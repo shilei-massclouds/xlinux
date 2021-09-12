@@ -105,6 +105,8 @@ clear_bss_done:
 
     call load_modules
 
+    tail start_kernel
+
 .balign 4
 .section .data, "aw"
 info:
