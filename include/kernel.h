@@ -26,6 +26,6 @@ IS_ERR(const void *ptr)
 }
 
 typedef void (*start_kernel_t)(void);
-extern start_kernel_t start_kernel;
+extern start_kernel_t start_kernel_fn;
 
 #endif /* _UAPI_LINUX_KERNEL_H */
