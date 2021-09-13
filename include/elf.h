@@ -64,6 +64,7 @@
 #define R_RISCV_TLS_TPREL64     11
 
 /* Relocation types not used by the dynamic linker */
+#define R_RISCV_BRANCH          16
 #define R_RISCV_CALL            18
 #define R_RISCV_GOT_HI20        20
 #define R_RISCV_TLS_GOT_HI20    21
@@ -72,6 +73,8 @@
 #define R_RISCV_PCREL_LO12_I    24
 #define R_RISCV_PCREL_LO12_S    25
 
+#define R_RISCV_RVC_BRANCH      44
+#define R_RISCV_RVC_JUMP        45
 #define R_RISCV_RELAX           51
 
 typedef struct elf64_hdr {

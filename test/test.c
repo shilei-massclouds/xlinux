@@ -11,7 +11,7 @@ EXPORT_SYMBOL(test);
 
 static int init_module(void)
 {
-    sbi_puts("test_print: [\n");
+    sbi_puts("module[test]: init begin ...\n");
     start_kernel_fn = test;
-    sbi_puts("]\n");
+    sbi_puts("module[test]: init end!\n");
 }

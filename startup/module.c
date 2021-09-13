@@ -89,8 +89,10 @@ layout_sections(struct load_info *info)
                 continue;
 
             s->sh_entsize = get_offset(&(info->layout.size), s);
+            /*
             sbi_printf("%s: %s %lx\n", __func__,
                        info->secstrings + s->sh_name, s->sh_entsize);
+                       */
         }
 
         switch (m) {
@@ -173,9 +175,11 @@ move_module(uintptr_t addr, struct load_info *info)
         /* Update sh_addr to point to copy in image. */
         s->sh_addr = (unsigned long)p;
 
+        /*
         sbi_printf("%s: %s %lx, %lx\n", __func__,
                    info->secstrings + s->sh_name, s->sh_addr,
                    *((u64*)p));
+                   */
     }
 }
 
@@ -209,7 +213,7 @@ simplify_symbols(const struct load_info *info)
 
         switch (sym[i].st_shndx) {
         case SHN_COMMON:
-            BUG_ON(true);
+            panic("'SHN_COMMON' isn't supported for %s", name);
             break;
         case SHN_ABS:
         case SHN_LIVEPATCH:
@@ -218,13 +222,11 @@ simplify_symbols(const struct load_info *info)
             ksym = resolve_symbol(info, name);
             if (ksym && !IS_ERR(ksym)) {
                 sym[i].st_value = ksym->value;
-                sbi_printf("SHN_UNDEF [%s]: %lx\n",
-                           name, sym[i].st_value);
-
+                //sbi_printf("SHN_UNDEF [%s]: %lx\n", name, sym[i].st_value);
                 break;
             }
 
-            BUG_ON(true);
+            panic("'%s' can't be resolved", name);
             break;
         default:
             sym[i].st_value += info->sechdrs[sym[i].st_shndx].sh_addr;
@@ -259,8 +261,10 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
 
         type = ELF64_R_TYPE(rel[i].r_info);
 
+        /*
         sbi_printf("%s: %lx, %lx(%lx), %lx\n", __func__,
                    type, location, (*location), v);
+                   */
 
         switch (type) {
         case R_RISCV_64:
@@ -281,6 +285,44 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
             lo12 = (offset - hi20) & 0xfff;
             *location = (*location & 0xfff) | hi20;
             *(location + 1) = (*(location + 1) & 0xfffff) | (lo12 << 20);
+            break;
+        }
+        case R_RISCV_BRANCH: {
+            ptrdiff_t offset = (void *)v - (void *)location;
+            u32 imm12 = (offset & 0x1000) << (31 - 12);
+            u32 imm11 = (offset & 0x800) >> (11 - 7);
+            u32 imm10_5 = (offset & 0x7e0) << (30 - 10);
+            u32 imm4_1 = (offset & 0x1e) << (11 - 4);
+
+            *location = (*location & 0x1fff07f) | imm12 | imm11 | imm10_5 | imm4_1;
+            break;
+        }
+        case R_RISCV_RVC_JUMP: {
+            ptrdiff_t offset = (void *)v - (void *)location;
+            u16 imm11 = (offset & 0x800) << (12 - 11);
+            u16 imm10 = (offset & 0x400) >> (10 - 8);
+            u16 imm9_8 = (offset & 0x300) << (12 - 11);
+            u16 imm7 = (offset & 0x80) >> (7 - 6);
+            u16 imm6 = (offset & 0x40) << (12 - 11);
+            u16 imm5 = (offset & 0x20) >> (5 - 2);
+            u16 imm4 = (offset & 0x10) << (12 - 5);
+            u16 imm3_1 = (offset & 0xe) << (12 - 10);
+
+            *(u16 *)location = (*(u16 *)location & 0xe003) |
+                imm11 | imm10 | imm9_8 | imm7 | imm6 | imm5 | imm4 | imm3_1;
+            break;
+        }
+        case R_RISCV_RVC_BRANCH: {
+            ptrdiff_t offset = (void *)v - (void *)location;
+            u16 imm8 = (offset & 0x100) << (12 - 8);
+            u16 imm7_6 = (offset & 0xc0) >> (6 - 5);
+            u16 imm5 = (offset & 0x20) >> (5 - 2);
+            u16 imm4_3 = (offset & 0x18) << (12 - 5);
+            u16 imm2_1 = (offset & 0x6) << (12 - 10);
+
+            *(u16 *)location = (*(u16 *)location & 0xe383) |
+                imm8 | imm7_6 | imm5 | imm4_3 | imm2_1;
+
             break;
         }
         case R_RISCV_RELAX:
@@ -322,8 +364,7 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
             break;
         }
         default:
-            sbi_printf("[%s]: \n", __func__);
-            BUG_ON(type);
+            panic("bad type %u", type);
             break;
         }
     }
@@ -367,7 +408,7 @@ query_sym(const char *target, struct load_info *info)
     for (i = 1; i < symsec->sh_size / sizeof(Elf64_Sym); i++) {
         const char *sname = info->strtab + sym[i].st_name;
         if (!strcmp(sname, target)) {
-            sbi_printf("%s: %lx\n", __func__, sym[i].st_value);
+            //sbi_printf("%s: %lx\n", __func__, sym[i].st_value);
             return sym[i].st_value;
         }
     }

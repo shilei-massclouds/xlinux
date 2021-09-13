@@ -22,8 +22,8 @@ enum fixed_addresses {
     __end_of_fixed_addresses
 };
 
-#define __fix_to_virt(x)    (FIXADDR_TOP - ((x) << PAGE_SHIFT))
-#define __virt_to_fix(x)    ((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
+#define fix_to_virt(x)  (FIXADDR_TOP - ((x) << PAGE_SHIFT))
+#define virt_to_fix(x)  ((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
 
 /* Address for flash
  * The flash is used for module

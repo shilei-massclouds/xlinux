@@ -6,6 +6,7 @@
 #include <fixmap.h>
 #include <pgtable.h>
 #include <bug.h>
+#include <export.h>
 
 #ifndef __riscv_cmodel_medany
 #error "Don't use absolute addressing now."
@@ -17,6 +18,11 @@ pge_t early_pgd[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 pme_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
 pme_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
 pte_t fixmap_pt[PTRS_PER_PT] __page_aligned_bss;
+
+void *dtb_early_va;
+EXPORT_SYMBOL(dtb_early_va);
+
+static phys_addr_t dtb_early_pa __initdata;
 
 void setup_early_pge(void)
 {
@@ -49,12 +55,15 @@ void setup_fixmap_pge(uintptr_t dtb_pa)
     fixmap_pmd[pme_idx] =
         pfn_pme(PFN_DOWN((uintptr_t)fixmap_pt), PAGE_TABLE);
 
-    end_va = __fix_to_virt(FIX_FDT) + FIX_FDT_SIZE;
-    for (va = __fix_to_virt(FIX_FDT); va < end_va; va += PAGE_SIZE) {
+    end_va = fix_to_virt(FIX_FDT) + FIX_FDT_SIZE;
+    for (va = fix_to_virt(FIX_FDT); va < end_va; va += PAGE_SIZE) {
         uintptr_t pte_idx = pte_index(va);
-        uintptr_t pa = dtb_pa + (va - __fix_to_virt(FIX_FDT));
+        uintptr_t pa = dtb_pa + (va - fix_to_virt(FIX_FDT));
         fixmap_pt[pte_idx] = pfn_pte(PFN_DOWN(pa), PAGE_KERNEL);
     }
+
+    dtb_early_va = (void *)fix_to_virt(FIX_FDT) + (dtb_pa & ~PAGE_MASK);
+    dtb_early_pa = dtb_pa;
 }
 
 void setup_flash_pge(void)
