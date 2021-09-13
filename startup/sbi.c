@@ -15,6 +15,14 @@ typedef __builtin_va_list   va_list;
 #define va_arg(v, l)        __builtin_va_arg(v, l)
 #define va_copy(d, s)       __builtin_va_copy(d, s)
 
+#define SIGN    1       /* unsigned/signed, must be 1 */
+#define LEFT    2       /* left justified */
+#define PLUS    4       /* show plus */
+#define SPACE   8       /* space if plus */
+#define ZEROPAD 16      /* pad with zero, must be 16 == '0' - ' ' */
+#define SMALL   32      /* use lowercase in hex (must be 32 == 0x20) */
+#define SPECIAL 64      /* prefix hex with "0x", octal with "0" */
+
 struct printf_spec {
     unsigned int    type:8;         /* format_type enum */
     signed int      field_width:24; /* width of output field */
@@ -140,9 +148,15 @@ format_decode(const char *fmt, struct printf_spec *spec)
     switch (*fmt) {
     case 's':
         spec->type = FORMAT_TYPE_STR;
-        break;
+        return ++fmt - start;
+    case 'X':
     case 'x':
         spec->base = 16;
+        break;
+    case 'd':
+    case 'i':
+        spec->flags |= SIGN;
+    case 'u':
         break;
     default:
         BUG_ON(true);
@@ -152,6 +166,8 @@ format_decode(const char *fmt, struct printf_spec *spec)
 
     if (qualifier == 'l') {
         spec->type = FORMAT_TYPE_ULONG;
+    } else {
+        spec->type = FORMAT_TYPE_UINT + (spec->flags & SIGN);
     }
 
     return ++fmt - start;
@@ -217,20 +233,30 @@ number(char *buf, char *end, unsigned long long num, struct printf_spec spec)
     int i = 0;
     char tmp[3 * sizeof(num)] __aligned(2);
 
-    BUG_ON(spec.base != 16);
+    if (spec.base == 16) {
+        do {
+            tmp[i++] = hex_asc_upper[((unsigned char)num) & 0xF];
+            num >>= 4;
+        } while (num);
 
-    do {
-        tmp[i++] = (hex_asc_upper[((unsigned char)num) & 0xF]);
-        num >>= 4;
-    } while (num);
-
-    if (buf < end)
         *buf = '0';
-    ++buf;
+        ++buf;
 
-    if (buf < end)
         *buf = 'X';
-    ++buf;
+        ++buf;
+    } else if (spec.base == 10) {
+        do {
+            tmp[i++] = hex_asc_upper[num % 10];
+            num /= 10;
+        } while (num);
+
+        if (spec.flags & SIGN) {
+            *buf = '-';
+            ++buf;
+        }
+    } else {
+        BUG_ON(true);
+    }
 
     /* actual digits of result */
     while (--i >= 0) {
@@ -280,6 +306,13 @@ vprintk_func(const char *fmt, va_list args)
                 break;
             case FORMAT_TYPE_LONG:
                 num = va_arg(args, long);
+                break;
+            case FORMAT_TYPE_INT:
+                num = (int) va_arg(args, int);
+                num = -(signed long long)num;
+                break;
+            case FORMAT_TYPE_UINT:
+                num = va_arg(args, unsigned int);
                 break;
             default:
                 BUG_ON(true);
