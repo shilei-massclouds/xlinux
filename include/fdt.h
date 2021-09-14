@@ -127,4 +127,12 @@ fdt32_ld(const fdt32_t *p)
 
 #define FDT_ERR_MAX         18
 
+bool
+early_init_dt_verify(void *params);
+
+typedef int(*of_scan_flat_dt_cb)(unsigned long node,
+                                  const char *uname,
+                                  int depth,
+                                  void *data);
+
 #endif /* LIBFDT_H */

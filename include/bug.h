@@ -35,7 +35,7 @@ _panic(const char *fn, int line, const char *file,
 #define panic(args...) \
     do { \
         sbi_printf("\n########################\n"); \
-        sbi_printf("PANIC: %s (%s:%uL)\n", __FUNCTION__, __FILE__, __LINE__); \
+        sbi_printf("PANIC: %s (%s:%u)\n", __FUNCTION__, __FILE__, __LINE__); \
         sbi_printf(args); \
         sbi_printf("\n########################\n"); \
         BUG(); \
