@@ -327,6 +327,12 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
         }
         case R_RISCV_RELAX:
             break;
+        case R_RISCV_ADD32:
+            *(u32 *)location += (u32)v;
+            break;
+        case R_RISCV_SUB32:
+            *(u32 *)location -= (u32)v;
+            break;
         case R_RISCV_PCREL_LO12_I:
         case R_RISCV_PCREL_LO12_S: {
             int j;

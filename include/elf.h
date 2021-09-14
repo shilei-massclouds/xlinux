@@ -73,6 +73,9 @@
 #define R_RISCV_PCREL_LO12_I    24
 #define R_RISCV_PCREL_LO12_S    25
 
+#define R_RISCV_ADD32           35
+#define R_RISCV_SUB32           39
+
 #define R_RISCV_RVC_BRANCH      44
 #define R_RISCV_RVC_JUMP        45
 #define R_RISCV_RELAX           51

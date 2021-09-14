@@ -146,6 +146,9 @@ format_decode(const char *fmt, struct printf_spec *spec)
     /* default base */
     spec->base = 10;
     switch (*fmt) {
+    case 'c':
+        spec->type = FORMAT_TYPE_CHAR;
+        return ++fmt - start;
     case 's':
         spec->type = FORMAT_TYPE_STR;
         return ++fmt - start;
@@ -245,15 +248,18 @@ number(char *buf, char *end, unsigned long long num, struct printf_spec spec)
         *buf = 'X';
         ++buf;
     } else if (spec.base == 10) {
+        if (spec.flags & SIGN) {
+            if ((signed long long)num < 0) {
+                num = -(signed long long)num;
+                *buf = '-';
+                ++buf;
+            }
+        }
+
         do {
             tmp[i++] = hex_asc_upper[num % 10];
             num /= 10;
         } while (num);
-
-        if (spec.flags & SIGN) {
-            *buf = '-';
-            ++buf;
-        }
     } else {
         BUG_ON(true);
     }
@@ -296,6 +302,13 @@ vprintk_func(const char *fmt, va_list args)
             str += read;
             break;
         }
+        case FORMAT_TYPE_CHAR: {
+            char c;
+            c = (unsigned char) va_arg(args, int);
+            *str = c;
+            ++str;
+            break;
+        }
         case FORMAT_TYPE_STR:
             str = string(str, end, va_arg(args, char *), spec);
             break;
@@ -309,7 +322,6 @@ vprintk_func(const char *fmt, va_list args)
                 break;
             case FORMAT_TYPE_INT:
                 num = (int) va_arg(args, int);
-                num = -(signed long long)num;
                 break;
             case FORMAT_TYPE_UINT:
                 num = va_arg(args, unsigned int);

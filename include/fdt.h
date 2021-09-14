@@ -4,14 +4,41 @@
 
 #include <types.h>
 
-#define FDT_MAGIC   0xd00dfeed  /* 4: version, 4: total size */
+#define FDT_MAGIC       0xd00dfeed  /* 4: version, 4: total size */
+#define FDT_TAGSIZE     sizeof(fdt32_t)
+
+#define FDT_ALIGN(x, a) (((x) + (a) - 1) & ~((a) - 1))
+#define FDT_TAGALIGN(x) (FDT_ALIGN((x), FDT_TAGSIZE))
+
+/* Tag */
+#define FDT_BEGIN_NODE  0x1     /* Start node: full name */
+#define FDT_END_NODE    0x2     /* End node */
+#define FDT_PROP        0x3     /* Property: name off, size, content */
+#define FDT_NOP         0x4     /* nop */
+#define FDT_END         0x9
+
+#define fdt32_to_cpu(x) be32_to_cpu(x)
 
 #define fdt_get_header(fdt, field) \
     (fdt32_ld(&((const struct fdt_header *)(fdt))->field))
 
-#define fdt_magic(fdt)  (fdt_get_header(fdt, magic))
+#define fdt_magic(fdt)          (fdt_get_header(fdt, magic))
+#define fdt_off_dt_struct(fdt)  (fdt_get_header(fdt, off_dt_struct))
+#define fdt_version(fdt)        (fdt_get_header(fdt, version))
 
 typedef u32 fdt32_t;
+
+struct fdt_node_header {
+    fdt32_t tag;
+    char name[0];
+};
+
+struct fdt_property {
+    fdt32_t tag;
+    fdt32_t len;
+    fdt32_t nameoff;
+    char data[0];
+};
 
 struct fdt_header {
     fdt32_t magic;              /* magic word FDT_MAGIC */
@@ -130,9 +157,18 @@ fdt32_ld(const fdt32_t *p)
 bool
 early_init_dt_verify(void *params);
 
-typedef int(*of_scan_flat_dt_cb)(unsigned long node,
+typedef int (*of_scan_flat_dt_cb)(unsigned long node,
                                   const char *uname,
                                   int depth,
                                   void *data);
+
+void
+early_init_dt_scan_nodes(void);
+
+static inline const void *
+fdt_offset_ptr_(const void *fdt, int offset)
+{
+    return (const char *)fdt + fdt_off_dt_struct(fdt) + offset;
+}
 
 #endif /* LIBFDT_H */

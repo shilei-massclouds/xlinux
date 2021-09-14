@@ -10,5 +10,7 @@ static int init_module(void)
 {
     sbi_puts("module[of]: init begin ...\n");
     early_init_dt_verify(dtb_early_va);
+    sbi_puts("module[of]: scan dtb nodes ...\n");
+    early_init_dt_scan_nodes();
     sbi_puts("module[of]: init end!\n");
 }

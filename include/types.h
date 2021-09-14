@@ -50,7 +50,16 @@ extern void *memset(void *, int, __kernel_size_t);
 extern void *memcpy(void *, const void *, size_t);
 extern int memcmp(const void *cs, const void *ct, size_t count);
 extern int strcmp(const char *cs, const char *ct);
+extern size_t strlen(const char *s);
 
 #endif /*  __ASSEMBLY__ */
+
+#define swab32(x) ((u32)(                    \
+    (((u32)(x) & (u32)0x000000ffUL) << 24) | \
+    (((u32)(x) & (u32)0x0000ff00UL) <<  8) | \
+    (((u32)(x) & (u32)0x00ff0000UL) >>  8) | \
+    (((u32)(x) & (u32)0xff000000UL) >> 24)))
+
+#define be32_to_cpu(x) swab32((u32)(x))
 
 #endif /* _LINUX_TYPES_H */
