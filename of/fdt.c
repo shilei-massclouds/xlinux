@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <fdt.h>
 #include <sbi.h>
+#include <types.h>
 
 void *initial_boot_params;
+
+int dt_root_addr_cells;
+int dt_root_size_cells;
 
 static int
 fdt_check_header(const void *fdt)
@@ -162,6 +166,152 @@ int of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data)
     return rc;
 }
 
+static int
+nextprop_(const void *fdt, int offset)
+{
+    uint32_t tag;
+    int nextoffset;
+
+    do {
+        tag = fdt_next_tag(fdt, offset, &nextoffset);
+
+        switch (tag) {
+        case FDT_END:
+            if (nextoffset >= 0)
+                return -FDT_ERR_BADSTRUCTURE;
+            else
+                return nextoffset;
+
+        case FDT_PROP:
+            return offset;
+        }
+        offset = nextoffset;
+    } while (tag == FDT_NOP);
+
+    return -FDT_ERR_NOTFOUND;
+}
+
+static int
+fdt_first_property_offset(const void *fdt, int nodeoffset)
+{
+    int offset;
+    fdt_next_tag(fdt, nodeoffset, &offset);
+    return nextprop_(fdt, offset);
+}
+
+static int
+fdt_next_property_offset(const void *fdt, int offset)
+{
+    fdt_next_tag(fdt, offset, &offset);
+    return nextprop_(fdt, offset);
+}
+
+static const struct fdt_property *
+fdt_get_property_by_offset_(const void *fdt, int offset, int *lenp)
+{
+    const struct fdt_property *prop;
+
+    prop = fdt_offset_ptr_(fdt, offset);
+
+    if (lenp)
+        *lenp = fdt32_ld(&prop->len);
+
+    return prop;
+}
+
+static const char *
+fdt_get_string(const void *fdt, int stroffset, int *lenp)
+{
+    uint32_t absoffset;
+    size_t len;
+    const char *s, *n;
+
+    absoffset = stroffset + fdt_off_dt_strings(fdt);
+    len = fdt_size_dt_strings(fdt) - stroffset;
+    s = (const char *)fdt + absoffset;
+    n = memchr(s, '\0', len);
+
+    if (lenp)
+        *lenp = n - s;
+    return s;
+}
+
+static int
+fdt_string_eq_(const void *fdt, int stroffset, const char *s, int len)
+{
+    int slen;
+    const char *p = fdt_get_string(fdt, stroffset, &slen);
+
+    return p && (slen == len) && (memcmp(p, s, len) == 0);
+}
+
+static const struct fdt_property *
+fdt_get_property_namelen_(const void *fdt,
+                          int offset,
+                          const char *name,
+                          int namelen,
+                          int *lenp,
+                          int *poffset)
+{
+    for (offset = fdt_first_property_offset(fdt, offset);
+         (offset >= 0);
+         (offset = fdt_next_property_offset(fdt, offset))) {
+        const struct fdt_property *prop;
+
+        prop = fdt_get_property_by_offset_(fdt, offset, lenp);
+        if (!prop) {
+            offset = -FDT_ERR_INTERNAL;
+            break;
+        }
+
+        if (fdt_string_eq_(fdt, fdt32_ld(&prop->nameoff), name, namelen)) {
+            if (poffset)
+                *poffset = offset;
+            return prop;
+        }
+    }
+
+    if (lenp)
+        *lenp = offset;
+    return NULL;
+}
+
+static const void *
+fdt_getprop_namelen(const void *fdt,
+                    int nodeoffset,
+                    const char *name,
+                    int namelen,
+                    int *lenp)
+{
+    int poffset;
+    const struct fdt_property *prop;
+
+    prop = fdt_get_property_namelen_(fdt, nodeoffset, name, namelen, lenp,
+                     &poffset);
+    if (!prop)
+        return NULL;
+
+    return prop->data;
+}
+
+static const void *
+fdt_getprop(const void *fdt, int nodeoffset, const char *name, int *lenp)
+{
+    return fdt_getprop_namelen(fdt, nodeoffset, name, strlen(name), lenp);
+}
+
+/**
+ * of_get_flat_dt_prop - Given a node in the flat blob, return the property ptr
+ *
+ * This function can be used within scan_flattened_dt callback to get
+ * access to properties
+ */
+static const void *
+of_get_flat_dt_prop(unsigned long node, const char *name, int *size)
+{
+    return fdt_getprop(initial_boot_params, node, name, size);
+}
+
 /**
  * early_init_dt_scan_root - fetch the top level address and size cells
  */
@@ -171,9 +321,26 @@ early_init_dt_scan_root(unsigned long node,
                         int depth,
                         void *data)
 {
-    sbi_printf("%s: node(%u) uname(%s) depth(%d)\n",
-               __func__, node, uname, depth);
-    return 0;
+    const u32 *prop;
+
+    if (depth != 0)
+        return 0;
+
+    dt_root_size_cells = OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
+    dt_root_addr_cells = OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
+
+    prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
+    if (prop)
+        dt_root_size_cells = be32_to_cpup(prop);
+
+    prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
+    if (prop) {
+        dt_root_addr_cells = be32_to_cpup(prop);
+        sbi_printf("dt_root_addr_cells = %x\n", dt_root_addr_cells);
+    }
+
+    /* break now */
+    return 1;
 }
 
 /**

@@ -49,6 +49,7 @@ typedef __kernel_size_t     size_t;
 extern void *memset(void *, int, __kernel_size_t);
 extern void *memcpy(void *, const void *, size_t);
 extern int memcmp(const void *cs, const void *ct, size_t count);
+extern void *memchr(const void *s, int c, size_t n);
 extern int strcmp(const char *cs, const char *ct);
 extern size_t strlen(const char *s);
 
@@ -61,5 +62,6 @@ extern size_t strlen(const char *s);
     (((u32)(x) & (u32)0xff000000UL) >> 24)))
 
 #define be32_to_cpu(x) swab32((u32)(x))
+#define be32_to_cpup(x) swab32(*((u32*)(x)))
 
 #endif /* _LINUX_TYPES_H */

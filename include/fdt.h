@@ -4,6 +4,9 @@
 
 #include <types.h>
 
+#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
+#define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
+
 #define FDT_MAGIC       0xd00dfeed  /* 4: version, 4: total size */
 #define FDT_TAGSIZE     sizeof(fdt32_t)
 
@@ -22,9 +25,11 @@
 #define fdt_get_header(fdt, field) \
     (fdt32_ld(&((const struct fdt_header *)(fdt))->field))
 
-#define fdt_magic(fdt)          (fdt_get_header(fdt, magic))
-#define fdt_off_dt_struct(fdt)  (fdt_get_header(fdt, off_dt_struct))
-#define fdt_version(fdt)        (fdt_get_header(fdt, version))
+#define fdt_magic(fdt)              (fdt_get_header(fdt, magic))
+#define fdt_off_dt_struct(fdt)      (fdt_get_header(fdt, off_dt_struct))
+#define fdt_version(fdt)            (fdt_get_header(fdt, version))
+#define fdt_off_dt_strings(fdt)     (fdt_get_header(fdt, off_dt_strings))
+#define fdt_size_dt_strings(fdt)    (fdt_get_header(fdt, size_dt_strings))
 
 typedef u32 fdt32_t;
 
