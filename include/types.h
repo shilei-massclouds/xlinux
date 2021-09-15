@@ -64,4 +64,8 @@ extern size_t strlen(const char *s);
 #define be32_to_cpu(x) swab32((u32)(x))
 #define be32_to_cpup(x) swab32(*((u32*)(x)))
 
+#define ALIGN_MASK(x, mask)  (((x) + (mask)) & ~(mask))
+#define ALIGN(x, a) ALIGN_MASK((x), (typeof(x))(a) - 1)
+#define IS_ALIGNED(x, a)    (((x) & ((typeof(x))(a) - 1)) == 0)
+
 #endif /* _LINUX_TYPES_H */

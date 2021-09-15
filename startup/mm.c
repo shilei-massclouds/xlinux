@@ -19,6 +19,9 @@ pme_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
 pme_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
 pte_t fixmap_pt[PTRS_PER_PT] __page_aligned_bss;
 
+unsigned long va_pa_offset;
+EXPORT_SYMBOL(va_pa_offset);
+
 void *dtb_early_va;
 EXPORT_SYMBOL(dtb_early_va);
 
@@ -29,6 +32,8 @@ void setup_early_pge(void)
     uintptr_t load_pa = (uintptr_t)(&_start);
     uintptr_t pge_idx = pge_index(PAGE_OFFSET);
     uintptr_t pme_idx = pme_index(PAGE_OFFSET);
+
+    va_pa_offset = PAGE_OFFSET - load_pa;
 
     BUG_ON(!pge_none(early_pgd[pge_idx]));
 

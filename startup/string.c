@@ -97,6 +97,7 @@ int strcmp(const char *cs, const char *ct)
     }
     return 0;
 }
+EXPORT_SYMBOL(strcmp);
 
 /**
  * strlen - Find the length of a string

@@ -176,4 +176,14 @@ fdt_offset_ptr_(const void *fdt, int offset)
     return (const char *)fdt + fdt_off_dt_struct(fdt) + offset;
 }
 
+/* Helper to read a big number; size is in cells (not bytes) */
+static inline u64
+of_read_number(const u32 *cell, int size)
+{
+    u64 r = 0;
+    for (; size--; cell++)
+        r = (r << 32) | be32_to_cpu(*cell);
+    return r;
+}
+
 #endif /* LIBFDT_H */

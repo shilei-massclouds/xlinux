@@ -85,7 +85,13 @@
 #define PAGE_KERNEL_EXEC    __pgprot(_PAGE_KERNEL | _PAGE_EXEC)
 #define PAGE_TABLE          __pgprot(_PAGE_TABLE)
 
+#define __va_to_pa(x)       ((unsigned long)(x) - va_pa_offset)
+#define __virt_to_phys(x)   __va_to_pa(x)
+#define __pa(x) __virt_to_phys((unsigned long)(x))
+
 #ifndef __ASSEMBLY__
+
+extern unsigned long va_pa_offset;
 
 typedef struct {
     unsigned long pgprot;
@@ -128,5 +134,9 @@ struct page {
 #ifndef pge_none
 #define pge_none(pge) (!pge_val(pge))
 #endif
+
+/* test whether an address (unsigned long or pointer) is aligned to PAGE_SIZE */
+#define PAGE_ALIGNED(addr)  IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
+#define PAGE_ALIGN(addr)    ALIGN(addr, PAGE_SIZE)
 
 #endif /* _PAGE_H */
