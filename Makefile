@@ -4,7 +4,7 @@ include scripts/Makefile.include
 
 PHONY := all clean
 
-SUBDIRS		:= startup of test
+SUBDIRS		:= startup memblock of test
 CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 
 PHONY += $(SUBDIRS)

@@ -76,6 +76,8 @@ layout_sections(struct load_info *info)
     };
     unsigned int m, i;
 
+    sbi_printf("%s: \n", __func__);
+
     for (i = 0; i < info->hdr->e_shnum; i++)
         info->sechdrs[i].sh_entsize = ~0UL;
 
@@ -110,6 +112,8 @@ static void
 rewrite_section_headers(struct load_info *info)
 {
     int i;
+
+    sbi_printf("%s: \n", __func__);
 
     /* Skip 0 because it is NULL segment. */
     for (i = 1; i < info->hdr->e_shnum; i++) {
@@ -157,6 +161,8 @@ static void
 move_module(uintptr_t addr, struct load_info *info)
 {
     int i;
+
+    sbi_printf("%s: \n", __func__);
 
     memset((void*)addr, 0, info->layout.size);
 
@@ -207,6 +213,8 @@ simplify_symbols(const struct load_info *info)
     const struct kernel_symbol *ksym;
     Elf64_Shdr *symsec = &info->sechdrs[info->index.sym];
     Elf64_Sym *sym = (void *)symsec->sh_addr;
+
+    sbi_printf("%s: \n", __func__);
 
     for (i = 1; i < symsec->sh_size / sizeof(Elf64_Sym); i++) {
         const char *name = info->strtab + sym[i].st_name;
@@ -381,6 +389,8 @@ apply_relocations(const struct load_info *info)
 {
     int i;
 
+    sbi_printf("%s: \n", __func__);
+
     for (i = 1; i < info->hdr->e_shnum; i++) {
         unsigned int infosec = info->sechdrs[i].sh_info;
 
@@ -396,12 +406,6 @@ apply_relocations(const struct load_info *info)
             apply_relocate_add(info->sechdrs,
                                info->strtab, info->index.sym, i);
     }
-}
-
-static void
-do_init_module(init_module_t fn)
-{
-    fn();
 }
 
 static u64
@@ -422,13 +426,15 @@ query_sym(const char *target, struct load_info *info)
     return 0;
 }
 
-static void
+static struct module *
 finalize_module(uintptr_t addr, struct load_info *info)
 {
     int i;
     struct kernel_symbol *start;
     struct kernel_symbol *end;
     struct module *mod;
+
+    sbi_printf("%s: \n", __func__);
 
     mod = (struct module *) (addr + info->layout.size);
     info->layout.size += sizeof(struct module);
@@ -446,8 +452,6 @@ finalize_module(uintptr_t addr, struct load_info *info)
     mod->init = (init_module_t) query_sym("init_module", info);
     mod->exit = (exit_module_t) query_sym("exit_module", info);
 
-    do_init_module(mod->init);
-
     /*
     for (i = 0; i < info->hdr->e_shnum; ++i) {
         Elf64_Shdr *s = info->sechdrs + i;
@@ -456,6 +460,17 @@ finalize_module(uintptr_t addr, struct load_info *info)
                    __func__, sname, s->sh_entsize, s->sh_addr);
     }
     */
+
+    return mod;
+}
+
+static void
+do_init_module(struct module *mod)
+{
+    sbi_printf("%s: \n", __func__);
+
+    if (mod->init)
+        mod->init();
 }
 
 static void
@@ -463,6 +478,7 @@ init_other_modules(void)
 {
     int i;
     struct load_info info;
+    struct module *mod;
 
     uintptr_t src_addr = modules_source_base();
     uintptr_t dst_addr = ROUND_UP((uintptr_t)_end, 8);
@@ -486,14 +502,16 @@ init_other_modules(void)
 
         apply_relocations(&info);
 
-        finalize_module(dst_addr, &info);
+        mod = finalize_module(dst_addr, &info);
 
-        //do_init_module();
+        do_init_module(mod);
 
         /* next */
         src_addr += ROUND_UP(info.len, 8);
         dst_addr += ROUND_UP(info.layout.size, 8);
     }
+
+    sbi_printf("%s: ok!\n", __func__);
 }
 
 void load_modules(void)

@@ -4,6 +4,7 @@
 #include <kernel.h>
 #include <fdt.h>
 #include <page.h>
+#include <memblock.h>
 
 extern void *dtb_early_va;
 
@@ -50,13 +51,6 @@ early_init_dt_scan_root(unsigned long node,
 
 #define MIN_MEMBLOCK_ADDR   __pa(PAGE_OFFSET)
 #define MAX_MEMBLOCK_ADDR   ((phys_addr_t)~0)
-
-static int
-memblock_add(phys_addr_t base, phys_addr_t size)
-{
-    sbi_printf("%s: [%lx-%lx]\n", __func__, base, size);
-    return 0;
-}
 
 static void
 early_init_dt_add_memory_arch(u64 base, u64 size)
