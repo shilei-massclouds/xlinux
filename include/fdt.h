@@ -63,6 +63,16 @@ struct fdt_header {
     fdt32_t size_dt_struct;     /* size of the structure block */
 };
 
+extern void *initial_boot_params;
+extern int dt_root_addr_cells;
+extern int dt_root_size_cells;
+
+int
+fdt_check_header(const void *fdt);
+
+const void *
+of_get_flat_dt_prop(unsigned long node, const char *name, int *size);
+
 static inline uint32_t
 fdt32_ld(const fdt32_t *p)
 {
@@ -159,16 +169,13 @@ fdt32_ld(const fdt32_t *p)
 
 #define FDT_ERR_MAX         18
 
-bool
-early_init_dt_verify(void *params);
-
 typedef int (*of_scan_flat_dt_cb)(unsigned long node,
                                   const char *uname,
                                   int depth,
                                   void *data);
 
-void
-early_init_dt_scan_nodes(void);
+int
+of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data);
 
 static inline const void *
 fdt_offset_ptr_(const void *fdt, int offset)

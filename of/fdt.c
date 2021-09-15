@@ -2,33 +2,11 @@
 #include <fdt.h>
 #include <sbi.h>
 #include <types.h>
-#include <page.h>
 
 void *initial_boot_params;
 
 int dt_root_addr_cells;
 int dt_root_size_cells;
-
-static int
-fdt_check_header(const void *fdt)
-{
-    if (fdt_magic(fdt) != FDT_MAGIC)
-        return -FDT_ERR_BADMAGIC;
-
-    return 0;
-}
-
-bool
-early_init_dt_verify(void *params)
-{
-    if (fdt_check_header(params))
-        return false;
-
-    /* Setup flat device-tree pointer */
-    initial_boot_params = params;
-
-    return true;
-}
 
 static uint32_t
 fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
@@ -131,35 +109,6 @@ fdt_get_name(const void *fdt, int nodeoffset, int *len)
         *len = strlen(nameptr);
 
     return nameptr;
-}
-
-/**
- * of_scan_flat_dt - scan flattened tree blob and call callback on each.
- * @it: callback function
- * @data: context data pointer
- *
- * This function is used to scan the flattened device-tree, it is
- * used to extract the memory information at boot before we can
- * unflatten the tree
- */
-int of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data)
-{
-    const void *blob = initial_boot_params;
-    const char *pathp;
-    int offset, rc = 0, depth = -1;
-
-    if (!blob)
-        return 0;
-
-    for (offset = fdt_next_node(blob, -1, &depth);
-         offset >= 0 && depth >= 0 && !rc;
-         offset = fdt_next_node(blob, offset, &depth)) {
-
-        pathp = fdt_get_name(blob, offset, NULL);
-        rc = cb(offset, pathp, depth, data);
-    }
-
-    return rc;
 }
 
 static int
@@ -296,170 +245,53 @@ fdt_getprop(const void *fdt, int nodeoffset, const char *name, int *lenp)
     return fdt_getprop_namelen(fdt, nodeoffset, name, strlen(name), lenp);
 }
 
+int
+fdt_check_header(const void *fdt)
+{
+    if (fdt_magic(fdt) != FDT_MAGIC)
+        return -FDT_ERR_BADMAGIC;
+
+    return 0;
+}
+
 /**
  * of_get_flat_dt_prop - Given a node in the flat blob, return the property ptr
  *
  * This function can be used within scan_flattened_dt callback to get
  * access to properties
  */
-static const void *
+const void *
 of_get_flat_dt_prop(unsigned long node, const char *name, int *size)
 {
     return fdt_getprop(initial_boot_params, node, name, size);
 }
 
 /**
- * early_init_dt_scan_root - fetch the top level address and size cells
+ * of_scan_flat_dt - scan flattened tree blob and call callback on each.
+ * @it: callback function
+ * @data: context data pointer
+ *
+ * This function is used to scan the flattened device-tree, it is
+ * used to extract the memory information at boot before we can
+ * unflatten the tree
  */
-static int
-early_init_dt_scan_root(unsigned long node,
-                        const char *uname,
-                        int depth,
-                        void *data)
+int
+of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data)
 {
-    const u32 *prop;
+    const void *blob = initial_boot_params;
+    const char *pathp;
+    int offset, rc = 0, depth = -1;
 
-    if (depth != 0)
+    if (!blob)
         return 0;
 
-    dt_root_size_cells = OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
-    dt_root_addr_cells = OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
+    for (offset = fdt_next_node(blob, -1, &depth);
+         offset >= 0 && depth >= 0 && !rc;
+         offset = fdt_next_node(blob, offset, &depth)) {
 
-    prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
-    if (prop)
-        dt_root_size_cells = be32_to_cpup(prop);
-
-    prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
-    if (prop)
-        dt_root_addr_cells = be32_to_cpup(prop);
-
-    /* break now */
-    return 1;
-}
-
-static u64
-dt_mem_next_cell(int s, const u32 **cellp)
-{
-    const u32 *p = *cellp;
-
-    *cellp = p + s;
-    return of_read_number(p, s);
-}
-
-#define MIN_MEMBLOCK_ADDR   __pa(PAGE_OFFSET)
-#define MAX_MEMBLOCK_ADDR   ((phys_addr_t)~0)
-
-static int
-memblock_add(phys_addr_t base, phys_addr_t size)
-{
-    sbi_printf("%s: [%lx-%lx]\n", __func__, base, size);
-    return 0;
-}
-
-void
-early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-    const u64 phys_offset = MIN_MEMBLOCK_ADDR;
-
-    if (size < PAGE_SIZE - (base & ~PAGE_MASK)) {
-        sbi_printf("Ignoring memory block %lx - %lx\n",
-                   base, base + size);
-        return;
+        pathp = fdt_get_name(blob, offset, NULL);
+        rc = cb(offset, pathp, depth, data);
     }
 
-    if (!PAGE_ALIGNED(base)) {
-        size -= PAGE_SIZE - (base & ~PAGE_MASK);
-        base = PAGE_ALIGN(base);
-    }
-    size &= PAGE_MASK;
-
-    if (base > MAX_MEMBLOCK_ADDR) {
-        sbi_printf("Ignoring memory block %lx - %lx\n",
-                   base, base + size);
-        return;
-    }
-
-    if (base + size - 1 > MAX_MEMBLOCK_ADDR) {
-        sbi_printf("Ignoring memory range %lx - %lx\n",
-                   ((u64)MAX_MEMBLOCK_ADDR) + 1, base + size);
-        size = MAX_MEMBLOCK_ADDR - base + 1;
-    }
-
-    if (base + size < phys_offset) {
-        sbi_printf("Ignoring memory block %lx - %lx\n",
-                   base, base + size);
-        return;
-    }
-
-    if (base < phys_offset) {
-        sbi_printf("Ignoring memory range %lx - %lx\n",
-                   base, phys_offset);
-        size -= phys_offset - base;
-        base = phys_offset;
-    }
-
-    memblock_add(base, size);
+    return rc;
 }
-
-/**
- * early_init_dt_scan_memory - Look for and parse memory nodes
- */
-static int
-early_init_dt_scan_memory(unsigned long node,
-                          const char *uname,
-                          int depth,
-                          void *data)
-{
-    const u32 *reg;
-    const u32 *endp;
-    const char *type;
-    int len;
-
-    /* We are scanning "memory" nodes only */
-    type = of_get_flat_dt_prop(node, "device_type", NULL);
-    if (type == NULL || strcmp(type, "memory") != 0)
-        return 0;
-
-    reg = of_get_flat_dt_prop(node, "reg", &len);
-    if (reg == NULL)
-        return 0;
-
-    endp = reg + (len / sizeof(u32));
-
-    sbi_printf("memory scan node %s, reg size %d,\n", uname, len);
-
-    while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-        u64 base, size;
-
-        base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-        size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-        if (size == 0)
-            continue;
-
-        sbi_printf(" - %lx ,  %lx\n",
-                   (unsigned long long)base,
-                   (unsigned long long)size);
-
-        early_init_dt_add_memory_arch(base, size);
-    }
-
-    return 0;
-}
-
-void
-early_init_dt_scan_nodes(void)
-{
-    of_scan_flat_dt(early_init_dt_scan_root, NULL);
-
-    of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-}
-
-/*
-void
-unflatten_device_tree(void)
-{
-    __unflatten_device_tree(initial_boot_params, NULL, &of_root,
-                            early_init_dt_alloc_memory_arch, false);
-}
-*/
