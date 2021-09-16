@@ -42,7 +42,9 @@ SECTIONS
     }
 
     _ksymtab_strings : AT(ADDR(_ksymtab_strings) - LOAD_OFFSET) {
+        _start_ksymtab_strings = .;
         KEEP(*(_ksymtab_strings));
+        _end_ksymtab_strings = .;
     }
 
     _data_start = .;
