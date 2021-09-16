@@ -5,6 +5,7 @@
 #include <fdt.h>
 #include <page.h>
 #include <memblock.h>
+#include <bug.h>
 
 extern void *dtb_early_va;
 
@@ -160,11 +161,38 @@ early_init_dt_scan_nodes(void)
     of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 }
 
-static int init_module(void)
+static void *
+early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+    void *ptr = memblock_alloc(size, align);
+
+    if (!ptr)
+        panic("%s: Failed to allocate %lu bytes align=%lx\n",
+              __func__, size, align);
+
+    return ptr;
+}
+
+static void
+unflatten_device_tree(void)
+{
+    //__unflatten_device_tree(initial_boot_params, NULL, &of_root,
+                            //early_init_dt_alloc_memory_arch, false);
+
+    /* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
+    //of_alias_scan(early_init_dt_alloc_memory_arch);
+
+    //unittest_unflatten_overlay_base();
+}
+
+static int
+init_module(void)
 {
     sbi_puts("module[of]: init begin ...\n");
     early_init_dt_verify(dtb_early_va);
     sbi_puts("module[of]: scan dtb nodes ...\n");
     early_init_dt_scan_nodes();
+    sbi_puts("module[of]: unflatten device tree ...\n");
+    unflatten_device_tree();
     sbi_puts("module[of]: init end!\n");
 }
