@@ -4,6 +4,7 @@
 #include <kernel.h>
 #include <page.h>
 #include <memblock.h>
+#include <bug.h>
 
 static void test(void)
 {
@@ -13,15 +14,11 @@ EXPORT_SYMBOL(test);
 
 static int init_module(void)
 {
-    void *ptr;
-
     sbi_puts("module[test]: init begin ...\n");
 
     start_kernel_fn = test;
 
-    sbi_puts("module[test]: memory block alloc ...\n");
-
-    ptr = memblock_alloc(16, PAGE_SIZE);
-
     sbi_puts("module[test]: init end!\n");
+
+    return 0;
 }

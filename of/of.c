@@ -183,6 +183,15 @@ unflatten_device_tree(void)
     //of_alias_scan(early_init_dt_alloc_memory_arch);
 
     //unittest_unflatten_overlay_base();
+    void *ptr;
+
+    sbi_puts("memory block alloc ...\n");
+
+    ptr = memblock_alloc(16, PAGE_SIZE);
+    if (ptr == NULL)
+        panic("Error: can not alloc!\n");
+
+    sbi_puts("alloc okay!\n");
 }
 
 static int
@@ -195,4 +204,6 @@ init_module(void)
     sbi_puts("module[of]: unflatten device tree ...\n");
     unflatten_device_tree();
     sbi_puts("module[of]: init end!\n");
+
+    return 0;
 }

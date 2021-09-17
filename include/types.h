@@ -6,6 +6,18 @@
 
 #define NULL ((void *)0)
 
+#define SIZE_MAX        (~(size_t)0)
+#define PHYS_ADDR_MAX   (~(phys_addr_t)0)
+#define ULLONG_MAX      (~0ULL)
+
+#define min(a, b)   ((a < b) ? a : b)
+#define max(a, b)   ((a > b) ? a : b)
+
+#define clamp(val, lo, hi) min((typeof(val))max(val, lo), hi)
+
+#define __round_mask(x, y) ((__typeof__(x))((y)-1))
+#define round_down(x, y) ((x) & ~__round_mask(x, y))
+
 typedef struct {
     int counter;
 } atomic_t;
@@ -50,6 +62,7 @@ extern void *memset(void *, int, __kernel_size_t);
 extern void *memcpy(void *, const void *, size_t);
 extern int memcmp(const void *cs, const void *ct, size_t count);
 extern void *memchr(const void *s, int c, size_t n);
+extern void *memmove(void *dest, const void *src, size_t count);
 extern int strcmp(const char *cs, const char *ct);
 extern size_t strlen(const char *s);
 

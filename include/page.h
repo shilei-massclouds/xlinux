@@ -87,7 +87,12 @@
 
 #define __va_to_pa(x)       ((unsigned long)(x) - va_pa_offset)
 #define __virt_to_phys(x)   __va_to_pa(x)
-#define __pa(x) __virt_to_phys((unsigned long)(x))
+#define __pa(x)             __virt_to_phys((unsigned long)(x))
+#define virt_to_phys(x)     __pa((unsigned long)x)
+
+#define __pa_to_va(x)   ((void *)((unsigned long) (x) + va_pa_offset))
+#define __va(x)         ((void *)__pa_to_va((phys_addr_t)(x)))
+#define phys_to_virt(x) __va(x)
 
 #ifndef __ASSEMBLY__
 
