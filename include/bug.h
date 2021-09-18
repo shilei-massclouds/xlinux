@@ -21,7 +21,7 @@
         sbi_printf("PANIC: %s (%s:%u)\n", __FUNCTION__, __FILE__, __LINE__); \
         sbi_printf(args); \
         sbi_printf("\n########################\n"); \
-        BUG(); \
+        __asm__ __volatile__ ("ebreak\n");  \
     } while(0)
 
 #endif /* _ASM_RISCV_BUG_H */
