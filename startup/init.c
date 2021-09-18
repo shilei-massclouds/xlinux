@@ -9,6 +9,8 @@ EXPORT_SYMBOL(start_kernel_fn);
 
 void start_kernel(void)
 {
+    sbi_printf("%s: ...\n", __func__);
+
     if (start_kernel_fn)
         start_kernel_fn();
 

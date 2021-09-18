@@ -49,4 +49,14 @@
 #define EXC_LOAD_PAGE_FAULT     13
 #define EXC_STORE_PAGE_FAULT    15
 
+#ifndef __ASSEMBLY__
+#define csr_write(csr, val)                             \
+({                                                      \
+    unsigned long __v = (unsigned long)(val);           \
+    __asm__ __volatile__ ("csrw " __ASM_STR(csr) ", %0" \
+                          : : "rK" (__v)                \
+                          : "memory");                  \
+})
+#endif /* __ASSEMBLY__ */
+
 #endif /* _ASM_RISCV_CSR_H */

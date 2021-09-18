@@ -6,6 +6,7 @@
 #include <page.h>
 #include <memblock.h>
 #include <bug.h>
+#include <mm.h>
 
 extern void *dtb_early_va;
 
@@ -201,6 +202,8 @@ init_module(void)
     early_init_dt_verify(dtb_early_va);
     sbi_puts("module[of]: scan dtb nodes ...\n");
     early_init_dt_scan_nodes();
+    sbi_puts("module[of]: memblock_setup_vm_final ...\n");
+    memblock_setup_vm_final();
     sbi_puts("module[of]: unflatten device tree ...\n");
     unflatten_device_tree();
     sbi_puts("module[of]: init end!\n");

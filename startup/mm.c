@@ -9,12 +9,13 @@
 #include <export.h>
 #include <kernel.h>
 #include <memblock.h>
+#include <mm.h>
+#include <csr.h>
 
 #ifndef __riscv_cmodel_medany
 #error "Don't use absolute addressing now."
 #endif
 
-typedef phys_addr_t (*phys_alloc_t)(phys_addr_t size, phys_addr_t align);
 static phys_alloc_t phys_alloc_fn;
 
 extern char _start[];
@@ -187,17 +188,25 @@ setup_vm_final(struct memblock_region *regions,
 
 	/* Map all memory banks */
     for (reg = regions; reg < (regions + regions_cnt); reg++) {
-		start = reg->base;
-		end = start + reg->size;
+        start = reg->base;
+        end = start + reg->size;
 
-		if (start >= end)
-			break;
+        if (start >= end)
+            break;
 
-		for (pa = start; pa < end; pa += PME_SIZE) {
-			va = (uintptr_t)__va(pa);
-			create_pgd_mapping(swapper_pg_dir, va, pa,
+        for (pa = start; pa < end; pa += PME_SIZE) {
+            va = (uintptr_t)__va(pa);
+            create_pgd_mapping(swapper_pg_dir, va, pa,
                                PME_SIZE, PAGE_KERNEL_EXEC);
-		}
+        }
     }
+
+    /* Clear fixmap PTE and PMD mappings */
+    clear_fixmap(FIX_PTE);
+    clear_fixmap(FIX_PMD);
+
+    /* Move to swapper page table */
+    csr_write(CSR_SATP, PFN_DOWN(__pa(swapper_pg_dir)) | SATP_MODE);
+    local_flush_tlb_all();
 }
 EXPORT_SYMBOL(setup_vm_final);

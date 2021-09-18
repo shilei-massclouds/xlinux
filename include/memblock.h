@@ -111,6 +111,9 @@ memblock_reserve(phys_addr_t base, phys_addr_t size);
 phys_addr_t
 memblock_phys_alloc_range(phys_addr_t size, phys_addr_t align);
 
+void
+memblock_setup_vm_final(void);
+
 static inline void *
 memblock_alloc(phys_addr_t size, phys_addr_t align)
 {

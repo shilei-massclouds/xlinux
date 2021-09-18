@@ -10,4 +10,10 @@
 #define _AC(X,Y)	__AC(X,Y)
 #endif
 
+#ifdef __ASSEMBLY__
+#define __ASM_STR(x)    x
+#else
+#define __ASM_STR(x)    #x
+#endif
+
 #endif /* _CONST_H */

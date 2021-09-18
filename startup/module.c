@@ -467,7 +467,7 @@ finalize_module(uintptr_t addr, struct load_info *info)
 static void
 do_init_module(struct module *mod)
 {
-    sbi_printf("%s: \n", __func__);
+    sbi_printf("%s: ...\n", __func__);
 
     if (mod->init)
         mod->init();
@@ -484,9 +484,11 @@ init_other_modules(void)
     uintptr_t dst_addr = ROUND_UP((uintptr_t)_end, 8);
 
     while (1) {
+        sbi_printf("%s: step1 (%lx)\n", __func__, src_addr);
         /* should start with "ELF" magic number */
         if (memcmp((void *)src_addr, ELFMAG, SELFMAG))
             break;
+        sbi_printf("%s: step2\n", __func__);
 
         memset((void*)&info, 0, sizeof(struct load_info));
 

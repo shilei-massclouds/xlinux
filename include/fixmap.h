@@ -47,6 +47,7 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot);
  */
 #define FLASH_VA    0xFFFFFFA020000000UL
 #define FLASH_PA    0x0000000020000000UL
+#define FLASH_SIZE  0x0000000004000000UL
 #define FLASH_HEAD_SIZE 0x100
 
 #endif /* _ASM_RISCV_FIXMAP_H */

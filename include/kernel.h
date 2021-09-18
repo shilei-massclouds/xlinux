@@ -33,4 +33,9 @@ local_flush_tlb_page(unsigned long addr)
     __asm__ __volatile__ ("sfence.vma %0" : : "r" (addr) : "memory");
 }
 
+static inline void local_flush_tlb_all(void)
+{
+    __asm__ __volatile__ ("sfence.vma" : : : "memory");
+}
+
 #endif /* _UAPI_LINUX_KERNEL_H */

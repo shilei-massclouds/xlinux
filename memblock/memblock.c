@@ -6,6 +6,7 @@
 #include <bug.h>
 #include <errno.h>
 #include <kernel.h>
+#include <mm.h>
 
 #define INIT_MEMBLOCK_REGIONS           128
 #define INIT_MEMBLOCK_RESERVED_REGIONS  INIT_MEMBLOCK_REGIONS
@@ -246,11 +247,8 @@ memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align)
                __func__, (u64)size, (u64)align);
 
     ptr = memblock_alloc_internal(size, align);
-    /* Todo: implement paging-fault */
-    /*
     if (ptr)
         memset(ptr, 0, size);
-        */
 
     return ptr;
 }
@@ -340,7 +338,17 @@ memblock_phys_alloc_range(phys_addr_t size,
     return memblock_alloc_range_nid(size, align);
 }
 
-static int init_module(void)
+void
+memblock_setup_vm_final(void)
+{
+    setup_vm_final(memblock.memory.regions,
+                   memblock.memory.cnt,
+                   memblock_phys_alloc);
+}
+EXPORT_SYMBOL(memblock_setup_vm_final);
+
+static int
+init_module(void)
 {
     sbi_puts("module[memblock]: init begin ...\n");
     sbi_puts("module[memblock]: init end!\n");
