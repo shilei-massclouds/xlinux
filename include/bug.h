@@ -12,6 +12,7 @@
     if ((cond)) BUG();      \
 } while (0)
 
+/*
 static inline void
 _panic(const char *fn, int line, const char *file,
        const char *msg)
@@ -22,15 +23,7 @@ _panic(const char *fn, int line, const char *file,
     sbi_printf("########################\n");
     BUG();
 }
-
-#define panic2(args...) \
-    do { \
-        sbi_printf("\n########################\n"); \
-        sbi_printf("PANIC: __func__("__FILE__", line:"__LINE__")\n"); \
-        sbi_printf(args); \
-        sbi_printf("########################\n"); \
-        BUG(); \
-    } while(0)
+*/
 
 #define panic(args...) \
     do { \

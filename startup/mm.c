@@ -88,8 +88,7 @@ setup_flash_pge(void)
     if (mmu_enabled) {
         BUG_ON(!pge_none(swapper_pgd[pge_idx]));
         swapper_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
-    }
-    else {
+    } else {
         BUG_ON(!pge_none(early_pgd[pge_idx]));
         early_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
     }

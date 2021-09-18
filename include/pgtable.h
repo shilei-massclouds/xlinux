@@ -29,8 +29,12 @@
  * Address for flash
  * The flash is used for module
  */
-#define FLASH_VA        ((FIXADDR_START & PGE_MASK) - PGE_SIZE)
+#define FLASH_SIZE      0x0000000004000000UL
 #define FLASH_PA        0x0000000020000000UL
+
+#define FLASH_VA \
+    ALIGN_DOWN((FIXADDR_START - FLASH_SIZE - PGE_SIZE), FLASH_PA)
+
 #define FLASH_HEAD_SIZE 0x100
 
 static inline void
