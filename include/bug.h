@@ -5,25 +5,15 @@
 #include <sbi.h>
 
 #define BUG() do {    \
+    sbi_printf("\n########################\n"); \
+    sbi_printf("BUG: %s (%s:%u)", __FUNCTION__, __FILE__, __LINE__); \
+    sbi_printf("\n########################\n"); \
     __asm__ __volatile__ ("ebreak\n");  \
 } while (0)
 
 #define BUG_ON(cond) do {   \
     if ((cond)) BUG();      \
 } while (0)
-
-/*
-static inline void
-_panic(const char *fn, int line, const char *file,
-       const char *msg)
-{
-    sbi_printf("\n########################\n");
-    sbi_printf("PANIC: %s(%s, line:%u)\n", fn, file, line);
-    sbi_printf("%s\n", msg);
-    sbi_printf("########################\n");
-    BUG();
-}
-*/
 
 #define panic(args...) \
     do { \
