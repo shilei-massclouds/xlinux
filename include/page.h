@@ -62,6 +62,9 @@
 #define pfn_pge(pfn, prot) \
     __pge(((pfn) << _PAGE_PFN_SHIFT) | pgprot_val((prot)))
 
+#define pge_pfn(pge) \
+    (pge_val(pge) >> _PAGE_PFN_SHIFT)
+
 #define pfn_pme(pfn, prot) \
     __pme(((pfn) << _PAGE_PFN_SHIFT) | pgprot_val((prot)))
 
@@ -84,6 +87,8 @@
 #define PAGE_KERNEL         __pgprot(_PAGE_KERNEL)
 #define PAGE_KERNEL_EXEC    __pgprot(_PAGE_KERNEL | _PAGE_EXEC)
 #define PAGE_TABLE          __pgprot(_PAGE_TABLE)
+
+#define FIXMAP_PAGE_NORMAL  PAGE_KERNEL
 
 #define __va_to_pa(x)       ((unsigned long)(x) - va_pa_offset)
 #define __virt_to_phys(x)   __va_to_pa(x)

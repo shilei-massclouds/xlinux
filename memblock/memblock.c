@@ -333,6 +333,13 @@ memblock_reserve(phys_addr_t base, phys_addr_t size)
 	return memblock_add_range(&memblock.reserved, base, size, 0);
 }
 
+phys_addr_t
+memblock_phys_alloc_range(phys_addr_t size,
+                          phys_addr_t align)
+{
+    return memblock_alloc_range_nid(size, align);
+}
+
 static int init_module(void)
 {
     sbi_puts("module[memblock]: init begin ...\n");

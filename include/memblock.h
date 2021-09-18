@@ -13,6 +13,11 @@
 
 #define MEMBLOCK_ALLOC_ACCESSIBLE   0
 
+#define for_each_memblock(type, region)     \
+    for (region = memblock.type.regions;    \
+         region < (memblock.type.regions + memblock.type.cnt); \
+         region++)
+
 #define for_each_memblock_type(i, memblock_type, rgn)   \
     for (i = 0, rgn = &memblock_type->regions[0];       \
          i < memblock_type->cnt;                        \
@@ -103,10 +108,21 @@ __next_mem_range_rev(u64 *idx, enum memblock_flags flags,
 int
 memblock_reserve(phys_addr_t base, phys_addr_t size);
 
+phys_addr_t
+memblock_phys_alloc_range(phys_addr_t size, phys_addr_t align);
+
 static inline void *
 memblock_alloc(phys_addr_t size, phys_addr_t align)
 {
     return memblock_alloc_try_nid(size, align);
 }
+
+static inline phys_addr_t
+memblock_phys_alloc(phys_addr_t size, phys_addr_t align)
+{
+	return memblock_phys_alloc_range(size, align);
+}
+
+extern struct memblock memblock;
 
 #endif /* _MEMBLOCK_H */

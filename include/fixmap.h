@@ -25,6 +25,23 @@ enum fixed_addresses {
 #define fix_to_virt(x)  (FIXADDR_TOP - ((x) << PAGE_SHIFT))
 #define virt_to_fix(x)  ((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
 
+#define FIXMAP_PAGE_CLEAR __pgprot(0)
+
+#define clear_fixmap(idx) __set_fixmap(idx, 0, FIXMAP_PAGE_CLEAR)
+
+#define __set_fixmap_offset(idx, phys, flags)               \
+({                                  \
+    unsigned long ________addr;                 \
+    __set_fixmap(idx, phys, flags);                 \
+    ________addr = fix_to_virt(idx) + ((phys) & (PAGE_SIZE - 1));   \
+    ________addr;                           \
+})
+
+#define set_fixmap_offset(idx, phys) \
+    __set_fixmap_offset(idx, phys, FIXMAP_PAGE_NORMAL)
+
+void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot);
+
 /* Address for flash
  * The flash is used for module
  */

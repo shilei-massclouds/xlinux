@@ -27,4 +27,10 @@ IS_ERR(const void *ptr)
 typedef void (*start_kernel_t)(void);
 extern start_kernel_t start_kernel_fn;
 
+static inline void
+local_flush_tlb_page(unsigned long addr)
+{
+    __asm__ __volatile__ ("sfence.vma %0" : : "r" (addr) : "memory");
+}
+
 #endif /* _UAPI_LINUX_KERNEL_H */

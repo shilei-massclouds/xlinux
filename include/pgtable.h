@@ -24,4 +24,10 @@
 #define FIXADDR_TOP     PCI_IO_START
 #define FIXADDR_START   (FIXADDR_TOP - FIXADDR_SIZE)
 
+static inline void
+set_pte(pte_t *ptep, pte_t pteval)
+{
+    *ptep = pteval;
+}
+
 #endif /* _LINUX_PGTABLE_H */
