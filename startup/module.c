@@ -11,7 +11,7 @@
 #include <mm.h>
 
 /* n must be power of 2 */
-#define ROUND_UP(x, n) (((x) + (n) - 1ul) & ~((n) - 1ul))
+#define ROUND_UP(x, n) (((x) + (n) - 1UL) & ~((n) - 1UL))
 
 extern char _end[];
 
@@ -154,9 +154,6 @@ modules_source_base(void)
 {
     uintptr_t base = (FLASH_VA + FLASH_HEAD_SIZE);
     struct image_header *hdr = (struct image_header *) base;
-
-    sbi_printf("### %s: (%lx)\n", __func__, FLASH_VA);
-
     return ROUND_UP((base + hdr->res2), 8);
 }
 
@@ -487,11 +484,9 @@ init_other_modules(void)
     uintptr_t dst_addr = ROUND_UP((uintptr_t)_end, 8);
 
     while (1) {
-        sbi_printf("%s: step1 (%lx)\n", __func__, src_addr);
         /* should start with "ELF" magic number */
         if (memcmp((void *)src_addr, ELFMAG, SELFMAG))
             break;
-        sbi_printf("%s: step2\n", __func__);
 
         memset((void*)&info, 0, sizeof(struct load_info));
 

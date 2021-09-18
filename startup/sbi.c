@@ -245,7 +245,7 @@ number(char *buf, char *end, unsigned long long num, struct printf_spec spec)
         *buf = '0';
         ++buf;
 
-        *buf = 'X';
+        *buf = 'x';
         ++buf;
     } else if (spec.base == 10) {
         if (spec.flags & SIGN) {
