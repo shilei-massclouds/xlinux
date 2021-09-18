@@ -11,4 +11,8 @@ setup_vm_final(struct memblock_region *regions,
                unsigned long regions_cnt,
                phys_alloc_t alloc);
 
+void
+clear_flash_pge(void);
+
+
 #endif /* _RISCV_MM_H_ */

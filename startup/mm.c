@@ -20,7 +20,7 @@ static phys_alloc_t phys_alloc_fn;
 
 extern char _start[];
 
-pge_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
+pge_t swapper_pgd[PTRS_PER_PGD] __page_aligned_bss;
 
 pge_t early_pgd[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 pme_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
@@ -80,12 +80,27 @@ void setup_fixmap_pge(uintptr_t dtb_pa)
     dtb_early_pa = dtb_pa;
 }
 
-void setup_flash_pge(void)
+void
+setup_flash_pge(void)
 {
     uintptr_t pge_idx = pge_index(FLASH_VA);
-    BUG_ON(!pge_none(early_pgd[pge_idx]));
 
-    early_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
+    if (mmu_enabled) {
+        BUG_ON(!pge_none(swapper_pgd[pge_idx]));
+        swapper_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
+    }
+    else {
+        BUG_ON(!pge_none(early_pgd[pge_idx]));
+        early_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
+    }
+}
+
+void
+clear_flash_pge(void)
+{
+    uintptr_t pge_idx = pge_index(FLASH_VA);
+    BUG_ON(!mmu_enabled);
+    swapper_pgd[pge_idx] = __pge(0);
 }
 
 void
@@ -181,8 +196,11 @@ setup_vm_final(struct memblock_region *regions,
 	mmu_enabled = true;
     phys_alloc_fn = alloc;
 
+	/* Setup swapper PGD for flash */
+    setup_flash_pge();
+
 	/* Setup swapper PGD for fixmap */
-	create_pgd_mapping(swapper_pg_dir,
+	create_pgd_mapping(swapper_pgd,
                        FIXADDR_START, (phys_addr_t)fixmap_pmd,
                        PGE_SIZE, PAGE_TABLE);
 
@@ -196,7 +214,7 @@ setup_vm_final(struct memblock_region *regions,
 
         for (pa = start; pa < end; pa += PME_SIZE) {
             va = (uintptr_t)__va(pa);
-            create_pgd_mapping(swapper_pg_dir, va, pa,
+            create_pgd_mapping(swapper_pgd, va, pa,
                                PME_SIZE, PAGE_KERNEL_EXEC);
         }
     }
@@ -206,7 +224,7 @@ setup_vm_final(struct memblock_region *regions,
     clear_fixmap(FIX_PMD);
 
     /* Move to swapper page table */
-    csr_write(CSR_SATP, PFN_DOWN(__pa(swapper_pg_dir)) | SATP_MODE);
+    csr_write(CSR_SATP, PFN_DOWN(__pa(swapper_pgd)) | SATP_MODE);
     local_flush_tlb_all();
 }
 EXPORT_SYMBOL(setup_vm_final);

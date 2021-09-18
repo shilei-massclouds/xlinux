@@ -4,7 +4,7 @@
 #include <kernel.h>
 #include <page.h>
 #include <memblock.h>
-#include <bug.h>
+#include <pgtable.h>
 
 static void test(void)
 {

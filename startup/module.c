@@ -4,10 +4,11 @@
 #include <module.h>
 #include <sbi.h>
 #include <image.h>
-#include <fixmap.h>
 #include <elf.h>
 #include <kernel.h>
 #include <bug.h>
+#include <pgtable.h>
+#include <mm.h>
 
 /* n must be power of 2 */
 #define ROUND_UP(x, n) (((x) + (n) - 1ul) & ~((n) - 1ul))
@@ -153,6 +154,8 @@ modules_source_base(void)
 {
     uintptr_t base = (FLASH_VA + FLASH_HEAD_SIZE);
     struct image_header *hdr = (struct image_header *) base;
+
+    sbi_printf("### %s: (%lx)\n", __func__, FLASH_VA);
 
     return ROUND_UP((base + hdr->res2), 8);
 }
@@ -512,6 +515,8 @@ init_other_modules(void)
         src_addr += ROUND_UP(info.len, 8);
         dst_addr += ROUND_UP(info.layout.size, 8);
     }
+
+    clear_flash_pge();
 
     sbi_printf("%s: ok!\n", __func__);
 }
