@@ -200,7 +200,7 @@ setup_vm_final(struct memblock_region *regions,
 
 	/* Setup swapper PGD for fixmap */
 	create_pgd_mapping(swapper_pgd,
-                       FIXADDR_START, (phys_addr_t)fixmap_pmd,
+                       FIXADDR_START, __pa(fixmap_pmd),
                        PGE_SIZE, PAGE_TABLE);
 
 	/* Map all memory banks */

@@ -26,6 +26,7 @@
     (fdt32_ld(&((const struct fdt_header *)(fdt))->field))
 
 #define fdt_magic(fdt)              (fdt_get_header(fdt, magic))
+#define fdt_totalsize(fdt)          (fdt_get_header(fdt, totalsize))
 #define fdt_off_dt_struct(fdt)      (fdt_get_header(fdt, off_dt_struct))
 #define fdt_version(fdt)            (fdt_get_header(fdt, version))
 #define fdt_off_dt_strings(fdt)     (fdt_get_header(fdt, off_dt_strings))
@@ -169,10 +170,21 @@ fdt32_ld(const fdt32_t *p)
 
 #define FDT_ERR_MAX         18
 
+struct device_node {
+	const char *name;
+};
+
 typedef int (*of_scan_flat_dt_cb)(unsigned long node,
                                   const char *uname,
                                   int depth,
                                   void *data);
+
+void *
+__unflatten_device_tree(const void *blob,
+                        struct device_node *dad,
+                        struct device_node **mynodes,
+                        void *(*dt_alloc)(u64 size, u64 align),
+                        bool detached);
 
 int
 of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data);

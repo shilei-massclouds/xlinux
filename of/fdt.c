@@ -295,3 +295,30 @@ of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data)
 
     return rc;
 }
+
+void *
+__unflatten_device_tree(const void *blob,
+                        struct device_node *dad,
+                        struct device_node **mynodes,
+                        void *(*dt_alloc)(u64 size, u64 align),
+                        bool detached)
+{
+    sbi_printf(" -> unflatten_device_tree() blob(%lx)\n", blob);
+
+    if (!blob) {
+        sbi_printf("No device tree pointer\n");
+        return NULL;
+    }
+
+    if (fdt_check_header(blob)) {
+        sbi_printf("Invalid device tree blob header\n");
+        return NULL;
+    }
+
+    sbi_printf("Unflattening device tree:\n");
+    sbi_printf("magic: %x\n", fdt_magic(blob));
+    sbi_printf("size: %x\n", fdt_totalsize(blob));
+    sbi_printf("version: %x\n", fdt_version(blob));
+
+    return NULL;
+}

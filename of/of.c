@@ -10,6 +10,9 @@
 
 extern void *dtb_early_va;
 
+struct device_node *of_root;
+EXPORT_SYMBOL(of_root);
+
 static bool
 early_init_dt_verify(void *params)
 {
@@ -18,7 +21,6 @@ early_init_dt_verify(void *params)
 
     /* Setup flat device-tree pointer */
     initial_boot_params = params;
-
     return true;
 }
 
@@ -177,13 +179,14 @@ early_init_dt_alloc_memory_arch(u64 size, u64 align)
 static void
 unflatten_device_tree(void)
 {
-    //__unflatten_device_tree(initial_boot_params, NULL, &of_root,
-                            //early_init_dt_alloc_memory_arch, false);
+    __unflatten_device_tree(initial_boot_params, NULL, &of_root,
+                            memblock_alloc, false);
 
     /* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
     //of_alias_scan(early_init_dt_alloc_memory_arch);
 
     //unittest_unflatten_overlay_base();
+    /*
     void *ptr;
 
     sbi_puts("memory block alloc ...\n");
@@ -193,6 +196,7 @@ unflatten_device_tree(void)
         panic("Error: can not alloc!\n");
 
     sbi_puts("alloc okay!\n");
+    */
 }
 
 static int
