@@ -7,6 +7,7 @@
 #include <memblock.h>
 #include <bug.h>
 #include <mm.h>
+#include <fwnode.h>
 
 extern void *dtb_early_va;
 
@@ -291,6 +292,52 @@ unflatten_device_tree(void)
     /* Get pointer to "/chosen" nodes for use everywhere */
     of_alias_scan(memblock_alloc);
 }
+
+static struct fwnode_handle *
+of_fwnode_get(struct fwnode_handle *fwnode)
+{
+    return of_fwnode_handle(of_node_get(to_of_node(fwnode)));
+}
+
+static void
+of_fwnode_put(struct fwnode_handle *fwnode)
+{
+    of_node_put(to_of_node(fwnode));
+}
+
+const struct fwnode_operations of_fwnode_ops = {
+    .get = of_fwnode_get,
+    .put = of_fwnode_put,
+    /*
+    .device_is_available = of_fwnode_device_is_available,
+    .device_get_match_data = of_fwnode_device_get_match_data,
+    .property_present = of_fwnode_property_present,
+    .property_read_int_array = of_fwnode_property_read_int_array,
+    .property_read_string_array = of_fwnode_property_read_string_array,
+    .get_name = of_fwnode_get_name,
+    .get_name_prefix = of_fwnode_get_name_prefix,
+    .get_parent = of_fwnode_get_parent,
+    .get_next_child_node = of_fwnode_get_next_child_node,
+    .get_named_child_node = of_fwnode_get_named_child_node,
+    .get_reference_args = of_fwnode_get_reference_args,
+    .graph_get_next_endpoint = of_fwnode_graph_get_next_endpoint,
+    .graph_get_remote_endpoint = of_fwnode_graph_get_remote_endpoint,
+    .graph_get_port_parent = of_fwnode_graph_get_port_parent,
+    .graph_parse_endpoint = of_fwnode_graph_parse_endpoint,
+    .add_links = of_fwnode_add_links,
+    */
+};
+EXPORT_SYMBOL(of_fwnode_ops);
+
+static void
+of_node_release(struct kobject *kobj)
+{
+    /* Without CONFIG_OF_DYNAMIC, no nodes gets freed */
+}
+
+struct kobj_type of_node_ktype = {
+    .release = of_node_release,
+};
 
 static int
 init_module(void)

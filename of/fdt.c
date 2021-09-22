@@ -4,7 +4,6 @@
 #include <types.h>
 #include <bug.h>
 #include <errno.h>
-//#include <of.h>
 
 void *initial_boot_params;
 
@@ -487,7 +486,7 @@ populate_node(const void *blob,
                             __alignof__(struct device_node));
 	if (!dryrun) {
 		char *fn;
-		//of_node_init(np);
+		of_node_init(np);
 		np->full_name = fn = ((char *)np) + sizeof(*np);
 
 		memcpy(fn, pathp, l);

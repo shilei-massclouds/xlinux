@@ -22,6 +22,17 @@ typedef struct {
     int counter;
 } atomic_t;
 
+#define __READ_ONCE(x)  (*(const volatile typeof(x) *)&(x))
+
+#define atomic_read(v)  READ_ONCE((v)->counter)
+
+#define WRITE_ONCE(x, val)                        \
+do {                                    \
+    *(volatile typeof(x) *)&(x) = (val);                \
+} while (0)
+
+#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
+
 typedef unsigned long   uintptr_t;
 
 typedef _Bool           bool;
@@ -57,6 +68,12 @@ typedef __kernel_ptrdiff_t  ptrdiff_t;
 #define _SIZE_T
 typedef __kernel_size_t     size_t;
 #endif
+
+typedef unsigned int    __kernel_uid32_t;
+typedef unsigned int    __kernel_gid32_t;
+
+typedef __kernel_uid32_t    uid_t;
+typedef __kernel_gid32_t    gid_t;
 
 extern void *memset(void *, int, __kernel_size_t);
 extern void *memcpy(void *, const void *, size_t);

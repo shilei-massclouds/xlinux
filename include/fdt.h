@@ -3,6 +3,9 @@
 #define LIBFDT_H
 
 #include <types.h>
+#include <fwnode.h>
+#include <kobject.h>
+#include <kernel.h>
 
 #define of_prop_cmp(s1, s2)     strcmp((s1), (s2))
 
@@ -18,9 +21,11 @@ struct device_node {
     struct device_node *parent;
     struct device_node *child;
     struct device_node *sibling;
+
+    struct kobject kobj;
+    struct fwnode_handle fwnode;
 };
 
-/*
 extern struct kobj_type of_node_ktype;
 extern const struct fwnode_operations of_fwnode_ops;
 
@@ -30,7 +35,6 @@ of_node_init(struct device_node *node)
     kobject_init(&node->kobj, &of_node_ktype);
     node->fwnode.ops = &of_fwnode_ops;
 }
-*/
 
 #define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
@@ -260,5 +264,29 @@ int
 of_property_read_string(const struct device_node *np,
                         const char *propname,
                         const char **out_string);
+
+static inline bool
+is_of_node(const struct fwnode_handle *fwnode)
+{
+    return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &of_fwnode_ops;
+}
+
+#define to_of_node(__fwnode)                                \
+    ({                                                      \
+        typeof(__fwnode) __to_of_node_fwnode = (__fwnode);  \
+                                                            \
+        is_of_node(__to_of_node_fwnode) ?                   \
+            container_of(__to_of_node_fwnode,               \
+                     struct device_node, fwnode) :          \
+            NULL;                                           \
+    })
+
+#define of_fwnode_handle(node)                          \
+    ({                                                  \
+        typeof(node) __of_fwnode_handle_node = (node);  \
+                                                        \
+        __of_fwnode_handle_node ?                       \
+            &__of_fwnode_handle_node->fwnode : NULL;    \
+    })
 
 #endif /* LIBFDT_H */
