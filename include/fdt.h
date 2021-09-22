@@ -4,6 +4,34 @@
 
 #include <types.h>
 
+#define of_prop_cmp(s1, s2)     strcmp((s1), (s2))
+
+typedef u32 phandle;
+
+struct device_node {
+	const char *name;
+    phandle     phandle;
+    const char *full_name;
+
+    struct property *properties;
+
+    struct device_node *parent;
+    struct device_node *child;
+    struct device_node *sibling;
+};
+
+/*
+extern struct kobj_type of_node_ktype;
+extern const struct fwnode_operations of_fwnode_ops;
+
+static inline void
+of_node_init(struct device_node *node)
+{
+    kobject_init(&node->kobj, &of_node_ktype);
+    node->fwnode.ops = &of_fwnode_ops;
+}
+*/
+
 #define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
 
@@ -170,8 +198,12 @@ fdt32_ld(const fdt32_t *p)
 
 #define FDT_ERR_MAX         18
 
-struct device_node {
-	const char *name;
+struct property {
+    char    *name;
+    int     length;
+    void    *value;
+
+    struct property *next;
 };
 
 typedef int (*of_scan_flat_dt_cb)(unsigned long node,
@@ -183,8 +215,7 @@ void *
 __unflatten_device_tree(const void *blob,
                         struct device_node *dad,
                         struct device_node **mynodes,
-                        void *(*dt_alloc)(u64 size, u64 align),
-                        bool detached);
+                        void *(*dt_alloc)(u64 size, u64 align));
 
 int
 of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data);
@@ -204,5 +235,30 @@ of_read_number(const u32 *cell, int size)
         r = (r << 32) | be32_to_cpu(*cell);
     return r;
 }
+
+extern struct device_node *
+of_find_node_opts_by_path(const char *path, const char **opts);
+
+static inline struct device_node *
+of_find_node_by_path(const char *path)
+{
+    return of_find_node_opts_by_path(path, NULL);
+}
+
+static inline struct device_node *
+of_node_get(struct device_node *node)
+{
+    return node;
+}
+
+static inline void
+of_node_put(struct device_node *node)
+{
+}
+
+int
+of_property_read_string(const struct device_node *np,
+                        const char *propname,
+                        const char **out_string);
 
 #endif /* LIBFDT_H */

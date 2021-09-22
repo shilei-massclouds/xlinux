@@ -37,4 +37,35 @@
 #define	EDOM		33	/* Math argument out of domain of func */
 #define	ERANGE		34	/* Math result not representable */
 
+#define EBFONT      59  /* Bad font file format */
+#define ENOSTR      60  /* Device not a stream */
+#define ENODATA     61  /* No data available */
+#define ETIME       62  /* Timer expired */
+#define ENOSR       63  /* Out of streams resources */
+#define ENONET      64  /* Machine is not on the network */
+#define ENOPKG      65  /* Package not installed */
+#define EREMOTE     66  /* Object is remote */
+#define ENOLINK     67  /* Link has been severed */
+#define EADV        68  /* Advertise error */
+#define ESRMNT      69  /* Srmount error */
+#define ECOMM       70  /* Communication error on send */
+#define EPROTO      71  /* Protocol error */
+#define EMULTIHOP   72  /* Multihop attempted */
+#define EDOTDOT     73  /* RFS specific error */
+#define EBADMSG     74  /* Not a data message */
+#define EOVERFLOW   75  /* Value too large for defined data type */
+#define ENOTUNIQ    76  /* Name not unique on network */
+#define EBADFD      77  /* File descriptor in bad state */
+#define EREMCHG     78  /* Remote address changed */
+#define ELIBACC     79  /* Can not access a needed shared library */
+#define ELIBBAD     80  /* Accessing a corrupted shared library */
+#define ELIBSCN     81  /* .lib section in a.out corrupted */
+#define ELIBMAX     82  /* Attempting to link in too many shared libraries */
+#define ELIBEXEC    83  /* Cannot exec a shared library directly */
+#define EILSEQ      84  /* Illegal byte sequence */
+#define ERESTART    85  /* Interrupted system call should be restarted */
+#define ESTRPIPE    86  /* Streams pipe error */
+#define EUSERS      87  /* Too many users */
+#define ENOTSOCK    88  /* Socket operation on non-socket */
+
 #endif

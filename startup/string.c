@@ -144,3 +144,116 @@ size_t strlen(const char *s)
     return sc - s;
 }
 EXPORT_SYMBOL(strlen);
+
+/**
+ * strcspn - Calculate the length of the initial substring of @s which does not contain letters in @reject
+ * @s: The string to be searched
+ * @reject: The string to avoid
+ */
+size_t strcspn(const char *s, const char *reject)
+{
+    const char *p;
+    const char *r;
+    size_t count = 0;
+
+    for (p = s; *p != '\0'; ++p) {
+        for (r = reject; *r != '\0'; ++r) {
+            if (*p == *r)
+                return count;
+        }
+        ++count;
+    }
+    return count;
+}
+EXPORT_SYMBOL(strcspn);
+
+/**
+ * strrchr - Find the last occurrence of a character in a string
+ * @s: The string to be searched
+ * @c: The character to search for
+ */
+char *strrchr(const char *s, int c)
+{
+    const char *last = NULL;
+    do {
+        if (*s == (char)c)
+            last = s;
+    } while (*s++);
+    return (char *)last;
+}
+EXPORT_SYMBOL(strrchr);
+
+/**
+ * strchr - Find the first occurrence of a character in a string
+ * @s: The string to be searched
+ * @c: The character to search for
+ *
+ * Note that the %NUL-terminator is considered part of the string, and can
+ * be searched for.
+ */
+char *
+strchr(const char *s, int c)
+{
+    for (; *s != (char)c; ++s)
+        if (*s == '\0')
+            return NULL;
+    return (char *)s;
+}
+EXPORT_SYMBOL(strchr);
+
+/**
+ * strncmp - Compare two length-limited strings
+ * @cs: One string
+ * @ct: Another string
+ * @count: The maximum number of bytes to compare
+ */
+int
+strncmp(const char *cs, const char *ct, size_t count)
+{
+    unsigned char c1, c2;
+
+    while (count) {
+        c1 = *cs++;
+        c2 = *ct++;
+        if (c1 != c2)
+            return c1 < c2 ? -1 : 1;
+        if (!c1)
+            break;
+        count--;
+    }
+    return 0;
+}
+EXPORT_SYMBOL(strncmp);
+
+/**
+ * strchrnul - Find and return a character in a string, or end of string
+ * @s: The string to be searched
+ * @c: The character to search for
+ *
+ * Returns pointer to first occurrence of 'c' in s. If c is not found, then
+ * return a pointer to the null byte at the end of s.
+ */
+char *
+strchrnul(const char *s, int c)
+{
+    while (*s && *s != (char)c)
+        s++;
+    return (char *)s;
+}
+EXPORT_SYMBOL(strchrnul);
+
+/**
+ * strnlen - Find the length of a length-limited string
+ * @s: The string to be sized
+ * @count: The maximum number of bytes to search
+ */
+size_t
+strnlen(const char *s, size_t count)
+{
+    const char *sc;
+
+    for (sc = s; count-- && *sc != '\0'; ++sc)
+        /* nothing */;
+    return sc - s;
+}
+EXPORT_SYMBOL(strnlen);

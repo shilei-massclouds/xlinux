@@ -65,6 +65,27 @@ extern void *memchr(const void *s, int c, size_t n);
 extern void *memmove(void *dest, const void *src, size_t count);
 extern int strcmp(const char *cs, const char *ct);
 extern size_t strlen(const char *s);
+extern size_t strcspn(const char *s, const char *reject);
+
+extern char *strchr(const char *s, int c);
+extern char *strrchr(const char *s,int c);
+extern char *strchrnul(const char *s, int c);
+
+extern int strncmp(const char *cs, const char *ct, size_t count);
+
+extern size_t strnlen(const char *s, size_t count);
+
+/**
+ * kbasename - return the last part of a pathname.
+ *
+ * @path: path to extract the filename from.
+ */
+static inline const char *
+kbasename(const char *path)
+{
+    const char *tail = strrchr(path, '/');
+    return tail ? tail + 1 : path;
+}
 
 #endif /*  __ASSEMBLY__ */
 
@@ -74,12 +95,15 @@ extern size_t strlen(const char *s);
     (((u32)(x) & (u32)0x00ff0000UL) >>  8) | \
     (((u32)(x) & (u32)0xff000000UL) >> 24)))
 
-#define be32_to_cpu(x) swab32((u32)(x))
+#define be32_to_cpu(x)  swab32((u32)(x))
 #define be32_to_cpup(x) swab32(*((u32*)(x)))
+#define cpu_to_be32(x)  ((u32)swab32((x)))
 
 #define ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 #define ALIGN(x, a)         ALIGN_MASK((x), (typeof(x))(a) - 1)
 #define ALIGN_DOWN(x, a)    ALIGN((x) - ((a) - 1), (a))
+#define PTR_ALIGN(p, a)         ((typeof(p))ALIGN((unsigned long)(p), (a)))
+#define PTR_ALIGN_DOWN(p, a)    ((typeof(p))ALIGN_DOWN((unsigned long)(p), (a)))
 
 #define IS_ALIGNED(x, a)    (((x) & ((typeof(x))(a) - 1)) == 0)
 

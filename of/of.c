@@ -10,8 +10,34 @@
 
 extern void *dtb_early_va;
 
+struct device_node *of_aliases;
+struct device_node *of_chosen;
+struct device_node *of_stdout;
+static const char *of_stdout_options;
+
 struct device_node *of_root;
 EXPORT_SYMBOL(of_root);
+
+static struct device_node *
+__of_get_next_child(const struct device_node *node,
+                    struct device_node *prev)
+{
+    struct device_node *next;
+
+    if (!node)
+        return NULL;
+
+    next = prev ? prev->sibling : node->child;
+    for (; next; next = next->sibling)
+        if (of_node_get(next))
+            break;
+    of_node_put(prev);
+    return next;
+}
+
+#define __for_each_child_of_node(parent, child) \
+    for (child = __of_get_next_child(parent, NULL); child != NULL; \
+         child = __of_get_next_child(parent, child))
 
 static bool
 early_init_dt_verify(void *params)
@@ -176,27 +202,94 @@ early_init_dt_alloc_memory_arch(u64 size, u64 align)
     return ptr;
 }
 
+struct device_node *
+__of_find_node_by_path(struct device_node *parent, const char *path)
+{
+	struct device_node *child;
+	int len;
+
+	len = strcspn(path, "/:");
+	if (!len)
+		return NULL;
+
+	__for_each_child_of_node(parent, child) {
+		const char *name = kbasename(child->full_name);
+		if (strncmp(path, name, len) == 0 && (strlen(name) == len))
+			return child;
+	}
+	return NULL;
+}
+
+struct device_node *
+__of_find_node_by_full_path(struct device_node *node, const char *path)
+{
+	const char *separator = strchr(path, ':');
+
+	while (node && *path == '/') {
+		struct device_node *tmp = node;
+
+		path++; /* Increment past '/' delimiter */
+		node = __of_find_node_by_path(node, path);
+		of_node_put(tmp);
+		path = strchrnul(path, '/');
+		if (separator && separator < path)
+			break;
+	}
+	return node;
+}
+
+struct device_node *
+of_find_node_opts_by_path(const char *path, const char **opts)
+{
+	struct device_node *np = NULL;
+	const char *separator = strchr(path, ':');
+
+	if (opts)
+		*opts = separator ? separator + 1 : NULL;
+
+    if (strcmp(path, "/") == 0)
+        return of_node_get(of_root);
+
+	/* The path could begin with an alias */
+	if (*path != '/') {
+        panic("must begin with /\n");
+    }
+
+	if (!np)
+		np = of_node_get(of_root);
+
+	np = __of_find_node_by_full_path(np, path);
+    return np;
+}
+
+static void
+of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
+{
+	of_aliases = of_find_node_by_path("/aliases");
+	if (of_aliases)
+        panic("no aliases!");
+
+	of_chosen = of_find_node_by_path("/chosen");
+	if (of_chosen == NULL)
+		of_chosen = of_find_node_by_path("/chosen@0");
+
+	if (of_chosen) {
+        const char *name = NULL;
+        if (of_property_read_string(of_chosen, "stdout-path", &name))
+            of_property_read_string(of_chosen, "linux,stdout-path", &name);
+		if (name)
+			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
+    }
+}
+
 static void
 unflatten_device_tree(void)
 {
     __unflatten_device_tree(initial_boot_params, NULL, &of_root,
-                            memblock_alloc, false);
+                            memblock_alloc);
 
-    /* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
-    //of_alias_scan(early_init_dt_alloc_memory_arch);
-
-    //unittest_unflatten_overlay_base();
-    /*
-    void *ptr;
-
-    sbi_puts("memory block alloc ...\n");
-
-    ptr = memblock_alloc(16, PAGE_SIZE);
-    if (ptr == NULL)
-        panic("Error: can not alloc!\n");
-
-    sbi_puts("alloc okay!\n");
-    */
+    /* Get pointer to "/chosen" nodes for use everywhere */
+    of_alias_scan(memblock_alloc);
 }
 
 static int

@@ -2,6 +2,9 @@
 #include <fdt.h>
 #include <sbi.h>
 #include <types.h>
+#include <bug.h>
+#include <errno.h>
+//#include <of.h>
 
 void *initial_boot_params;
 
@@ -296,13 +299,306 @@ of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data)
     return rc;
 }
 
+static void *
+unflatten_dt_alloc(void **mem, unsigned long size, unsigned long align)
+{
+	void *res;
+
+	*mem = PTR_ALIGN(*mem, align);
+	res = *mem;
+	*mem += size;
+
+	return res;
+}
+
+const void *
+fdt_getprop_by_offset(const void *fdt, int offset,
+                      const char **namep, int *lenp)
+{
+    const struct fdt_property *prop;
+
+    prop = fdt_get_property_by_offset_(fdt, offset, lenp);
+    if (!prop)
+        return NULL;
+
+    if (namep) {
+        const char *name;
+        int namelen;
+
+        name = fdt_get_string(fdt, fdt32_ld(&prop->nameoff), &namelen);
+        if (!name) {
+            if (lenp)
+                *lenp = namelen;
+            return NULL;
+        }
+
+        *namep = name;
+    }
+
+    return prop->data;
+}
+
+static void
+populate_properties(const void *blob,
+                    int offset,
+                    void **mem,
+                    struct device_node *np,
+                    const char *nodename,
+                    bool dryrun)
+{
+	int cur;
+    struct property *pp;
+	struct property **pprev = NULL;
+
+	pprev = &np->properties;
+	for (cur = fdt_first_property_offset(blob, offset);
+	     cur >= 0;
+	     cur = fdt_next_property_offset(blob, cur)) {
+		const u32 *val;
+		const char *pname;
+		u32 sz;
+
+		val = fdt_getprop_by_offset(blob, cur, &pname, &sz);
+		if (!val) {
+			panic("Cannot locate property at %x\n", cur);
+			continue;
+		}
+
+		if (!pname) {
+			panic("Cannot find property name at %x\n", cur);
+			continue;
+		}
+
+		pp = unflatten_dt_alloc(mem, sizeof(struct property),
+                                __alignof__(struct property));
+		if (dryrun)
+			continue;
+
+		if (!strcmp(pname, "phandle") ||
+		    !strcmp(pname, "linux,phandle")) {
+			if (!np->phandle)
+				np->phandle = be32_to_cpup(val);
+		}
+
+        //sbi_printf("%s: (%s, %x) %x\n", __func__, pname, sz, *val);
+
+		pp->name   = (char *)pname;
+		pp->length = sz;
+		pp->value  = (u32 *)val;
+		*pprev     = pp;
+		pprev      = &pp->next;
+    }
+
+	{
+		const char *p = nodename, *ps = p, *pa = NULL;
+		int len;
+
+		while (*p) {
+			if ((*p) == '@')
+				pa = p;
+			else if ((*p) == '/')
+				ps = p + 1;
+			p++;
+		}
+
+		if (pa < ps)
+			pa = p;
+		len = (pa - ps) + 1;
+		pp = unflatten_dt_alloc(mem, sizeof(struct property) + len,
+                                __alignof__(struct property));
+		if (!dryrun) {
+			pp->name   = "name";
+			pp->length = len;
+			pp->value  = pp + 1;
+			*pprev     = pp;
+			pprev      = &pp->next;
+			memcpy(pp->value, ps, len - 1);
+			((char *)pp->value)[len - 1] = 0;
+			//sbi_printf("fixed up name for %s -> %s\n", nodename, (char *)pp->value);
+		}
+	}
+
+	if (!dryrun)
+		*pprev = NULL;
+}
+
+static struct property *
+__of_find_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp;
+
+    if (!np)
+        return NULL;
+
+    for (pp = np->properties; pp; pp = pp->next) {
+        if (of_prop_cmp(pp->name, name) == 0) {
+            if (lenp)
+                *lenp = pp->length;
+            break;
+        }
+    }
+
+    return pp;
+}
+
+struct property *
+of_find_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp;
+    unsigned long flags;
+
+    //raw_spin_lock_irqsave(&devtree_lock, flags);
+    pp = __of_find_property(np, name, lenp);
+    //raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+    return pp;
+}
+
+const void *
+of_get_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp = of_find_property(np, name, lenp);
+
+    return pp ? pp->value : NULL;
+}
+
+static bool
+populate_node(const void *blob,
+              int offset,
+              void **mem,
+              struct device_node *dad,
+              struct device_node **pnp,
+              bool dryrun)
+{
+	struct device_node *np;
+	const char *pathp;
+    unsigned int l;
+    unsigned int allocl;
+
+	pathp = fdt_get_name(blob, offset, &l);
+	if (!pathp) {
+		*pnp = NULL;
+		return false;
+	}
+
+	allocl = ++l;
+
+	np = unflatten_dt_alloc(mem, sizeof(struct device_node) + allocl,
+                            __alignof__(struct device_node));
+	if (!dryrun) {
+		char *fn;
+		//of_node_init(np);
+		np->full_name = fn = ((char *)np) + sizeof(*np);
+
+		memcpy(fn, pathp, l);
+
+		if (dad != NULL) {
+			np->parent = dad;
+			np->sibling = dad->child;
+			dad->child = np;
+		}
+	}
+
+    /*
+    sbi_printf("%s: offset(%d) (%s) %lx\n",
+               __func__, offset, pathp, np);
+    */
+
+	populate_properties(blob, offset, mem, np, pathp, dryrun);
+	if (!dryrun) {
+		np->name = of_get_property(np, "name", NULL);
+		if (!np->name)
+			np->name = "<NULL>";
+	}
+
+	*pnp = np;
+    return true;
+}
+
+static void
+reverse_nodes(struct device_node *parent)
+{
+	struct device_node *child, *next;
+
+	/* In-depth first */
+	child = parent->child;
+	while (child) {
+		reverse_nodes(child);
+
+		child = child->sibling;
+	}
+
+	/* Reverse the nodes in the child list */
+	child = parent->child;
+	parent->child = NULL;
+	while (child) {
+		next = child->sibling;
+
+		child->sibling = parent->child;
+		parent->child = child;
+		child = next;
+	}
+}
+
+static int
+unflatten_dt_nodes(const void *blob,
+                   void *mem,
+                   struct device_node *dad,
+                   struct device_node **nodepp)
+{
+	struct device_node *root;
+	int offset = 0, depth = 0, initial_depth = 0;
+#define FDT_MAX_DEPTH	64
+	struct device_node *nps[FDT_MAX_DEPTH];
+	void *base = mem;
+	bool dryrun = !base;
+
+	if (nodepp)
+		*nodepp = NULL;
+
+	if (dad)
+		depth = initial_depth = 1;
+
+	root = dad;
+	nps[depth] = dad;
+
+	for (offset = 0;
+	     offset >= 0 && depth >= initial_depth;
+	     offset = fdt_next_node(blob, offset, &depth)) {
+		if (!populate_node(blob, offset, &mem, nps[depth],
+                           &nps[depth+1], dryrun))
+			return mem - base;
+
+		if (!dryrun && nodepp && !*nodepp)
+            *nodepp = nps[depth+1];
+		if (!dryrun && !root)
+			root = nps[depth+1];
+    }
+
+	if (offset < 0 && offset != -FDT_ERR_NOTFOUND) {
+		panic("Error %d processing FDT\n", offset);
+		return -EINVAL;
+	}
+
+	/*
+	 * Reverse the child list. Some drivers assumes node order
+     * matches .dts node order
+	 */
+	if (!dryrun)
+		reverse_nodes(root);
+
+	return mem - base;
+}
+
 void *
 __unflatten_device_tree(const void *blob,
                         struct device_node *dad,
                         struct device_node **mynodes,
-                        void *(*dt_alloc)(u64 size, u64 align),
-                        bool detached)
+                        void *(*dt_alloc)(u64 size, u64 align))
 {
+	int size;
+	void *mem;
+
     sbi_printf(" -> unflatten_device_tree() blob(%lx)\n", blob);
 
     if (!blob) {
@@ -320,5 +616,47 @@ __unflatten_device_tree(const void *blob,
     sbi_printf("size: %x\n", fdt_totalsize(blob));
     sbi_printf("version: %x\n", fdt_version(blob));
 
-    return NULL;
+	/* First pass, scan for size */
+	size = unflatten_dt_nodes(blob, NULL, dad, NULL);
+	if (size < 0)
+		return NULL;
+
+	size = ALIGN(size, 4);
+	sbi_printf("  size is %d, allocating...\n", size);
+
+	/* Allocate memory for the expanded device tree */
+	mem = dt_alloc(size + 4, __alignof__(struct device_node));
+	if (!mem)
+		return NULL;
+
+	memset(mem, 0, size);
+
+	*(u32 *)(mem + size) = cpu_to_be32(0xdeadbeef);
+
+	sbi_printf("  unflattening %lx...\n", mem);
+
+	/* Second pass, do actual unflattening */
+	unflatten_dt_nodes(blob, mem, dad, mynodes);
+	if (be32_to_cpup(mem + size) != 0xdeadbeef)
+		panic("End of tree marker overwritten: %08x\n",
+              be32_to_cpup(mem + size));
+
+	sbi_printf(" <- unflatten_device_tree()\n");
+    return mem;
+}
+
+int
+of_property_read_string(const struct device_node *np,
+                        const char *propname,
+                        const char **out_string)
+{
+    const struct property *prop = of_find_property(np, propname, NULL);
+    if (!prop)
+        return -EINVAL;
+    if (!prop->value)
+        return -ENODATA;
+    if (strnlen(prop->value, prop->length) >= prop->length)
+        return -EILSEQ;
+    *out_string = prop->value;
+    return 0;
 }
