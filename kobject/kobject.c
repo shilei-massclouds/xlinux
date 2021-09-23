@@ -43,3 +43,11 @@ error:
     panic("kobject (%p): %s\n", kobj, err_str);
 }
 EXPORT_SYMBOL(kobject_init);
+
+static int
+init_module(void)
+{
+    sbi_puts("module[kobject]: init begin ...\n");
+    sbi_puts("module[kobject]: init end!\n");
+    return 0;
+}

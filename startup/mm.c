@@ -98,7 +98,6 @@ void
 clear_flash_pge(void)
 {
     uintptr_t pge_idx = pge_index(FLASH_VA);
-    BUG_ON(!mmu_enabled);
     swapper_pgd[pge_idx] = __pge(0);
 }
 

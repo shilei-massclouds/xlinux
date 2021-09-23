@@ -40,16 +40,20 @@ __of_get_next_child(const struct device_node *node,
     for (child = __of_get_next_child(parent, NULL); child != NULL; \
          child = __of_get_next_child(parent, child))
 
-static bool
-early_init_dt_verify(void *params)
+bool
+early_init_dt_verify(void)
 {
-    if (fdt_check_header(params))
+    if (dtb_early_va == NULL)
+        panic("dtb_early_va is NULL!");
+
+    if (fdt_check_header(dtb_early_va))
         return false;
 
     /* Setup flat device-tree pointer */
-    initial_boot_params = params;
+    initial_boot_params = dtb_early_va;
     return true;
 }
+EXPORT_SYMBOL(early_init_dt_verify);
 
 /**
  * early_init_dt_scan_root - fetch the top level address and size cells
@@ -183,13 +187,14 @@ early_init_dt_scan_memory(unsigned long node,
     return 0;
 }
 
-static void
+void
 early_init_dt_scan_nodes(void)
 {
     of_scan_flat_dt(early_init_dt_scan_root, NULL);
 
     of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 }
+EXPORT_SYMBOL(early_init_dt_scan_nodes);
 
 static void *
 early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -283,7 +288,7 @@ of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
     }
 }
 
-static void
+void
 unflatten_device_tree(void)
 {
     __unflatten_device_tree(initial_boot_params, NULL, &of_root,
@@ -291,7 +296,9 @@ unflatten_device_tree(void)
 
     /* Get pointer to "/chosen" nodes for use everywhere */
     of_alias_scan(memblock_alloc);
+    sbi_printf("stdout (%s)\n", of_stdout->full_name);
 }
+EXPORT_SYMBOL(unflatten_device_tree);
 
 static struct fwnode_handle *
 of_fwnode_get(struct fwnode_handle *fwnode)
@@ -343,13 +350,6 @@ static int
 init_module(void)
 {
     sbi_puts("module[of]: init begin ...\n");
-    early_init_dt_verify(dtb_early_va);
-    sbi_puts("module[of]: scan dtb nodes ...\n");
-    early_init_dt_scan_nodes();
-    sbi_puts("module[of]: memblock_setup_vm_final ...\n");
-    memblock_setup_vm_final();
-    sbi_puts("module[of]: unflatten device tree ...\n");
-    unflatten_device_tree();
     sbi_puts("module[of]: init end!\n");
 
     return 0;

@@ -8,7 +8,7 @@
 
 static void test(void)
 {
-    sbi_puts("start_kernel test!\n");
+    sbi_puts("test!\n");
 }
 EXPORT_SYMBOL(test);
 
@@ -16,7 +16,7 @@ static int init_module(void)
 {
     sbi_puts("module[test]: init begin ...\n");
 
-    start_kernel_fn = test;
+    test();
 
     sbi_puts("module[test]: init end!\n");
 

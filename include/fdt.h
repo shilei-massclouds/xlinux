@@ -289,4 +289,13 @@ is_of_node(const struct fwnode_handle *fwnode)
             &__of_fwnode_handle_node->fwnode : NULL;    \
     })
 
+bool
+early_init_dt_verify(void);
+
+void
+early_init_dt_scan_nodes(void);
+
+void
+unflatten_device_tree(void);
+
 #endif /* LIBFDT_H */

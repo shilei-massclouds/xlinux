@@ -4,7 +4,7 @@ include scripts/Makefile.include
 
 PHONY := all clean
 
-SUBDIRS		:= startup memblock of kobject test
+SUBDIRS		:= startup memblock of kobject init test
 CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 
 PHONY += $(SUBDIRS)
