@@ -1,0 +1,295 @@
+// SPDX-License-Identifier: GPL-2.0+
+#include <bug.h>
+#include <fdt.h>
+#include <sbi.h>
+#include <errno.h>
+#include <export.h>
+#include <memblock.h>
+#include <of_platform.h>
+
+const struct of_device_id
+of_default_bus_match_table[] = {
+    { .compatible = "simple-bus", },
+    { .compatible = "simple-mfd", },
+    { .compatible = "isa", },
+    {} /* Empty terminated list */
+};
+
+static bool
+__of_node_is_type(const struct device_node *np, const char *type)
+{
+    const char *match = __of_get_property(np, "device_type", NULL);
+
+    return np && match && type && !strcmp(match, type);
+}
+
+static bool
+of_node_name_eq(const struct device_node *np, const char *name)
+{
+    const char *node_name;
+    size_t len;
+
+    if (!np)
+        return false;
+
+    node_name = kbasename(np->full_name);
+    len = strchrnul(node_name, '@') - node_name;
+
+    return (strlen(name) == len) && (strncmp(node_name, name, len) == 0);
+}
+
+static int
+__of_device_is_compatible(const struct device_node *device,
+                          const char *compat,
+                          const char *type,
+                          const char *name)
+{
+    struct property *prop;
+    const char *cp;
+    int index = 0, score = 0;
+
+    /* Compatible match has highest priority */
+    if (compat && compat[0]) {
+        prop = __of_find_property(device, "compatible", NULL);
+        for (cp = of_prop_next_string(prop, NULL); cp;
+             cp = of_prop_next_string(prop, cp), index++) {
+            if (of_compat_cmp(cp, compat, strlen(compat)) == 0) {
+                sbi_printf("%s: %s, %s\n", __func__, cp, compat);
+                score = INT_MAX/2 - (index << 2);
+                break;
+            }
+        }
+        if (!score)
+            return 0;
+    }
+
+    /* Matching type is better than matching name */
+    if (type && type[0]) {
+        if (!__of_node_is_type(device, type))
+            return 0;
+        score += 2;
+    }
+
+    /* Matching name is a bit better than not */
+    if (name && name[0]) {
+        if (!of_node_name_eq(device, name))
+            return 0;
+        score++;
+    }
+
+    return score;
+}
+
+static const struct of_device_id *
+__of_match_node(const struct of_device_id *matches,
+                const struct device_node *node)
+{
+    const struct of_device_id *best_match = NULL;
+    int score, best_score = 0;
+
+    if (!matches)
+        return NULL;
+
+    for (;
+         matches->name[0] || matches->type[0] || matches->compatible[0];
+         matches++) {
+        score = __of_device_is_compatible(node, matches->compatible,
+                                          matches->type, matches->name);
+        if (score > best_score) {
+            best_match = matches;
+            best_score = score;
+        }
+    }
+
+    return best_match;
+}
+
+const struct of_device_id *
+of_match_node(const struct of_device_id *matches,
+              const struct device_node *node)
+{
+    const struct of_device_id *match;
+    //unsigned long flags;
+
+    //raw_spin_lock_irqsave(&devtree_lock, flags);
+    match = __of_match_node(matches, node);
+    //raw_spin_unlock_irqrestore(&devtree_lock, flags);
+    return match;
+}
+
+static const struct of_dev_auxdata *
+of_dev_lookup(const struct of_dev_auxdata *lookup,
+              struct device_node *np)
+{
+    if (!lookup)
+        return NULL;
+
+    panic("Cant come here!!!\n");
+}
+
+struct platform_object {
+    struct platform_device pdev;
+    char name[];
+};
+
+struct platform_device *
+platform_device_alloc(const char *name, int id)
+{
+    struct platform_object *pa;
+
+    pa = memblock_alloc(sizeof(*pa) + strlen(name) + 1, 8);
+
+    return pa ? &pa->pdev : NULL;
+}
+
+struct platform_device *
+of_device_alloc(struct device_node *np,
+                const char *bus_id,
+                struct device *parent)
+{
+    struct platform_device *dev;
+
+    dev = platform_device_alloc("", PLATFORM_DEVID_NONE);
+    if (!dev)
+        return NULL;
+
+    sbi_printf("%s: %s\n", __func__, np->full_name);
+    return dev;
+}
+
+/*
+int
+of_device_add(struct platform_device *ofdev)
+{
+    return device_add(&ofdev->dev);
+}
+*/
+
+static struct platform_device *
+of_platform_device_create_pdata(struct device_node *np,
+                                const char *bus_id,
+                                void *platform_data,
+                                struct device *parent)
+{
+    struct platform_device *dev;
+
+    if (!of_device_is_available(np) ||
+        of_node_test_and_set_flag(np, OF_POPULATED))
+        return NULL;
+
+    dev = of_device_alloc(np, bus_id, parent);
+    if (!dev)
+        goto err_clear_flag;
+
+    /*
+    if (of_device_add(dev) != 0) {
+        platform_device_put(dev);
+        goto err_clear_flag;
+    }
+    */
+
+    return dev;
+
+err_clear_flag:
+    of_node_clear_flag(np, OF_POPULATED);
+    return NULL;
+}
+
+/*
+void
+platform_device_put(struct platform_device *pdev)
+{
+    if (!IS_ERR_OR_NULL(pdev))
+        put_device(&pdev->dev);
+}
+*/
+
+static int
+of_platform_bus_create(struct device_node *bus,
+                       const struct of_device_id *matches,
+                       const struct of_dev_auxdata *lookup,
+                       struct device *parent,
+                       bool strict)
+{
+    const char *bus_id = NULL;
+    void *platform_data = NULL;
+    struct platform_device *dev;
+    struct device_node *child = NULL;
+    const struct of_dev_auxdata *auxdata;
+    int rc = 0;
+
+    sbi_printf("%s\n", bus->full_name);
+
+    /* Make sure it has a compatible property */
+    if (strict && (!of_get_property(bus, "compatible", NULL))) {
+        return 0;
+    }
+
+    if (of_node_check_flag(bus, OF_POPULATED_BUS)) {
+        sbi_printf("%s() - skipping %lxOF, already populated\n",
+                   __func__, bus);
+        return 0;
+    }
+
+    auxdata = of_dev_lookup(lookup, bus);
+    if (auxdata) {
+        bus_id = auxdata->name;
+        platform_data = auxdata->platform_data;
+    }
+
+    dev = of_platform_device_create_pdata(bus, bus_id, platform_data, parent);
+    if (!dev || !of_match_node(matches, bus))
+        return 0;
+
+    for_each_child_of_node(bus, child) {
+        sbi_printf("   create child: %s\n", child->full_name);
+        rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
+        if (rc) {
+            of_node_put(child);
+            break;
+        }
+    }
+    of_node_set_flag(bus, OF_POPULATED_BUS);
+    return rc;
+}
+
+static int
+of_platform_populate(struct device_node *root,
+                     const struct of_device_id *matches,
+                     const struct of_dev_auxdata *lookup,
+                     struct device *parent)
+{
+    struct device_node *child;
+    int rc = 0;
+
+    root = root ? of_node_get(root) : of_find_node_by_path("/");
+    if (!root)
+        return -EINVAL;
+
+    sbi_printf("%s()\n", __func__);
+
+    for_each_child_of_node(root, child) {
+        rc = of_platform_bus_create(child, matches, lookup, parent, true);
+        if (rc) {
+            of_node_put(child);
+            break;
+        }
+    }
+
+    of_node_set_flag(root, OF_POPULATED_BUS);
+
+    of_node_put(root);
+    return rc;
+}
+
+int
+of_platform_default_populate_init(void)
+{
+    if (!of_have_populated_dt())
+        return -ENODEV;
+
+    sbi_printf("### %s!\n", __func__);
+    return of_platform_populate(NULL, of_default_bus_match_table,
+                                NULL, NULL);
+}
+EXPORT_SYMBOL(of_platform_default_populate_init);

@@ -36,6 +36,17 @@ __of_get_next_child(const struct device_node *node,
     return next;
 }
 
+struct device_node *
+of_get_next_child(const struct device_node *node,
+                  struct device_node *prev)
+{
+    struct device_node *next;
+    unsigned long flags;
+
+    next = __of_get_next_child(node, prev);
+    return next;
+}
+
 #define __for_each_child_of_node(parent, child) \
     for (child = __of_get_next_child(parent, NULL); child != NULL; \
          child = __of_get_next_child(parent, child))

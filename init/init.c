@@ -15,6 +15,8 @@ start_kernel(void)
 
     unflatten_device_tree();
 
+    of_platform_default_populate_init();
+
     sbi_puts("start_kernel: init ok!\n");
 }
 

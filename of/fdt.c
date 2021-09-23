@@ -421,7 +421,7 @@ populate_properties(const void *blob,
 		*pprev = NULL;
 }
 
-static struct property *
+struct property *
 __of_find_property(const struct device_node *np, const char *name, int *lenp)
 {
     struct property *pp;
@@ -451,6 +451,15 @@ of_find_property(const struct device_node *np, const char *name, int *lenp)
     //raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
     return pp;
+}
+
+const void *
+__of_get_property(const struct device_node *np,
+                  const char *name, int *lenp)
+{
+    struct property *pp = __of_find_property(np, name, lenp);
+
+    return pp ? pp->value : NULL;
 }
 
 const void *
@@ -658,4 +667,52 @@ of_property_read_string(const struct device_node *np,
         return -EILSEQ;
     *out_string = prop->value;
     return 0;
+}
+
+static bool
+__of_device_is_available(const struct device_node *device)
+{
+    const char *status;
+    int statlen;
+
+    if (!device)
+        return false;
+
+    status = __of_get_property(device, "status", &statlen);
+    if (status == NULL)
+        return true;
+
+    if (statlen > 0) {
+        if (!strcmp(status, "okay") || !strcmp(status, "ok"))
+            return true;
+    }
+
+    return false;
+}
+
+bool
+of_device_is_available(const struct device_node *device)
+{
+    bool res;
+    res = __of_device_is_available(device);
+    return res;
+
+}
+
+const char *
+of_prop_next_string(struct property *prop, const char *cur)
+{
+    const void *curv = cur;
+
+    if (!prop)
+        return NULL;
+
+    if (!cur)
+        return prop->value;
+
+    curv += strlen(cur) + 1;
+    if (curv >= prop->value + prop->length)
+        return NULL;
+
+    return curv;
 }

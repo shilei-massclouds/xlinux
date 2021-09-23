@@ -6,8 +6,21 @@
 #include <fwnode.h>
 #include <kobject.h>
 #include <kernel.h>
+#include <bits.h>
 
-#define of_prop_cmp(s1, s2)     strcmp((s1), (s2))
+#define of_compat_cmp(s1, s2, l)    strcasecmp((s1), (s2))
+#define of_prop_cmp(s1, s2)         strcmp((s1), (s2))
+
+/*
+ * struct device_node flag descriptions
+ * (need to be visible even when !CONFIG_OF)
+ */
+#define OF_DYNAMIC          1 /* (and properties) allocated via kmalloc */
+#define OF_DETACHED         2 /* detached from the device tree */
+#define OF_POPULATED        3 /* device already created */
+#define OF_POPULATED_BUS    4 /* platform bus created for children */
+#define OF_OVERLAY          5 /* allocated for an overlay */
+#define OF_OVERLAY_FREE_CSET    6 /* in overlay cset being freed */
 
 typedef u32 phandle;
 
@@ -24,10 +37,20 @@ struct device_node {
 
     struct kobject kobj;
     struct fwnode_handle fwnode;
+
+    unsigned long _flags;
 };
+
+extern struct device_node *of_root;
 
 extern struct kobj_type of_node_ktype;
 extern const struct fwnode_operations of_fwnode_ops;
+
+static inline bool
+of_have_populated_dt(void)
+{
+    return of_root != NULL;
+}
 
 static inline void
 of_node_init(struct device_node *node)
@@ -297,5 +320,56 @@ early_init_dt_scan_nodes(void);
 
 void
 unflatten_device_tree(void);
+
+int
+of_platform_default_populate_init(void);
+
+struct device_node *
+of_get_next_child(const struct device_node *node,
+                  struct device_node *prev);
+
+#define for_each_child_of_node(parent, child)                       \
+    for (child = of_get_next_child(parent, NULL); child != NULL;    \
+         child = of_get_next_child(parent, child))
+
+static inline void
+of_node_set_flag(struct device_node *n, unsigned long flag)
+{
+    set_bit(flag, &n->_flags);
+}
+
+static inline void
+of_node_clear_flag(struct device_node *n, unsigned long flag)
+{
+    clear_bit(flag, &n->_flags);
+}
+
+static inline int
+of_node_check_flag(struct device_node *n, unsigned long flag)
+{
+    return test_bit(flag, &n->_flags);
+}
+
+static inline int
+of_node_test_and_set_flag(struct device_node *n, unsigned long flag)
+{
+    return test_and_set_bit(flag, &n->_flags);
+}
+
+const void *
+of_get_property(const struct device_node *np, const char *name, int *lenp);
+
+bool
+of_device_is_available(const struct device_node *device);
+
+const char *
+of_prop_next_string(struct property *prop, const char *cur);
+
+struct property *
+__of_find_property(const struct device_node *np, const char *name, int *lenp);
+
+const void *
+__of_get_property(const struct device_node *np,
+                  const char *name, int *lenp);
 
 #endif /* LIBFDT_H */

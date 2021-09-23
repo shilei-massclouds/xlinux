@@ -4,10 +4,27 @@
 
 #ifndef __ASSEMBLY__
 
+extern const unsigned char _ctype[];
+
+#define _U  0x01    /* upper */
+#define _L  0x02    /* lower */
+#define _D  0x04    /* digit */
+#define _C  0x08    /* cntrl */
+#define _P  0x10    /* punct */
+#define _S  0x20    /* white space (space/lf/tab) */
+#define _X  0x40    /* hex digit */
+#define _SP 0x80    /* hard space (0x20) */
+
+#define __ismask(x) (_ctype[(int)(unsigned char)(x)])
+
+#define islower(c)  ((__ismask(c)&(_L)) != 0)
+#define isupper(c)  ((__ismask(c)&(_U)) != 0)
+
 #define NULL ((void *)0)
 
 #define SIZE_MAX        (~(size_t)0)
 #define PHYS_ADDR_MAX   (~(phys_addr_t)0)
+#define INT_MAX         ((int)(~0U >> 1))
 #define ULLONG_MAX      (~0ULL)
 
 #define min(a, b)   ((a < b) ? a : b)
@@ -75,6 +92,8 @@ typedef unsigned int    __kernel_gid32_t;
 typedef __kernel_uid32_t    uid_t;
 typedef __kernel_gid32_t    gid_t;
 
+typedef phys_addr_t resource_size_t;
+
 extern void *memset(void *, int, __kernel_size_t);
 extern void *memcpy(void *, const void *, size_t);
 extern int memcmp(const void *cs, const void *ct, size_t count);
@@ -91,6 +110,26 @@ extern char *strchrnul(const char *s, int c);
 extern int strncmp(const char *cs, const char *ct, size_t count);
 
 extern size_t strnlen(const char *s, size_t count);
+extern int strcasecmp(const char *s1, const char *s2);
+
+static inline unsigned char
+__tolower(unsigned char c)
+{
+    if (isupper(c))
+        c -= 'A'-'a';
+    return c;
+}
+
+static inline unsigned char
+__toupper(unsigned char c)
+{
+    if (islower(c))
+        c -= 'a'-'A';
+    return c;
+}
+
+#define tolower(c) __tolower(c)
+#define toupper(c) __toupper(c)
 
 /**
  * kbasename - return the last part of a pathname.
