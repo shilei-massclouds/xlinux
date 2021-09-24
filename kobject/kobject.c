@@ -44,6 +44,17 @@ error:
 }
 EXPORT_SYMBOL(kobject_init);
 
+static void
+kobject_release(struct kref *kref)
+{
+}
+
+void kobject_put(struct kobject *kobj)
+{
+    /* Todo: implement it */
+}
+EXPORT_SYMBOL(kobject_put);
+
 static int
 init_module(void)
 {

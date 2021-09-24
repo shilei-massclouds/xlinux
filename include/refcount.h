@@ -19,4 +19,23 @@ refcount_set(refcount_t *r, int n)
     atomic_set(&r->refs, n);
 }
 
+static inline bool
+refcount_sub_and_test(int i, refcount_t *r)
+{
+    int old = r->refs.counter;
+    r->refs.counter -= i;
+
+    if (old == i) {
+        return true;
+    }
+
+    return false;
+}
+
+static inline bool
+refcount_dec_and_test(refcount_t *r)
+{
+    return refcount_sub_and_test(1, r);
+}
+
 #endif /* _LINUX_REFCOUNT_H */

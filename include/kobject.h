@@ -33,5 +33,12 @@ struct kobj_type {
 };
 
 extern void kobject_init(struct kobject *kobj, struct kobj_type *ktype);
+extern void kobject_put(struct kobject *kobj);
+
+static inline const char *
+kobject_name(const struct kobject *kobj)
+{
+    return kobj->name;
+}
 
 #endif /* _KOBJECT_H_ */

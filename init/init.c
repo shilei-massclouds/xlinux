@@ -2,6 +2,7 @@
 #include <fdt.h>
 #include <sbi.h>
 #include <memblock.h>
+#include <of_platform.h>
 
 static void
 start_kernel(void)
@@ -14,6 +15,8 @@ start_kernel(void)
     memblock_setup_vm_final();
 
     unflatten_device_tree();
+
+    platform_bus_init();
 
     of_platform_default_populate_init();
 

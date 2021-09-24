@@ -29,4 +29,7 @@ struct platform_device {
     struct device dev;
 };
 
+int
+platform_bus_init(void);
+
 #endif /* OF_PLATFORM_H */
