@@ -36,7 +36,7 @@ EXPORT_SYMBOL(dtb_early_va);
 static phys_addr_t dtb_early_pa __initdata;
 static bool mmu_enabled;
 
-void setup_early_pge(void)
+void setup_early_pge(uintptr_t dtb_pa)
 {
     uintptr_t load_pa = (uintptr_t)(&_start);
     uintptr_t pge_idx = pge_index(PAGE_OFFSET);
@@ -51,12 +51,17 @@ void setup_early_pge(void)
 
     early_pmd[pme_idx] =
         pfn_pme(PFN_DOWN(load_pa), PAGE_KERNEL_EXEC);
+
+    pge_idx = pge_index(FLASH_VA);
+    BUG_ON(!pge_none(early_pgd[pge_idx]));
+    early_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
+
+    dtb_early_pa = dtb_pa;
 }
 
-void setup_fixmap_pge(uintptr_t dtb_pa)
+void setup_fixmap_pge(void)
 {
     uintptr_t va, end_va;
-    uintptr_t load_pa = (uintptr_t)(&_start);
     uintptr_t pge_idx = pge_index(FIXADDR_START);
     uintptr_t pme_idx = pme_index(FIXADDR_START);
 
@@ -64,34 +69,28 @@ void setup_fixmap_pge(uintptr_t dtb_pa)
     BUG_ON(!pme_none(fixmap_pmd[pme_idx]));
 
     early_pgd[pge_idx] =
-        pfn_pge(PFN_DOWN((uintptr_t)fixmap_pmd), PAGE_TABLE);
+        pfn_pge(PFN_DOWN(__pa(fixmap_pmd)), PAGE_TABLE);
 
     fixmap_pmd[pme_idx] =
-        pfn_pme(PFN_DOWN((uintptr_t)fixmap_pt), PAGE_TABLE);
+        pfn_pme(PFN_DOWN(__pa(fixmap_pt)), PAGE_TABLE);
 
     end_va = fix_to_virt(FIX_FDT) + FIX_FDT_SIZE;
     for (va = fix_to_virt(FIX_FDT); va < end_va; va += PAGE_SIZE) {
         uintptr_t pte_idx = pte_index(va);
-        uintptr_t pa = dtb_pa + (va - fix_to_virt(FIX_FDT));
+        uintptr_t pa = dtb_early_pa + (va - fix_to_virt(FIX_FDT));
         fixmap_pt[pte_idx] = pfn_pte(PFN_DOWN(pa), PAGE_KERNEL);
     }
 
-    dtb_early_va = (void *)fix_to_virt(FIX_FDT) + (dtb_pa & ~PAGE_MASK);
-    dtb_early_pa = dtb_pa;
+    dtb_early_va = (void *)fix_to_virt(FIX_FDT) + (dtb_early_pa & ~PAGE_MASK);
 }
 
 void
 setup_flash_pge(void)
 {
     uintptr_t pge_idx = pge_index(FLASH_VA);
-
-    if (mmu_enabled) {
-        BUG_ON(!pge_none(swapper_pgd[pge_idx]));
-        swapper_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
-    } else {
-        BUG_ON(!pge_none(early_pgd[pge_idx]));
-        early_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
-    }
+    BUG_ON(!mmu_enabled);
+    BUG_ON(!pge_none(swapper_pgd[pge_idx]));
+    swapper_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
 }
 
 void

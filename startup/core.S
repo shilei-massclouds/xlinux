@@ -93,9 +93,7 @@ clear_bss_done:
 
     # Init pgd
     mv a0, s1
-    call setup_fixmap_pge
     call setup_early_pge
-    call setup_flash_pge
 
     # Enable paging
     call relocate
@@ -104,6 +102,8 @@ clear_bss_done:
     la sp, init_stack_top
 
     call load_modules
+
+    call setup_fixmap_pge
 
     tail start_kernel
 
