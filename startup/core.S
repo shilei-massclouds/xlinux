@@ -3,9 +3,9 @@
 #include <page.h>
 #include <csr.h>
 
-#define RISCV_SZPTR 8
-
+#define RISCV_SZPTR             8
 #define RISCV_HEADER_VERSION    2
+#define RISCV_TEXT_OFFSET       0x200000
 #define RISCV_IMAGE_MAGIC       "RISCV\0\0\0"
 #define RISCV_IMAGE_MAGIC2      "RSC\x05"
 
@@ -14,14 +14,13 @@
 _start:
     j _start_kernel                 /* code0 */
     .word  0                        /* code1 */
-    .dword 0x200000                 /* text_offset: Image load offset */
-    .dword _end - _start            /* image_size: Effective image size */
+    .dword RISCV_TEXT_OFFSET        /* text_offset: Image load offset */
+    .dword _data_end - _start       /* image_size: image size */
     .dword 0                        /* flags: kernel flags */
     .word  RISCV_HEADER_VERSION     /* version */
     .word  0                        /* res1 */
-    .dword _data_end - _start       /* res2: Image file size on disk */
+    .dword 0                        /* res2 */
     .ascii RISCV_IMAGE_MAGIC        /* magic */
-    .balign 4
     .ascii RISCV_IMAGE_MAGIC2       /* magic2 */
     .word  0                        /* res3 */
 
@@ -88,10 +87,7 @@ clear_bss_done:
     # Init stack for C function
     la sp, init_stack_top
 
-    la a0, info
-    call sbi_puts
-
-    # Init pgd
+    # Init early pgd
     mv a0, s1
     call setup_early_pge
 
@@ -104,8 +100,3 @@ clear_bss_done:
     call load_modules
 
     tail start_kernel
-
-.balign 4
-.section .data, "aw"
-info:
-    .string "Hello! World!\n"

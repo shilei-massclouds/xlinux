@@ -1,19 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_RISCV_IMAGE_H
-#define _ASM_RISCV_IMAGE_H
+#ifndef _RISCV_IMAGE_H
+#define _RISCV_IMAGE_H
 
 #include <types.h>
-
-#ifndef __ASSEMBLY__
 
 /**
  * struct image_header - riscv kernel image header
  * @code0:      Executable code
  * @code1:      Executable code
- * @text_offset:    Image load offset (little endian)
- * @image_size:     Effective Image size (little endian)
+ * @text_offset:Image load offset (little endian)
+ * @image_size: Effective Image size (little endian)
  * @flags:      kernel flags (little endian)
- * @version:        version
+ * @version:    version
  * @res1:       reserved
  * @res2:       reserved
  * @magic:      Magic number (RISC-V specific; deprecated)
@@ -38,6 +36,4 @@ struct image_header {
     u32 res3;
 };
 
-#endif /* __ASSEMBLY__ */
-
-#endif  /* _ASM_RISCV_IMAGE_H */
+#endif  /* _RISCV_IMAGE_H */

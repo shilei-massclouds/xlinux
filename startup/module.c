@@ -24,6 +24,9 @@ extern const struct kernel_symbol _end_ksymtab[];
 LIST_HEAD(modules);
 EXPORT_SYMBOL(modules);
 
+u32 kernel_size = 0;
+EXPORT_SYMBOL(kernel_size);
+
 struct module kernel_module;
 
 struct layout {
@@ -123,9 +126,9 @@ setup_load_info(uintptr_t base, struct load_info *info)
 
     info->name = NULL;
     info->hdr = (Elf64_Ehdr *)base;
-    info->len = info->hdr->e_phoff;
-    info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
-    info->secstrings = (void *)info->hdr +
+    info->len = info->hdr->e_phoff; /* save size of this module */
+    info->sechdrs = (void *)base + info->hdr->e_shoff;
+    info->secstrings = (void *)base +
         info->sechdrs[info->hdr->e_shstrndx].sh_offset;
     info->strtab = NULL;
 
@@ -145,7 +148,7 @@ modules_source_base(void)
 {
     uintptr_t base = (FLASH_VA + FLASH_HEAD_SIZE);
     struct image_header *hdr = (struct image_header *) base;
-    return ROUND_UP((base + hdr->res2), 8);
+    return ROUND_UP((base + hdr->image_size), 8);
 }
 
 static void
@@ -468,6 +471,8 @@ init_other_modules(void)
         src_addr += ROUND_UP(info.len, 8);
         dst_addr += ROUND_UP(info.layout.size, 8);
     }
+
+    kernel_size = dst_addr;
 }
 
 void load_modules(void)

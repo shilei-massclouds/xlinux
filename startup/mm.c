@@ -10,28 +10,22 @@
 #error "Don't use absolute addressing now."
 #endif
 
-extern char _start[];
-
 pge_t early_pgd[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(early_pgd);
-
 pme_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(early_pmd);
-
 pme_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
 EXPORT_SYMBOL(fixmap_pmd);
-
 pte_t fixmap_pt[PTRS_PER_PT] __page_aligned_bss;
 EXPORT_SYMBOL(fixmap_pt);
-
 pge_t swapper_pgd[PTRS_PER_PGD] __page_aligned_bss;
 EXPORT_SYMBOL(swapper_pgd);
-
 unsigned long va_pa_offset;
 EXPORT_SYMBOL(va_pa_offset);
-
 phys_addr_t dtb_early_pa __initdata;
 EXPORT_SYMBOL(dtb_early_pa);
+
+extern char _start[];
 
 void setup_early_pge(uintptr_t dtb_pa)
 {

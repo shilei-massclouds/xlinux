@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <mm.h>
+#include <bug.h>
 #include <fdt.h>
-#include <sbi.h>
+#include <printk.h>
 #include <memblock.h>
 #include <of_platform.h>
+
+extern u32 kernel_size;
 
 static void
 start_kernel(void)
 {
-    sbi_puts("start_kernel: init ...\n");
+    printk("start_kernel: init ...\n");
+
+    if (kernel_size >= PME_SIZE)
+        panic("kernel size (%lu) is too large!\n", kernel_size);
 
     clear_flash_pge();
 
@@ -25,17 +31,17 @@ start_kernel(void)
 
     of_platform_default_populate_init();
 
-    sbi_puts("start_kernel: init ok!\n");
+    printk("start_kernel: init ok!\n");
 }
 
 static int
 init_module(void)
 {
-    sbi_puts("module[init]: init begin ...\n");
+    printk("module[init]: init begin ...\n");
 
     start_kernel_fn = start_kernel;
 
-    sbi_puts("module[init]: init end!\n");
+    printk("module[init]: init end!\n");
 
     return 0;
 }
