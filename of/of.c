@@ -4,6 +4,7 @@
 #include <kernel.h>
 #include <fdt.h>
 #include <page.h>
+#include <string.h>
 #include <memblock.h>
 #include <bug.h>
 #include <mm.h>
@@ -104,8 +105,8 @@ early_init_dt_add_memory_arch(u64 base, u64 size)
     const u64 phys_offset = MIN_MEMBLOCK_ADDR;
 
     if (size < PAGE_SIZE - (base & ~PAGE_MASK)) {
-        sbi_printf("Ignoring memory block %lx - %lx\n",
-                   base, base + size);
+        printk("Ignoring memory block %lx - %lx\n",
+               base, base + size);
         return;
     }
 
@@ -116,26 +117,26 @@ early_init_dt_add_memory_arch(u64 base, u64 size)
     size &= PAGE_MASK;
 
     if (base > MAX_MEMBLOCK_ADDR) {
-        sbi_printf("Ignoring memory block %lx - %lx\n",
-                   base, base + size);
+        printk("Ignoring memory block %lx - %lx\n",
+               base, base + size);
         return;
     }
 
     if (base + size - 1 > MAX_MEMBLOCK_ADDR) {
-        sbi_printf("Ignoring memory range %lx - %lx\n",
-                   ((u64)MAX_MEMBLOCK_ADDR) + 1, base + size);
+        printk("Ignoring memory range %lx - %lx\n",
+               ((u64)MAX_MEMBLOCK_ADDR) + 1, base + size);
         size = MAX_MEMBLOCK_ADDR - base + 1;
     }
 
     if (base + size < phys_offset) {
-        sbi_printf("Ignoring memory block %lx - %lx\n",
-                   base, base + size);
+        printk("Ignoring memory block %lx - %lx\n",
+               base, base + size);
         return;
     }
 
     if (base < phys_offset) {
-        sbi_printf("Ignoring memory range %lx - %lx\n",
-                   base, phys_offset);
+        printk("Ignoring memory range %lx - %lx\n",
+               base, phys_offset);
         size -= phys_offset - base;
         base = phys_offset;
     }
@@ -177,7 +178,7 @@ early_init_dt_scan_memory(unsigned long node,
 
     endp = reg + (len / sizeof(u32));
 
-    sbi_printf("memory scan node %s, reg size %d,\n", uname, len);
+    printk("memory scan node %s, reg size %d,\n", uname, len);
 
     while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
         u64 base, size;
@@ -188,9 +189,9 @@ early_init_dt_scan_memory(unsigned long node,
         if (size == 0)
             continue;
 
-        sbi_printf(" - %lx ,  %lx\n",
-                   (unsigned long long)base,
-                   (unsigned long long)size);
+        printk(" - %lx ,  %lx\n",
+               (unsigned long long)base,
+               (unsigned long long)size);
 
         early_init_dt_add_memory_arch(base, size);
     }
@@ -307,7 +308,7 @@ unflatten_device_tree(void)
 
     /* Get pointer to "/chosen" nodes for use everywhere */
     of_alias_scan(memblock_alloc);
-    sbi_printf("stdout (%s)\n", of_stdout->full_name);
+    printk("stdout (%s)\n", of_stdout->full_name);
 }
 EXPORT_SYMBOL(unflatten_device_tree);
 
@@ -360,8 +361,8 @@ struct kobj_type of_node_ktype = {
 static int
 init_module(void)
 {
-    sbi_puts("module[of]: init begin ...\n");
-    sbi_puts("module[of]: init end!\n");
+    printk("module[of]: init begin ...\n");
+    printk("module[of]: init end!\n");
 
     return 0;
 }

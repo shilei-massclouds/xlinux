@@ -2,13 +2,15 @@
 #ifndef _ASM_RISCV_BUG_H
 #define _ASM_RISCV_BUG_H
 
-#include <sbi.h>
+#include <printk.h>
+
+#define halt() __asm__ __volatile__ ("ebreak\n")
 
 #define BUG() do {    \
-    sbi_printf("\n########################\n"); \
-    sbi_printf("BUG: %s (%s:%u)", __FUNCTION__, __FILE__, __LINE__); \
-    sbi_printf("\n########################\n"); \
-    __asm__ __volatile__ ("ebreak\n");  \
+    printk("\n########################\n"); \
+    printk("BUG: %s (%s:%u)", __FUNCTION__, __FILE__, __LINE__); \
+    printk("\n########################\n"); \
+    halt();  \
 } while (0)
 
 #define BUG_ON(cond) do {   \
@@ -17,11 +19,11 @@
 
 #define panic(args...) \
     do { \
-        sbi_printf("\n########################\n"); \
-        sbi_printf("PANIC: %s (%s:%u)\n", __FUNCTION__, __FILE__, __LINE__); \
-        sbi_printf(args); \
-        sbi_printf("\n########################\n"); \
-        __asm__ __volatile__ ("ebreak\n");  \
+        printk("\n########################\n"); \
+        printk("PANIC: %s (%s:%u)\n", __FUNCTION__, __FILE__, __LINE__); \
+        printk(args); \
+        printk("\n########################\n"); \
+        halt();  \
     } while(0)
 
 #endif /* _ASM_RISCV_BUG_H */

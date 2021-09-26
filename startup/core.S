@@ -103,8 +103,6 @@ clear_bss_done:
 
     call load_modules
 
-    call setup_fixmap_pge
-
     tail start_kernel
 
 .balign 4

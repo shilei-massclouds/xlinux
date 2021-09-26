@@ -2,6 +2,7 @@
 #include <kobject.h>
 #include <bug.h>
 #include <export.h>
+#include <printk.h>
 
 static void
 kobject_init_internal(struct kobject *kobj)
@@ -58,7 +59,7 @@ EXPORT_SYMBOL(kobject_put);
 static int
 init_module(void)
 {
-    sbi_puts("module[kobject]: init begin ...\n");
-    sbi_puts("module[kobject]: init end!\n");
+    printk("module[kobject]: init begin ...\n");
+    printk("module[kobject]: init end!\n");
     return 0;
 }

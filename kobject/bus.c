@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <sbi.h>
+#include <printk.h>
 #include <errno.h>
 #include <klist.h>
 #include <device.h>
@@ -21,7 +21,7 @@ bus_add_device(struct device *dev)
     struct bus_type *bus = bus_get(dev->bus);
 
     if (bus) {
-        sbi_printf("bus: '%s': add device %s\n",
+        printk("bus: '%s': add device %s\n",
                    bus->name, dev_name(dev));
         klist_add_tail(&dev->p->knode_bus, &bus->p->klist_devices);
     }
@@ -55,7 +55,7 @@ bus_register(struct bus_type *bus)
                klist_devices_get,
                klist_devices_put);
 
-    sbi_printf("bus: '%s': registered\n", bus->name);
+    printk("bus: '%s': registered\n", bus->name);
     return 0;
 
 }

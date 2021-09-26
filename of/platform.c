@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <bug.h>
 #include <fdt.h>
-#include <sbi.h>
 #include <errno.h>
+#include <string.h>
 #include <export.h>
 #include <memblock.h>
 #include <of_platform.h>
@@ -67,7 +67,7 @@ __of_device_is_compatible(const struct device_node *device,
         for (cp = of_prop_next_string(prop, NULL); cp;
              cp = of_prop_next_string(prop, cp), index++) {
             if (of_compat_cmp(cp, compat, strlen(compat)) == 0) {
-                sbi_printf("%s: %s, %s\n", __func__, cp, compat);
+                printk("%s: %s, %s\n", __func__, cp, compat);
                 score = INT_MAX/2 - (index << 2);
                 break;
             }
@@ -166,8 +166,8 @@ of_device_alloc(struct device_node *np,
     if (!dev)
         return NULL;
 
-    sbi_printf("%s: %s bus_id(%s) parent(%lx)\n",
-               __func__, np->full_name, bus_id, parent);
+    printk("%s: %s bus_id(%s) parent(%lx)\n",
+           __func__, np->full_name, bus_id, parent);
     return dev;
 }
 
@@ -229,7 +229,7 @@ of_platform_bus_create(struct device_node *bus,
     const struct of_dev_auxdata *auxdata;
     int rc = 0;
 
-    sbi_printf("%s\n", bus->full_name);
+    printk("%s\n", bus->full_name);
 
     /* Make sure it has a compatible property */
     if (strict && (!of_get_property(bus, "compatible", NULL))) {
@@ -237,8 +237,8 @@ of_platform_bus_create(struct device_node *bus,
     }
 
     if (of_node_check_flag(bus, OF_POPULATED_BUS)) {
-        sbi_printf("%s() - skipping %lxOF, already populated\n",
-                   __func__, bus);
+        printk("%s() - skipping %lxOF, already populated\n",
+               __func__, bus);
         return 0;
     }
 
@@ -253,7 +253,7 @@ of_platform_bus_create(struct device_node *bus,
         return 0;
 
     for_each_child_of_node(bus, child) {
-        sbi_printf("   create child: %s\n", child->full_name);
+        printk("   create child: %s\n", child->full_name);
         rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
         if (rc) {
             of_node_put(child);
@@ -277,7 +277,7 @@ of_platform_populate(struct device_node *root,
     if (!root)
         return -EINVAL;
 
-    sbi_printf("%s()\n", __func__);
+    printk("%s()\n", __func__);
 
     for_each_child_of_node(root, child) {
         rc = of_platform_bus_create(child, matches, lookup, parent, true);
@@ -299,7 +299,6 @@ of_platform_default_populate_init(void)
     if (!of_have_populated_dt())
         return -ENODEV;
 
-    sbi_printf("### %s!\n", __func__);
     return of_platform_populate(NULL, of_default_bus_match_table,
                                 NULL, NULL);
 }

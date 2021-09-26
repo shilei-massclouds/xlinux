@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <fdt.h>
-#include <sbi.h>
+#include <printk.h>
 #include <types.h>
+#include <string.h>
 #include <bug.h>
 #include <errno.h>
 
@@ -379,8 +380,6 @@ populate_properties(const void *blob,
 				np->phandle = be32_to_cpup(val);
 		}
 
-        //sbi_printf("%s: (%s, %x) %x\n", __func__, pname, sz, *val);
-
 		pp->name   = (char *)pname;
 		pp->length = sz;
 		pp->value  = (u32 *)val;
@@ -413,7 +412,6 @@ populate_properties(const void *blob,
 			pprev      = &pp->next;
 			memcpy(pp->value, ps, len - 1);
 			((char *)pp->value)[len - 1] = 0;
-			//sbi_printf("fixed up name for %s -> %s\n", nodename, (char *)pp->value);
 		}
 	}
 
@@ -506,11 +504,6 @@ populate_node(const void *blob,
 			dad->child = np;
 		}
 	}
-
-    /*
-    sbi_printf("%s: offset(%d) (%s) %lx\n",
-               __func__, offset, pathp, np);
-    */
 
 	populate_properties(blob, offset, mem, np, pathp, dryrun);
 	if (!dryrun) {
@@ -607,30 +600,30 @@ __unflatten_device_tree(const void *blob,
 	int size;
 	void *mem;
 
-    sbi_printf(" -> unflatten_device_tree() blob(%lx)\n", blob);
+    printk(" -> unflatten_device_tree() blob(%lx)\n", blob);
 
     if (!blob) {
-        sbi_printf("No device tree pointer\n");
+        printk("No device tree pointer\n");
         return NULL;
     }
 
     if (fdt_check_header(blob)) {
-        sbi_printf("Invalid device tree blob header\n");
+        printk("Invalid device tree blob header\n");
         return NULL;
     }
 
-    sbi_printf("Unflattening device tree:\n");
-    sbi_printf("magic: %x\n", fdt_magic(blob));
-    sbi_printf("size: %x\n", fdt_totalsize(blob));
-    sbi_printf("version: %x\n", fdt_version(blob));
+    printk("Unflattening device tree:\n");
+    printk("magic: %x\n", fdt_magic(blob));
+    printk("size: %x\n", fdt_totalsize(blob));
+    printk("version: %x\n", fdt_version(blob));
 
 	/* First pass, scan for size */
 	size = unflatten_dt_nodes(blob, NULL, dad, NULL);
 	if (size < 0)
 		return NULL;
 
-	size = ALIGN(size, 4);
-	sbi_printf("  size is %d, allocating...\n", size);
+	size = _ALIGN(size, 4);
+	printk("  size is %d, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
 	mem = dt_alloc(size + 4, __alignof__(struct device_node));
@@ -641,7 +634,7 @@ __unflatten_device_tree(const void *blob,
 
 	*(u32 *)(mem + size) = cpu_to_be32(0xdeadbeef);
 
-	sbi_printf("  unflattening %lx...\n", mem);
+	printk("  unflattening %lx...\n", mem);
 
 	/* Second pass, do actual unflattening */
 	unflatten_dt_nodes(blob, mem, dad, mynodes);
@@ -649,7 +642,7 @@ __unflatten_device_tree(const void *blob,
 		panic("End of tree marker overwritten: %08x\n",
               be32_to_cpup(mem + size));
 
-	sbi_printf(" <- unflatten_device_tree()\n");
+	printk(" <- unflatten_device_tree()\n");
     return mem;
 }
 

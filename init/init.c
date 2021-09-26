@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <mm.h>
 #include <fdt.h>
 #include <sbi.h>
 #include <memblock.h>
@@ -8,6 +9,10 @@ static void
 start_kernel(void)
 {
     sbi_puts("start_kernel: init ...\n");
+
+    clear_flash_pge();
+
+    setup_fixmap_pge();
 
     early_init_dt_verify();
     early_init_dt_scan_nodes();

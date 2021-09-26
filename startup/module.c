@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
+#include <string.h>
 #include <module.h>
 #include <sbi.h>
 #include <image.h>
@@ -61,7 +62,7 @@ get_offset(unsigned int *size, Elf64_Shdr *s)
 {
     long ret;
 
-    ret = ALIGN(*size, s->sh_addralign ? : 1);
+    ret = _ALIGN(*size, s->sh_addralign ? : 1);
     *size = ret + s->sh_size;
     return ret;
 }
@@ -77,8 +78,6 @@ layout_sections(struct load_info *info)
     };
     unsigned int m, i;
 
-    sbi_printf("%s: \n", __func__);
-
     for (i = 0; i < info->hdr->e_shnum; i++)
         info->sechdrs[i].sh_entsize = ~0UL;
 
@@ -92,10 +91,6 @@ layout_sections(struct load_info *info)
                 continue;
 
             s->sh_entsize = get_offset(&(info->layout.size), s);
-            /*
-            sbi_printf("%s: %s %lx\n", __func__,
-                       info->secstrings + s->sh_name, s->sh_entsize);
-                       */
         }
 
         switch (m) {
@@ -113,8 +108,6 @@ static void
 rewrite_section_headers(struct load_info *info)
 {
     int i;
-
-    sbi_printf("%s: \n", __func__);
 
     /* Skip 0 because it is NULL segment. */
     for (i = 1; i < info->hdr->e_shnum; i++) {
@@ -136,8 +129,6 @@ setup_load_info(uintptr_t base, struct load_info *info)
         info->sechdrs[info->hdr->e_shstrndx].sh_offset;
     info->strtab = NULL;
 
-    sbi_printf("%s: load info len(%lx) [%lx]\n",
-               __func__, info->len, (uintptr_t)info->sechdrs);
     for (i = 1; i < info->hdr->e_shnum; i++) {
         if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
             info->index.sym = i;
@@ -162,8 +153,6 @@ move_module(uintptr_t addr, struct load_info *info)
 {
     int i;
 
-    sbi_printf("%s: \n", __func__);
-
     memset((void*)addr, 0, info->layout.size);
 
     for (i = 0; i < info->hdr->e_shnum; i++) {
@@ -180,12 +169,6 @@ move_module(uintptr_t addr, struct load_info *info)
 
         /* Update sh_addr to point to copy in image. */
         s->sh_addr = (unsigned long)p;
-
-        /*
-        sbi_printf("%s: %s %lx, %lx\n", __func__,
-                   info->secstrings + s->sh_name, s->sh_addr,
-                   *((u64*)p));
-                   */
     }
 }
 
@@ -214,14 +197,14 @@ simplify_symbols(const struct load_info *info)
     Elf64_Shdr *symsec = &info->sechdrs[info->index.sym];
     Elf64_Sym *sym = (void *)symsec->sh_addr;
 
-    sbi_printf("%s: \n", __func__);
-
     for (i = 1; i < symsec->sh_size / sizeof(Elf64_Sym); i++) {
         const char *name = info->strtab + sym[i].st_name;
 
         switch (sym[i].st_shndx) {
         case SHN_COMMON:
-            panic("'SHN_COMMON' isn't supported for %s", name);
+            sbi_puts("'SHN_COMMON' isn't supported for ");
+            sbi_puts(name);
+            sbi_puts("\n");
             break;
         case SHN_ABS:
         case SHN_LIVEPATCH:
@@ -230,15 +213,14 @@ simplify_symbols(const struct load_info *info)
             ksym = resolve_symbol(info, name);
             if (ksym && !IS_ERR(ksym)) {
                 sym[i].st_value = ksym->value;
-                //sbi_printf("SHN_UNDEF [%s]: %lx\n", name, sym[i].st_value);
                 break;
             }
 
-            panic("'%s' can't be resolved", name);
+            sbi_puts(name);
+            sbi_puts(" can't be resolved\n");
             break;
         default:
             sym[i].st_value += info->sechdrs[sym[i].st_shndx].sh_addr;
-            //sbi_printf("%lx\n", sym[i].st_value);
             break;
         }
     }
@@ -263,16 +245,10 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
         /* This is the symbol it is referring to */
         sym = (Elf64_Sym *)sechdrs[symindex].sh_addr +
             ELF64_R_SYM(rel[i].r_info);
-        BUG_ON(IS_ERR_VALUE(sym->st_value));
 
         v = sym->st_value + rel[i].r_addend;
 
         type = ELF64_R_TYPE(rel[i].r_info);
-
-        /*
-        sbi_printf("%s: %lx, %lx(%lx), %lx\n", __func__,
-                   type, location, (*location), v);
-                   */
 
         switch (type) {
         case R_RISCV_64:
@@ -349,7 +325,6 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
                 u64 hi20_loc = sechdrs[shdr->sh_info].sh_addr +
                     rel[j].r_offset;
 
-                BUG_ON(hi20_type == R_RISCV_GOT_HI20);
                 if (hi20_loc == sym->st_value &&
                     hi20_type == R_RISCV_PCREL_HI20) {
                     s32 hi20, lo12;
@@ -378,7 +353,7 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
             break;
         }
         default:
-            panic("bad type %u", type);
+            sbi_puts("bad type!\n");
             break;
         }
     }
@@ -388,8 +363,6 @@ static void
 apply_relocations(const struct load_info *info)
 {
     int i;
-
-    sbi_printf("%s: \n", __func__);
 
     for (i = 1; i < info->hdr->e_shnum; i++) {
         unsigned int infosec = info->sechdrs[i].sh_info;
@@ -418,7 +391,6 @@ query_sym(const char *target, struct load_info *info)
     for (i = 1; i < symsec->sh_size / sizeof(Elf64_Sym); i++) {
         const char *sname = info->strtab + sym[i].st_name;
         if (!strcmp(sname, target)) {
-            //sbi_printf("%s: %lx\n", __func__, sym[i].st_value);
             return sym[i].st_value;
         }
     }
@@ -433,8 +405,6 @@ finalize_module(uintptr_t addr, struct load_info *info)
     struct kernel_symbol *start;
     struct kernel_symbol *end;
     struct module *mod;
-
-    sbi_printf("%s: \n", __func__);
 
     mod = (struct module *) (addr + info->layout.size);
     info->layout.size += sizeof(struct module);
@@ -451,24 +421,12 @@ finalize_module(uintptr_t addr, struct load_info *info)
 
     mod->init = (init_module_t) query_sym("init_module", info);
     mod->exit = (exit_module_t) query_sym("exit_module", info);
-
-    /*
-    for (i = 0; i < info->hdr->e_shnum; ++i) {
-        Elf64_Shdr *s = info->sechdrs + i;
-        const char *sname = info->secstrings + s->sh_name;
-        sbi_printf("%s: [%s] entsize(%lx) sh_addr(%lx)\n",
-                   __func__, sname, s->sh_entsize, s->sh_addr);
-    }
-    */
-
     return mod;
 }
 
 static void
 do_init_module(struct module *mod)
 {
-    sbi_printf("%s: ...\n", __func__);
-
     if (mod->init)
         mod->init();
 }
@@ -510,19 +468,11 @@ init_other_modules(void)
         src_addr += ROUND_UP(info.len, 8);
         dst_addr += ROUND_UP(info.layout.size, 8);
     }
-
-    clear_flash_pge();
-
-    sbi_printf("%s: ok!\n", __func__);
 }
 
 void load_modules(void)
 {
-    sbi_printf("%s: init ... \n", __func__);
-
     init_kernel_module();
 
     init_other_modules();
-
-    sbi_printf("%s: load all modules!\n", __func__);
 }

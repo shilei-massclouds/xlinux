@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <sbi.h>
-#include <export.h>
-#include <memblock.h>
-#include <page.h>
+#include <mm.h>
 #include <bug.h>
+#include <page.h>
 #include <errno.h>
 #include <kernel.h>
-#include <mm.h>
+#include <export.h>
+#include <string.h>
+#include <printk.h>
+#include <memblock.h>
 
 #define INIT_MEMBLOCK_REGIONS           128
 #define INIT_MEMBLOCK_RESERVED_REGIONS  INIT_MEMBLOCK_REGIONS
@@ -165,7 +166,7 @@ memblock_add(phys_addr_t base, phys_addr_t size)
 {
 	phys_addr_t end = base + size - 1;
 
-    sbi_printf("%s: [%lx-%lx]\n", __func__, base, size);
+    printk("%s: [%lx-%lx]\n", __func__, base, size);
 
 	return memblock_add_range(&memblock.memory, base, size, 0);
 }
@@ -243,8 +244,8 @@ memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align)
 {
     void *ptr;
 
-    sbi_printf("%s: %lu bytes align=%lx\n",
-               __func__, (u64)size, (u64)align);
+    printk("%s: %lu bytes align=%lx\n",
+           __func__, (u64)size, (u64)align);
 
     ptr = memblock_alloc_internal(size, align);
     if (ptr)
@@ -326,7 +327,7 @@ memblock_reserve(phys_addr_t base, phys_addr_t size)
 {
 	phys_addr_t end = base + size - 1;
 
-	sbi_printf("%s: [%lx-%lx]\n", __func__, base, end);
+	printk("%s: [%lx-%lx]\n", __func__, base, end);
 
 	return memblock_add_range(&memblock.reserved, base, size, 0);
 }
@@ -350,7 +351,7 @@ EXPORT_SYMBOL(memblock_setup_vm_final);
 static int
 init_module(void)
 {
-    sbi_puts("module[memblock]: init begin ...\n");
-    sbi_puts("module[memblock]: init end!\n");
+    printk("module[memblock]: init begin ...\n");
+    printk("module[memblock]: init end!\n");
     return 0;
 }

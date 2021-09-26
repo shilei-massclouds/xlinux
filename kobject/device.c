@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <sbi.h>
+#include <printk.h>
 #include <export.h>
 #include <device.h>
 #include <errno.h>
@@ -19,7 +19,7 @@ int device_add(struct device *dev)
 {
     int error = -EINVAL;
 
-    sbi_printf("device: '%s': %s\n", dev_name(dev), __func__);
+    printk("device: '%s': %s\n", dev_name(dev), __func__);
     
     if (!dev->p) {
         error = device_private_init(dev);

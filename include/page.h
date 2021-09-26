@@ -5,6 +5,7 @@
 
 #include <config.h>
 #include <const.h>
+#include <types.h>
 #include <pgtable-bits.h>
 
 #define PAGE_SHIFT	(12)
@@ -147,6 +148,6 @@ struct page {
 
 /* test whether an address (unsigned long or pointer) is aligned to PAGE_SIZE */
 #define PAGE_ALIGNED(addr)  IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
-#define PAGE_ALIGN(addr)    ALIGN(addr, PAGE_SIZE)
+#define PAGE_ALIGN(addr)    _ALIGN(addr, PAGE_SIZE)
 
 #endif /* _PAGE_H */
