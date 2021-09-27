@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <bug.h>
 #include <fdt.h>
+#include <device.h>
 #include <errno.h>
 #include <string.h>
 #include <export.h>
@@ -155,6 +156,20 @@ platform_device_alloc(const char *name, int id)
     return pa ? &pa->pdev : NULL;
 }
 
+static void
+of_device_make_bus_id(struct device *dev)
+{
+    u64 addr;
+    struct device_node *node = dev->of_node;
+
+    while (node->parent) {
+        /* format arguments only used if dev_name() resolves to NULL */
+        dev_set_name(dev, dev_name(dev) ? "%s:%s" : "%s",
+                     kbasename(node->full_name), dev_name(dev));
+        node = node->parent;
+    }
+}
+
 struct platform_device *
 of_device_alloc(struct device_node *np,
                 const char *bus_id,
@@ -168,12 +183,23 @@ of_device_alloc(struct device_node *np,
 
     printk("%s: %s bus_id(%s) parent(%lx)\n",
            __func__, np->full_name, bus_id, parent);
+
+    dev->dev.of_node = of_node_get(np);
+
+    if (bus_id)
+        dev_set_name(&dev->dev, "%s", bus_id);
+    else
+        of_device_make_bus_id(&dev->dev);
+
     return dev;
 }
 
 int
 of_device_add(struct platform_device *ofdev)
 {
+    ofdev->name = dev_name(&ofdev->dev);
+    printk("%s: %s\n", __func__, ofdev->name);
+    ofdev->id = PLATFORM_DEVID_NONE;
     return device_add(&ofdev->dev);
 }
 
@@ -210,7 +236,7 @@ of_platform_device_create_pdata(struct device_node *np,
 
     return dev;
 
-err_clear_flag:
+ err_clear_flag:
     of_node_clear_flag(np, OF_POPULATED);
     return NULL;
 }

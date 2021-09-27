@@ -2,6 +2,7 @@
 #ifndef _KOBJECT_H_
 #define _KOBJECT_H_
 
+#include <acgcc.h>
 #include <types.h>
 #include <list.h>
 #include <kref.h>
@@ -40,5 +41,10 @@ kobject_name(const struct kobject *kobj)
 {
     return kobj->name;
 }
+
+int
+kobject_set_name_vargs(struct kobject *kobj,
+                       const char *fmt,
+                       va_list vargs);
 
 #endif /* _KOBJECT_H_ */

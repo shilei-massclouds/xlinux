@@ -2,6 +2,9 @@
 #ifndef _LINUX_STRING_H
 #define _LINUX_STRING_H
 
+#include <acgcc.h>
+#include <types.h>
+
 extern void *memset(void *, int, __kernel_size_t);
 extern void *memcpy(void *, const void *, size_t);
 extern int memcmp(const void *cs, const void *ct, size_t count);
@@ -19,6 +22,8 @@ extern int strncmp(const char *cs, const char *ct, size_t count);
 
 extern size_t strnlen(const char *s, size_t count);
 extern int strcasecmp(const char *s1, const char *s2);
+
+extern char *strreplace(char *s, char old, char new);
 
 static inline unsigned char
 __tolower(unsigned char c)
@@ -50,5 +55,10 @@ kbasename(const char *path)
     const char *tail = strrchr(path, '/');
     return tail ? tail + 1 : path;
 }
+
+char *kvasprintf(const char *fmt, va_list ap);
+
+const char *
+kvasprintf_const(const char *fmt, va_list ap);
 
 #endif /* _LINUX_STRING_H */

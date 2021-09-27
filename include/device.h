@@ -41,6 +41,7 @@ struct device {
     struct bus_type *bus;
 
     void *platform_data;
+    struct device_node  *of_node; /* associated device tree node */
 };
 
 extern int device_add(struct device *dev);
@@ -60,5 +61,7 @@ dev_name(const struct device *dev)
 }
 
 extern int bus_register(struct bus_type *bus);
+
+int dev_set_name(struct device *dev, const char *fmt, ...);
 
 #endif /* _DEVICE_H_ */

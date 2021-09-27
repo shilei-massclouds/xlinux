@@ -26,4 +26,13 @@ setup_vm_final(struct memblock_region *regions,
 void
 clear_flash_pge(void);
 
+const char *
+kstrdup_const(const char *s);
+
+char *
+kstrdup(const char *s);
+
+void
+kfree_const(const void *x);
+
 #endif /* _RISCV_MM_H_ */

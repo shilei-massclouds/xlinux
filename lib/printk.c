@@ -2,6 +2,7 @@
 #include <bug.h>
 #include <sbi.h>
 #include <page.h>
+#include <acgcc.h>
 #include <errno.h>
 #include <types.h>
 #include <export.h>
@@ -10,12 +11,6 @@
 
 #define PREFIX_MAX      32
 #define LOG_LINE_MAX    (1024 - PREFIX_MAX)
-
-typedef __builtin_va_list   va_list;
-#define va_start(v, l)      __builtin_va_start(v, l)
-#define va_end(v)           __builtin_va_end(v)
-#define va_arg(v, l)        __builtin_va_arg(v, l)
-#define va_copy(d, s)       __builtin_va_copy(d, s)
 
 #define SIGN    1       /* unsigned/signed, must be 1 */
 #define LEFT    2       /* left justified */
@@ -185,16 +180,19 @@ number(char *buf, char *end, unsigned long long num, struct printf_spec spec)
             num >>= 4;
         } while (num);
 
-        *buf = '0';
+        if (buf < end)
+            *buf = '0';
         ++buf;
 
-        *buf = 'x';
+        if (buf < end)
+            *buf = 'x';
         ++buf;
     } else if (spec.base == 10) {
         if (spec.flags & SIGN) {
             if ((signed long long)num < 0) {
                 num = -(signed long long)num;
-                *buf = '-';
+                if (buf < end)
+                    *buf = '-';
                 ++buf;
             }
         }
@@ -217,17 +215,16 @@ number(char *buf, char *end, unsigned long long num, struct printf_spec spec)
     return buf;
 }
 
-static void
-vprintk_func(const char *fmt, va_list args)
+int
+vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
     char *str;
     char *end;
     unsigned long long num;
-    static char textbuf[LOG_LINE_MAX];
     struct printf_spec spec = {0};
 
-    str = textbuf;
-    end = str + sizeof(textbuf);
+    str = buf;
+    end = str + size;
 
     while (*fmt) {
         const char *old_fmt = fmt;
@@ -248,7 +245,8 @@ vprintk_func(const char *fmt, va_list args)
         case FORMAT_TYPE_CHAR: {
             char c;
             c = (unsigned char) va_arg(args, int);
-            *str = c;
+            if (str < end)
+                *str = c;
             ++str;
             break;
         }
@@ -277,10 +275,23 @@ vprintk_func(const char *fmt, va_list args)
         }
     }
 
-    if (str < end)
-        *str = '\0';
-    else
-        end[-1] = '\0';
+    if (size > 0) {
+        if (str < end)
+            *str = '\0';
+        else
+            end[-1] = '\0';
+    }
+
+    return str - buf;
+}
+EXPORT_SYMBOL(vsnprintf);
+
+static void
+vprintk_func(const char *fmt, va_list args)
+{
+    static char textbuf[LOG_LINE_MAX];
+
+    vsnprintf(textbuf, sizeof(textbuf), fmt, args);
 
     sbi_puts(textbuf);
 }

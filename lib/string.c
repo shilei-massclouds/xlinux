@@ -222,3 +222,20 @@ strcasecmp(const char *s1, const char *s2)
     return c1 - c2;
 }
 EXPORT_SYMBOL(strcasecmp);
+
+/**
+ * strreplace - Replace all occurrences of character in string.
+ * @s: The string to operate on.
+ * @old: The character being replaced.
+ * @new: The character @old is replaced with.
+ *
+ * Returns pointer to the nul byte at the end of @s.
+ */
+char *strreplace(char *s, char old, char new)
+{
+    for (; *s; ++s)
+        if (*s == old)
+            *s = new;
+    return s;
+}
+EXPORT_SYMBOL(strreplace);
