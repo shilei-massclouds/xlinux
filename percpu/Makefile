@@ -2,4 +2,4 @@
 
 target_y := ko
 
-obj_y := test.o
+obj_y := percpu.o

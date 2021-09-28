@@ -10,8 +10,11 @@ include $(curdir)/Makefile
 mod_lds := scripts/module.lds
 elf_lds := $(curdir)/$(elf_lds)
 _target	:= $(curdir)/$(obj).$(target_y)
+_test	:= $(curdir)/test_$(obj).ko
 obj_y	:= $(addprefix $(curdir)/, $(obj_y))
 extra_y := $(addprefix $(curdir)/, $(extra_y))
+test_y	:= $(filter $(curdir)/test%.o, \
+	$(patsubst %.c,%.o,$(wildcard $(curdir)/*.c)))
 
 $(curdir)/%.o: $(curdir)/%.S
 	@printf "CC\t$<\n"
@@ -25,12 +28,13 @@ $(curdir)/%.lds: $(curdir)/%.lds.S
 	@printf "AS\t$<\n"
 	$(CPP) $(INCLUDES) -P -Uriscv -D__ASSEMBLY__ -o $@ $<
 
-_build: $(extra_y) $(_target)
+_build: $(extra_y) $(_target) $(_test)
 	@:
 
 $(curdir)/$(obj).ko: $(obj_y) $(mod_lds)
 	@printf "LD\t$@\n"
 	$(LD) -r $(LDFLAGS) -T $(mod_lds) -o $@ $(obj_y)
+	$(READELF) -p _ksymtab_strings $@ > $(curdir)/$(obj).map 2> /dev/null
 
 $(curdir)/$(obj).elf: $(obj_y) $(elf_lds)
 	@printf "LD\t$@\n"
@@ -43,5 +47,9 @@ $(curdir)/$(obj).bin: $(curdir)/$(obj).elf $(curdir)/System.map
 $(curdir)/System.map: $(curdir)/$(obj).elf
 	$(NM) -n $< | \
 		grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)\|\( \.L\)' > $@
+
+$(curdir)/test_$(obj).ko: $(test_y)
+	@printf "LD\t$@\n"
+	$(LD) -r $(LDFLAGS) -T $(mod_lds) -o $@ $(test_y)
 
 .PHONY: $(PHONY)

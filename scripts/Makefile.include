@@ -8,6 +8,8 @@ AR  := $(CROSS_)ar
 LD  := @$(CROSS_)ld
 NM  := @$(CROSS_)nm
 
+READELF := @$(CROSS_)readelf
+
 MAKE := @make --no-print-directory
 
 OBJCOPY := @$(CROSS_)objcopy

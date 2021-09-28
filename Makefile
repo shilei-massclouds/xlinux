@@ -4,18 +4,20 @@ include scripts/Makefile.include
 
 PHONY := all clean
 
-SUBDIRS		:= startup lib mm memblock kalloc of kobject init test
+SUBDIRS		:= startup \
+	lib mm memblock percpu kalloc of kobject init
+
 CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 
 PHONY += $(SUBDIRS)
 
 all: $(SUBDIRS) startup/startup.bin
-	@cp ./startup/System.map ../xemu/image/System.map
-	@cp ./startup/startup.bin ../xemu/image/startup.bin
+	@cp ./startup/System.map ../xemu/image/
+	@cp ./startup/startup.bin ../xemu/image/
 
 $(SUBDIRS):
 	@$(MAKE) -f ./scripts/Makefile.build obj=$@
-	$(if $(filter-out startup, $@), @cp ./$@/$@.ko ../xemu/image/$@.ko)
+	$(if $(filter-out startup, $@), @cp ./$@/*.ko ../xemu/image/)
 
 PHONY += $(CLEAN_DIRS)
 
