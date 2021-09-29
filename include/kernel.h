@@ -18,6 +18,8 @@
 #define IS_ERR_VALUE(x) \
     ((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
 
+#define _RET_IP_    (unsigned long)__builtin_return_address(0)
+
 static inline bool
 IS_ERR(const void *ptr)
 {

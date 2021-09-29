@@ -10,7 +10,7 @@
 
 struct kobject {
     const char          *name;
-    list_head           entry;
+    struct list_head    entry;
     struct kobject      *parent;
     struct kset         *kset;
     struct kobj_type    *ktype;

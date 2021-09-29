@@ -6,12 +6,12 @@
 #include <list.h>
 
 struct klist_node {
-    void            *n_klist;   /* never access directly */
-    list_head       n_node;
+    void *n_klist;   /* never access directly */
+    struct list_head n_node;
 };
 
 struct klist {
-    list_head k_list;
+    struct list_head k_list;
     void (*get)(struct klist_node *);
     void (*put)(struct klist_node *);
 } __attribute__ ((aligned (sizeof(void *))));

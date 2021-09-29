@@ -30,6 +30,8 @@ extern const unsigned char _ctype[];
 #define min(a, b)   ((a < b) ? a : b)
 #define max(a, b)   ((a > b) ? a : b)
 
+#define min3(x, y, z) min((typeof(x))min(x, y), z)
+
 #define clamp(val, lo, hi) min((typeof(val))max(val, lo), hi)
 
 #define __round_mask(x, y) ((__typeof__(x))((y)-1))
@@ -93,6 +95,9 @@ typedef __kernel_uid32_t    uid_t;
 typedef __kernel_gid32_t    gid_t;
 
 typedef phys_addr_t resource_size_t;
+
+typedef unsigned int gfp_t;
+typedef unsigned int slab_flags_t;
 
 #endif /*  __ASSEMBLY__ */
 

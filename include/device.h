@@ -26,7 +26,7 @@ struct device_private {
     struct klist_node knode_driver;
     struct klist_node knode_bus;
     struct klist_node knode_class;
-    list_head deferred_probe;
+    struct list_head  deferred_probe;
     struct device *device;
 };
 

@@ -2,6 +2,7 @@
 #ifndef _LINUX_LOG2_H
 #define _LINUX_LOG2_H
 
+#include <bits.h>
 #include <compiler_attributes.h>
 
 /**
@@ -10,18 +11,63 @@
  *
  * This is defined the same way as ffs.
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
- *
- * __builtin_clz: return leading 0-bits in x,
- * from the most-significant position.
  */
 static __always_inline int fls(unsigned int x)
 {
-    return x ? sizeof(x) * 8 - __builtin_clz(x) : 0;
+    int r = 32;
+
+    if (!x)
+        return 0;
+    if (!(x & 0xffff0000u)) {
+        x <<= 16;
+        r -= 16;
+    }
+    if (!(x & 0xff000000u)) {
+        x <<= 8;
+        r -= 8;
+    }
+    if (!(x & 0xf0000000u)) {
+        x <<= 4;
+        r -= 4;
+    }
+    if (!(x & 0xc0000000u)) {
+        x <<= 2;
+        r -= 2;
+    }
+    if (!(x & 0x80000000u)) {
+        x <<= 1;
+        r -= 1;
+    }
+    return r;
 }
 
-static __always_inline int fls64(unsigned long x)
+static __always_inline int fls64(unsigned long word)
 {
-    return x ? sizeof(x) * 8 - __builtin_clzl(x) : 0;
+    int num = BITS_PER_LONG - 1;
+
+    if (!(word & (~0ul << 32))) {
+        num -= 32;
+        word <<= 32;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-16)))) {
+        num -= 16;
+        word <<= 16;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-8)))) {
+        num -= 8;
+        word <<= 8;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-4)))) {
+        num -= 4;
+        word <<= 4;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-2)))) {
+        num -= 2;
+        word <<= 2;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-1))))
+        num -= 1;
+    return num;
 }
 
 /*

@@ -16,6 +16,8 @@
 
 #define KERN_VIRT_SIZE (-PAGE_OFFSET)
 
+#define MAX_ORDER 11
+
 /*
  * paging: SV-39, va-39bits, pa-56bits
  * root -> pgd(pge) -> pmd(pme) -> pt(pte) -> phy_page
@@ -102,6 +104,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <list.h>
+
 extern unsigned long va_pa_offset;
 
 typedef struct {
@@ -127,6 +131,14 @@ typedef struct {
 typedef struct page *pgtable_t;
 
 struct page {
+    /* slab */
+    struct {
+        struct list_head slab_list;
+        void *freelist; /* first free object */
+        void *s_mem;    /* first object */
+    };
+
+    unsigned int active;
 };
 
 #include <log2.h>

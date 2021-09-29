@@ -4,8 +4,9 @@ include scripts/Makefile.include
 
 PHONY := all clean
 
-SUBDIRS		:= startup \
-	lib mm memblock percpu kalloc of kobject init
+SUBDIRS		:= startup lib \
+	mm memblock percpu slab kalloc \
+	of kobject init
 
 CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 

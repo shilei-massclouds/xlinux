@@ -9,7 +9,7 @@ typedef int (*init_module_t)(void);
 typedef void (*exit_module_t)(void);
 
 struct module {
-    list_head list;
+    struct list_head list;
 
     const struct kernel_symbol *syms;
     unsigned int num_syms;

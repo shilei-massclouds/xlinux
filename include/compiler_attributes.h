@@ -9,4 +9,7 @@
 #define __attribute_const__     __attribute__((__const__))
 #define __always_inline         inline __attribute__((__always_inline__))
 
+#define likely(x)   (x)
+#define unlikely(x) (x)
+
 #endif /* __LINUX_COMPILER_ATTRIBUTES_H */
