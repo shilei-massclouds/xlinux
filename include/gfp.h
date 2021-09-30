@@ -47,5 +47,6 @@
  */
 
 #define GFP_KERNEL  (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+#define GFP_NOWAIT  (__GFP_KSWAPD_RECLAIM)
 
 #endif /* __LINUX_GFP_H */

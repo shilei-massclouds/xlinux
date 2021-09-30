@@ -5,6 +5,12 @@
 #include <bits.h>
 #include <compiler_attributes.h>
 
+static inline __attribute__((const))
+bool is_power_of_2(unsigned long n)
+{
+    return (n != 0 && ((n & (n - 1)) == 0));
+}
+
 /**
  * fls - find last (most-significant) bit set
  * @x: the word to search

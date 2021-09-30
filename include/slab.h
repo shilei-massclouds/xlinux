@@ -5,6 +5,7 @@
 #include <gfp.h>
 #include <types.h>
 #include <page.h>
+#include <kernel.h>
 #include <compiler_attributes.h>
 
 #define KMALLOC_SHIFT_HIGH  \
@@ -36,6 +37,18 @@
 #define SLAB_OBJ_MIN_SIZE \
     (KMALLOC_MIN_SIZE < 16 ? (KMALLOC_MIN_SIZE) : 16)
 
+#define SLAB_HWCACHE_ALIGN      ((slab_flags_t)0x00002000U)
+#define ARCH_SLAB_MINALIGN      __alignof__(unsigned long long)
+#define ARCH_KMALLOC_MINALIGN   __alignof__(unsigned long long)
+
+enum slab_state {
+    DOWN,           /* No slab functionality yet */
+    PARTIAL,        /* SLUB: kmem_cache_node available */
+    PARTIAL_NODE,   /* SLAB: kmalloc size for node struct available */
+    UP,             /* Slab caches usable but not all extras yet */
+    FULL            /* Everything is working */
+};
+
 enum kmalloc_cache_type {
     KMALLOC_NORMAL = 0,
     KMALLOC_RECLAIM,
@@ -46,20 +59,25 @@ struct kmem_cache_node {
     struct list_head slabs_partial; /* partial list first, better asm code */
     struct list_head slabs_full;
     struct list_head slabs_free;
-//    unsigned long total_slabs;  /* length of all slab lists */
+    unsigned long total_slabs;      /* length of all slab lists */
     unsigned long free_slabs;       /* length of free slab list only */
     unsigned long free_objects;
 //    unsigned int free_limit;
-//    unsigned int colour_next;   /* Per-node cache coloring */
+    unsigned int colour_next;       /* Per-node cache coloring */
     struct array_cache *shared;     /* shared per node */
-//    struct alien_cache **alien; /* on other nodes */
+    struct alien_cache **alien;     /* on other nodes */
 //    unsigned long next_reap;    /* updated without locking */
+    int free_touched;               /* updated without locking */
 };
 
 struct kmem_cache {
     struct array_cache *cpu_cache;
 
 /* 1) Cache tunables. */
+    unsigned int batchcount;
+    unsigned int limit;
+    unsigned int shared;
+
     unsigned int size;
 
 /* 2) touched by every alloc & free from the backend */
@@ -67,17 +85,34 @@ struct kmem_cache {
     unsigned int num;   /* # of objs per slab */
 
 /* 4) cache creation/removal */
+    const char *name;
+    struct list_head list;
     int object_size;
+    int align;
 
-    struct kmem_cache_node *node[1];
+    struct kmem_cache_node *node[MAX_NUMNODES];
 };
 
 void *__kmalloc(size_t size, gfp_t flags);
+
+void kmem_cache_init(void);
 
 static __always_inline void *
 kmalloc(size_t size, gfp_t flags)
 {
     return __kmalloc(size, flags);
+}
+
+static __always_inline void *
+__kmalloc_node(size_t size, gfp_t flags, int node)
+{
+    return __kmalloc(size, flags);
+}
+
+static __always_inline void *
+kmalloc_node(size_t size, gfp_t flags, int node)
+{
+    return __kmalloc_node(size, flags, node);
 }
 
 static inline void *

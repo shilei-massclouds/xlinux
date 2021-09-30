@@ -4,9 +4,14 @@
 
 #include <types.h>
 
+#define MAX_NUMNODES    1
+
+#define ALIGN(x, a) _ALIGN((x), (a))
+
 #define L1_CACHE_SHIFT  6
 #define L1_CACHE_BYTES  (1 << L1_CACHE_SHIFT)
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
+#define cache_line_size()   L1_CACHE_BYTES
 
 /**
  * ARRAY_SIZE - get the number of elements in array @arr

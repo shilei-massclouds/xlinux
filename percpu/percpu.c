@@ -14,8 +14,6 @@ pcpu_alloc(size_t size, size_t align, bool reserved, gfp_t gfp)
 void *
 __alloc_percpu(size_t size, size_t align)
 {
-    printk("percpu ...\n");
-
     return pcpu_alloc(size, align, false, GFP_KERNEL);
 }
 EXPORT_SYMBOL(__alloc_percpu);
