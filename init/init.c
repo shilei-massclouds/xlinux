@@ -3,7 +3,6 @@
 #include <bug.h>
 #include <fdt.h>
 #include <printk.h>
-#include <memblock.h>
 #include <of_platform.h>
 
 extern u32 kernel_size;
@@ -15,21 +14,6 @@ start_kernel(void)
 
     if (kernel_size >= PME_SIZE)
         panic("kernel size (%lu) is too large!\n", kernel_size);
-
-    clear_flash_pge();
-
-    setup_fixmap_pge();
-
-    early_init_dt_verify();
-    early_init_dt_scan_nodes();
-
-    memblock_setup_vm_final();
-
-    unflatten_device_tree();
-
-    platform_bus_init();
-
-    of_platform_default_populate_init();
 
     printk("start_kernel: init ok!\n");
 }

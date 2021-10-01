@@ -328,6 +328,9 @@ struct device_node *
 of_get_next_child(const struct device_node *node,
                   struct device_node *prev);
 
+#define for_each_property_of_node(dn, pp) \
+    for (pp = dn->properties; pp != NULL; pp = pp->next)
+
 #define for_each_child_of_node(parent, child)                       \
     for (child = of_get_next_child(parent, NULL); child != NULL;    \
          child = of_get_next_child(parent, child))
@@ -371,5 +374,23 @@ __of_find_property(const struct device_node *np, const char *name, int *lenp);
 const void *
 __of_get_property(const struct device_node *np,
                   const char *name, int *lenp);
+
+const char *
+fdt_get_name(const void *fdt, int nodeoffset, int *len);
+
+int
+fdt_first_property_offset(const void *fdt, int nodeoffset);
+
+int
+fdt_next_property_offset(const void *fdt, int offset);
+
+const struct fdt_property *
+fdt_get_property_by_offset_(const void *fdt, int offset, int *lenp);
+
+int
+fdt_next_node(const void *fdt, int offset, int *depth);
+
+const char *
+fdt_get_string(const void *fdt, int stroffset, int *lenp);
 
 #endif /* LIBFDT_H */

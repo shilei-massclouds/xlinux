@@ -175,3 +175,14 @@ setup_vm_final(struct memblock_region *regions,
     local_flush_tlb_all();
 }
 EXPORT_SYMBOL(setup_vm_final);
+
+static int
+init_module(void)
+{
+    printk("module[mm]: init begin ...\n");
+    clear_flash_pge();
+    setup_fixmap_pge();
+    printk("module[mm]: init end!\n");
+
+    return 0;
+}

@@ -12,6 +12,9 @@
 #define INIT_MEMBLOCK_REGIONS           128
 #define INIT_MEMBLOCK_RESERVED_REGIONS  INIT_MEMBLOCK_REGIONS
 
+extern phys_addr_t dt_memory_base;
+extern phys_addr_t dt_memory_size;
+
 static struct memblock_region
 memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS];
 
@@ -339,19 +342,16 @@ memblock_phys_alloc_range(phys_addr_t size,
     return memblock_alloc_range_nid(size, align);
 }
 
-void
-memblock_setup_vm_final(void)
-{
-    setup_vm_final(memblock.memory.regions,
-                   memblock.memory.cnt,
-                   memblock_phys_alloc);
-}
-EXPORT_SYMBOL(memblock_setup_vm_final);
-
 static int
 init_module(void)
 {
     printk("module[memblock]: init begin ...\n");
+    if (dt_memory_base && dt_memory_size) 
+        memblock_add(dt_memory_base, dt_memory_size);
+
+    setup_vm_final(memblock.memory.regions,
+                   memblock.memory.cnt,
+                   memblock_phys_alloc);
     printk("module[memblock]: init end!\n");
     return 0;
 }

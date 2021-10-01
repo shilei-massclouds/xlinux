@@ -52,6 +52,58 @@ of_node_name_eq(const struct device_node *np, const char *name)
     return (strlen(name) == len) && (strncmp(node_name, name, len) == 0);
 }
 
+struct property *
+__of_find_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp;
+
+    if (!np)
+        return NULL;
+
+    for (pp = np->properties; pp; pp = pp->next) {
+        if (of_prop_cmp(pp->name, name) == 0) {
+            if (lenp)
+                *lenp = pp->length;
+            break;
+        }
+    }
+
+    return pp;
+}
+
+struct property *
+of_find_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp;
+    unsigned long flags;
+
+    //raw_spin_lock_irqsave(&devtree_lock, flags);
+    pp = __of_find_property(np, name, lenp);
+    //raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+    return pp;
+}
+
+
+const void *
+__of_get_property(const struct device_node *np,
+                  const char *name, int *lenp)
+{
+    struct property *pp = __of_find_property(np, name, lenp);
+
+    return pp ? pp->value : NULL;
+}
+
+const void *
+of_get_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp = of_find_property(np, name, lenp);
+
+    return pp ? pp->value : NULL;
+}
+
+
+
 static int
 __of_device_is_compatible(const struct device_node *device,
                           const char *compat,
@@ -210,6 +262,36 @@ platform_device_put(struct platform_device *pdev)
         put_device(&pdev->dev);
 }
 
+static bool
+__of_device_is_available(const struct device_node *device)
+{
+    const char *status;
+    int statlen;
+
+    if (!device)
+        return false;
+
+    status = __of_get_property(device, "status", &statlen);
+    if (status == NULL)
+        return true;
+
+    if (statlen > 0) {
+        if (!strcmp(status, "okay") || !strcmp(status, "ok"))
+            return true;
+    }
+
+    return false;
+}
+
+bool
+of_device_is_available(const struct device_node *device)
+{
+    bool res;
+    res = __of_device_is_available(device);
+    return res;
+}
+EXPORT_SYMBOL(of_device_is_available);
+
 static struct platform_device *
 of_platform_device_create_pdata(struct device_node *np,
                                 const char *bus_id,
@@ -318,6 +400,70 @@ of_platform_populate(struct device_node *root,
     of_node_put(root);
     return rc;
 }
+
+static struct device_node *
+__of_get_next_child(const struct device_node *node,
+                    struct device_node *prev)
+{
+    struct device_node *next;
+
+    if (!node)
+        return NULL;
+
+    next = prev ? prev->sibling : node->child;
+    for (; next; next = next->sibling)
+        if (of_node_get(next))
+            break;
+    of_node_put(prev);
+    return next;
+}
+
+struct device_node *
+of_get_next_child(const struct device_node *node,
+                  struct device_node *prev)
+{
+    struct device_node *next;
+    next = __of_get_next_child(node, prev);
+    return next;
+}
+EXPORT_SYMBOL(of_get_next_child);
+
+const char *
+of_prop_next_string(struct property *prop, const char *cur)
+{
+    const void *curv = cur;
+
+    if (!prop)
+        return NULL;
+
+    if (!cur)
+        return prop->value;
+
+    curv += strlen(cur) + 1;
+    if (curv >= prop->value + prop->length)
+        return NULL;
+
+    return curv;
+}
+EXPORT_SYMBOL(of_prop_next_string);
+
+int
+of_property_read_string(const struct device_node *np,
+                        const char *propname,
+                        const char **out_string)
+{
+    const struct property *prop = of_find_property(np, propname, NULL);
+    if (!prop)
+        return -EINVAL;
+    if (!prop->value)
+        return -ENODATA;
+    if (strnlen(prop->value, prop->length) >= prop->length)
+        return -EILSEQ;
+    *out_string = prop->value;
+    return 0;
+}
+EXPORT_SYMBOL(of_property_read_string);
+
 
 int
 of_platform_default_populate_init(void)

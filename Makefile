@@ -4,7 +4,7 @@ include scripts/Makefile.include
 
 PHONY := all clean
 
-SUBDIRS		:= startup lib \
+SUBDIRS		:= startup lib early_dt \
 	mm memblock percpu slab kalloc \
 	of kobject init
 
