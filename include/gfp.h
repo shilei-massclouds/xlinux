@@ -2,6 +2,9 @@
 #ifndef __LINUX_GFP_H
 #define __LINUX_GFP_H
 
+#include <bug.h>
+#include <kernel.h>
+
 #define ___GFP_RECLAIMABLE      0x10u
 #define ___GFP_IO               0x40u
 #define ___GFP_FS               0x80u
@@ -48,5 +51,26 @@
 
 #define GFP_KERNEL  (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
 #define GFP_NOWAIT  (__GFP_KSWAPD_RECLAIM)
+
+struct page *
+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+                       int preferred_nid);
+
+static inline struct page *
+__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
+{
+    return __alloc_pages_nodemask(gfp_mask, order, preferred_nid);
+}
+
+/*
+ * Allocate pages, preferring the node given as nid. The node must be valid and
+ * online. For more general interface, see alloc_pages_node().
+ */
+static inline struct page *
+__alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+{
+    BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+    return __alloc_pages(gfp_mask, order, nid);
+}
 
 #endif /* __LINUX_GFP_H */

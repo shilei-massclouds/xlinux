@@ -5,6 +5,16 @@
 #include <page.h>
 #include <memblock.h>
 
+static __always_inline void *
+lowmem_page_address(const struct page *page)
+{
+    return memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+    //Todo: replace up with below
+    //return page_to_virt(page);
+}
+
+#define page_address(page) lowmem_page_address(page)
+
 extern pge_t early_pgd[];
 extern pme_t early_pmd[];
 extern pme_t fixmap_pmd[];

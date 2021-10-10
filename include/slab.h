@@ -2,6 +2,7 @@
 #ifndef _LINUX_SLAB_H
 #define _LINUX_SLAB_H
 
+#include <bug.h>
 #include <gfp.h>
 #include <types.h>
 #include <page.h>
@@ -84,14 +85,31 @@ struct kmem_cache {
     slab_flags_t flags; /* constant flags */
     unsigned int num;   /* # of objs per slab */
 
+/* 3) cache_grow/shrink */
+    /* order of pgs per slab (2^n) */
+    unsigned int gfporder;
+    unsigned int freelist_size;
+
+    size_t colour;              /* cache colouring range */
+    unsigned int colour_off;    /* colour offset */
+
 /* 4) cache creation/removal */
     const char *name;
     struct list_head list;
+    int refcount;
     int object_size;
     int align;
 
+    unsigned int useroffset;    /* Usercopy region offset */
+    unsigned int usersize;      /* Usercopy region size */
+
     struct kmem_cache_node *node[MAX_NUMNODES];
 };
+
+extern const struct kmalloc_info_struct {
+    const char *name[NR_KMALLOC_TYPES];
+    unsigned int size;
+} kmalloc_info[];
 
 void *__kmalloc(size_t size, gfp_t flags);
 
@@ -131,6 +149,58 @@ static inline struct kmem_cache_node *
 get_node(struct kmem_cache *s, int node)
 {
     return s->node[node];
+}
+
+static __always_inline unsigned int
+kmalloc_index(size_t size)
+{
+    if (!size)
+        return 0;
+
+    if (size <= KMALLOC_MIN_SIZE)
+        return KMALLOC_SHIFT_LOW;
+
+    if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
+        return 1;
+    if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
+        return 2;
+    if (size <=          8) return 3;
+    if (size <=         16) return 4;
+    if (size <=         32) return 5;
+    if (size <=         64) return 6;
+    if (size <=        128) return 7;
+    if (size <=        256) return 8;
+    if (size <=        512) return 9;
+    if (size <=       1024) return 10;
+    if (size <=   2 * 1024) return 11;
+    if (size <=   4 * 1024) return 12;
+    if (size <=   8 * 1024) return 13;
+    if (size <=  16 * 1024) return 14;
+    if (size <=  32 * 1024) return 15;
+    if (size <=  64 * 1024) return 16;
+    if (size <= 128 * 1024) return 17;
+    if (size <= 256 * 1024) return 18;
+    if (size <= 512 * 1024) return 19;
+    if (size <= 1024 * 1024) return 20;
+    if (size <=  2 * 1024 * 1024) return 21;
+    if (size <=  4 * 1024 * 1024) return 22;
+    if (size <=  8 * 1024 * 1024) return 23;
+    if (size <=  16 * 1024 * 1024) return 24;
+    if (size <=  32 * 1024 * 1024) return 25;
+    if (size <=  64 * 1024 * 1024) return 26;
+    BUG();
+
+    /* Will never be reached. Needed because the compiler may complain */
+    return -1;
+}
+
+void *
+kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags);
+
+static inline void *
+kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
+{
+    return kmem_cache_alloc(k, flags | __GFP_ZERO);
 }
 
 #endif /* _LINUX_SLAB_H */

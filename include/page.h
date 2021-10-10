@@ -134,6 +134,7 @@ struct page {
     /* slab */
     struct {
         struct list_head slab_list;
+        struct kmem_cache *slab_cache; /* not slob */
         void *freelist; /* first free object */
         void *s_mem;    /* first object */
     };
