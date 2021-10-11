@@ -3,6 +3,8 @@
 #include <types.h>
 #include <export.h>
 
+extern void *__memset(void *, int, __kernel_size_t);
+
 /**
  * memset - Fill a region of memory with the given value
  * @s: Pointer to the start of the area.
@@ -13,11 +15,7 @@
  */
 void *memset(void *s, int c, size_t count)
 {
-    char *xs = s;
-
-    while (count--)
-        *xs++ = c;
-    return s;
+    return __memset(s, c, count);
 }
 EXPORT_SYMBOL(memset);
 

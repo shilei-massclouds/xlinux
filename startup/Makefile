@@ -3,6 +3,7 @@
 target_y := bin
 
 obj_y := core.o
+obj_y += memset.o
 obj_y += string.o
 obj_y += mm.o
 obj_y += sbi.o
