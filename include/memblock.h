@@ -36,6 +36,15 @@
     for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved, \
                            flags, p_start, p_end)
 
+void
+__next_mem_pfn_range(int *idx,
+                     unsigned long *out_start_pfn,
+                     unsigned long *out_end_pfn);
+
+#define for_each_mem_pfn_range(i, p_start, p_end)          \
+    for (i = -1, __next_mem_pfn_range(&i, p_start, p_end); \
+         i >= 0; __next_mem_pfn_range(&i, p_start, p_end))
+
 /**
  * enum memblock_flags - definition of memory region attributes
  * @MEMBLOCK_NONE: no special request
@@ -126,6 +135,18 @@ memblock_phys_alloc(phys_addr_t size, phys_addr_t align)
 	return memblock_phys_alloc_range(size, align);
 }
 
+static inline void *
+memblock_alloc_node(phys_addr_t size, phys_addr_t align)
+{
+    return memblock_alloc_try_nid(size, align);
+}
+
 extern struct memblock memblock;
+
+phys_addr_t
+memblock_start_of_DRAM(void);
+
+phys_addr_t
+memblock_end_of_DRAM(void);
 
 #endif /* _MEMBLOCK_H */

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#define X_DEBUG
 #include <mm.h>
 #include <bug.h>
 #include <page.h>
@@ -169,7 +170,7 @@ memblock_add(phys_addr_t base, phys_addr_t size)
 {
 	phys_addr_t end = base + size - 1;
 
-    printk("%s: [%lx-%lx]\n", __func__, base, size);
+    pr_debug("%s: [%lx-%lx]\n", __func__, base, size);
 
 	return memblock_add_range(&memblock.memory, base, size, 0);
 }
@@ -247,8 +248,8 @@ memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align)
 {
     void *ptr;
 
-    printk("%s: %lu bytes align=%lx\n",
-           __func__, (u64)size, (u64)align);
+    pr_debug("%s: %lu bytes align=%lx\n",
+             __func__, (u64)size, (u64)align);
 
     ptr = memblock_alloc_internal(size, align);
     if (ptr)
@@ -330,7 +331,7 @@ memblock_reserve(phys_addr_t base, phys_addr_t size)
 {
 	phys_addr_t end = base + size - 1;
 
-	printk("%s: [%lx-%lx]\n", __func__, base, end);
+	pr_debug("%s: [%lx-%lx]\n", __func__, base, end);
 
 	return memblock_add_range(&memblock.reserved, base, size, 0);
 }
@@ -342,11 +343,56 @@ memblock_phys_alloc_range(phys_addr_t size,
     return memblock_alloc_range_nid(size, align);
 }
 
+phys_addr_t
+memblock_start_of_DRAM(void)
+{
+    return memblock.memory.regions[0].base;
+}
+EXPORT_SYMBOL(memblock_start_of_DRAM);
+
+phys_addr_t
+memblock_end_of_DRAM(void)
+{
+    int idx = memblock.memory.cnt - 1;
+
+    return (memblock.memory.regions[idx].base +
+            memblock.memory.regions[idx].size);
+}
+EXPORT_SYMBOL(memblock_end_of_DRAM);
+
+void
+__next_mem_pfn_range(int *idx,
+                     unsigned long *out_start_pfn,
+                     unsigned long *out_end_pfn)
+{
+    struct memblock_type *type = &memblock.memory;
+    struct memblock_region *r;
+
+    while (++*idx < type->cnt) {
+        r = &type->regions[*idx];
+
+        if (PFN_UP(r->base) >= PFN_DOWN(r->base + r->size))
+            continue;
+
+        break;
+    }
+    if (*idx >= type->cnt) {
+        *idx = -1;
+        return;
+    }
+
+    if (out_start_pfn)
+        *out_start_pfn = PFN_UP(r->base);
+    if (out_end_pfn)
+        *out_end_pfn = PFN_DOWN(r->base + r->size);
+}
+EXPORT_SYMBOL(__next_mem_pfn_range);
+
 static int
 init_module(void)
 {
     printk("module[memblock]: init begin ...\n");
-    if (dt_memory_base && dt_memory_size) 
+    if (dt_memory_base && dt_memory_size)
         memblock_add(dt_memory_base, dt_memory_size);
 
     setup_vm_final(memblock.memory.regions,

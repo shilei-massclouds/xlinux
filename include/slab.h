@@ -6,6 +6,7 @@
 #include <gfp.h>
 #include <types.h>
 #include <page.h>
+#include <mmzone.h>
 #include <kernel.h>
 #include <compiler_attributes.h>
 

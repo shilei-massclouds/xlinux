@@ -18,6 +18,12 @@
 #define _YELLOW(text)   _COLORED(text, _CP_YELLOW)
 #define _BLUE(text)     _COLORED(text, _CP_BLUE)
 
+#ifdef X_DEBUG
+#define pr_debug printk
+#else
+#define pr_debug(msg, ...)
+#endif
+
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list args);
 
 void printk(const char *fmt, ...);

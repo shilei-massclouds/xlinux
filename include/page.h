@@ -16,8 +16,6 @@
 
 #define KERN_VIRT_SIZE (-PAGE_OFFSET)
 
-#define MAX_ORDER 11
-
 /*
  * paging: SV-39, va-39bits, pa-56bits
  * root -> pgd(pge) -> pmd(pme) -> pt(pte) -> phy_page
