@@ -209,6 +209,70 @@ alloc_node_mem_map(struct pglist_data *pgdat)
 }
 
 static void
+zone_init_free_lists(struct zone *zone)
+{
+    unsigned int order, t;
+    for_each_migratetype_order(order, t) {
+        INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
+        zone->free_area[order].nr_free = 0;
+    }
+}
+
+void
+init_currently_empty_zone(struct zone *zone,
+                          unsigned long zone_start_pfn,
+                          unsigned long size)
+{
+    struct pglist_data *pgdat = zone->zone_pgdat;
+    int zone_idx = zone_idx(zone) + 1;
+
+    if (zone_idx > pgdat->nr_zones)
+        pgdat->nr_zones = zone_idx;
+
+    zone->zone_start_pfn = zone_start_pfn;
+
+    printk("Initialising map zone %lu pfns %lu -> %lu\n",
+           (unsigned long)zone_idx(zone),
+           zone_start_pfn, (zone_start_pfn + size));
+
+    zone_init_free_lists(zone);
+    zone->initialized = 1;
+}
+
+static void
+zone_init_internals(struct zone *zone, enum zone_type idx)
+{
+    zone->name = zone_names[idx];
+    zone->zone_pgdat = NODE_DATA(0);
+}
+
+static void
+free_area_init_core(struct pglist_data *pgdat)
+{
+    enum zone_type j;
+
+    for (j = 0; j < MAX_NR_ZONES; j++) {
+        unsigned long size;
+        struct zone *zone = pgdat->node_zones + j;
+        unsigned long zone_start_pfn = zone->zone_start_pfn;
+
+        size = zone->spanned_pages;
+
+        /*
+         * Set an approximate value for lowmem here, it will be adjusted
+         * when the bootmem allocator frees pages into the buddy system.
+         * And all highmem pages will be managed by the buddy system.
+         */
+        zone_init_internals(zone, j);
+
+        if (!size)
+            continue;
+
+        init_currently_empty_zone(zone, zone_start_pfn, size);
+    }
+}
+
+static void
 free_area_init_node(void)
 {
     unsigned long start_pfn = 0;
@@ -228,7 +292,7 @@ free_area_init_node(void)
     calculate_node_totalpages(pgdat, start_pfn, end_pfn);
 
     alloc_node_mem_map(pgdat);
-    //free_area_init_core(pgdat);
+    free_area_init_core(pgdat);
 }
 
 void

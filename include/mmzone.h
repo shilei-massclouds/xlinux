@@ -7,6 +7,12 @@
 
 #define MAX_NR_ZONES 3  /* __MAX_NR_ZONES */
 
+/*
+ * zone_idx() returns 0 for the ZONE_DMA zone,
+ * 1 for the ZONE_NORMAL zone, etc.
+ */
+#define zone_idx(zone)  ((zone) - (zone)->zone_pgdat->node_zones)
+
 enum zone_type {
     /*
      * ZONE_DMA and ZONE_DMA32 are used when there are peripherals not able
@@ -34,12 +40,39 @@ enum zone_type {
     __MAX_NR_ZONES
 };
 
+enum migratetype {
+    MIGRATE_UNMOVABLE,
+    MIGRATE_MOVABLE,
+    MIGRATE_RECLAIMABLE,
+    MIGRATE_PCPTYPES,   /* the number of types on the pcp lists */
+    MIGRATE_HIGHATOMIC = MIGRATE_PCPTYPES,
+    MIGRATE_TYPES
+};
+
+#define for_each_migratetype_order(order, type) \
+    for (order = 0; order < MAX_ORDER; order++) \
+        for (type = 0; type < MIGRATE_TYPES; type++)
+
+struct free_area {
+    struct list_head    free_list[MIGRATE_TYPES];
+    unsigned long       nr_free;
+};
+
 struct zone {
+    struct pglist_data  *zone_pgdat;
+
     /* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
     unsigned long   zone_start_pfn;
 
     unsigned long   spanned_pages;
     unsigned long   present_pages;
+
+    const char      *name;
+
+    int initialized;
+
+    /* free areas of different sizes */
+    struct free_area    free_area[MAX_ORDER];
 };
 
 typedef struct pglist_data {
@@ -49,8 +82,8 @@ typedef struct pglist_data {
      * this node's node_zonelists as well as other node's node_zonelists.
      */
     struct zone node_zones[MAX_NR_ZONES];
-
     int nr_zones; /* number of populated zones in this node */
+
     enum zone_type kswapd_highest_zoneidx;
 
     unsigned long node_start_pfn;
