@@ -5,6 +5,13 @@
 #include <page.h>
 #include <memblock.h>
 
+extern unsigned long max_mapnr;
+
+static inline void set_max_mapnr(unsigned long limit)
+{
+    max_mapnr = limit;
+}
+
 static __always_inline void *
 lowmem_page_address(const struct page *page)
 {

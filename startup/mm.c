@@ -20,8 +20,13 @@ pte_t fixmap_pt[PTRS_PER_PT] __page_aligned_bss;
 EXPORT_SYMBOL(fixmap_pt);
 pge_t swapper_pgd[PTRS_PER_PGD] __page_aligned_bss;
 EXPORT_SYMBOL(swapper_pgd);
+
+unsigned long pfn_base;
+EXPORT_SYMBOL(pfn_base);
+
 unsigned long va_pa_offset;
 EXPORT_SYMBOL(va_pa_offset);
+
 phys_addr_t dtb_early_pa __initdata;
 EXPORT_SYMBOL(dtb_early_pa);
 
@@ -34,6 +39,7 @@ void setup_early_pge(uintptr_t dtb_pa)
     uintptr_t pme_idx = pme_index(PAGE_OFFSET);
 
     va_pa_offset = PAGE_OFFSET - load_pa;
+    pfn_base = PFN_DOWN(load_pa);
 
     early_pgd[pge_idx] =
         pfn_pge(PFN_DOWN((uintptr_t)early_pmd), PAGE_TABLE);

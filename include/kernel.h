@@ -37,6 +37,9 @@ IS_ERR_OR_NULL(const void *ptr)
     return !ptr || IS_ERR_VALUE((unsigned long)ptr);
 }
 
+typedef unsigned long (*free_pages_to_t)(void);
+extern free_pages_to_t free_pages_to_buddy_fn;
+
 typedef void (*start_kernel_t)(void);
 extern start_kernel_t start_kernel_fn;
 

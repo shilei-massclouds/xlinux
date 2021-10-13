@@ -13,6 +13,11 @@
 
 #define MEMBLOCK_ALLOC_ACCESSIBLE   0
 
+#define for_each_reserved_mem_region(i, p_start, p_end)             \
+    for (i = 0UL, __next_reserved_mem_region(&i, p_start, p_end);   \
+         i != (u64)ULLONG_MAX;                                      \
+         __next_reserved_mem_region(&i, p_start, p_end))
+
 #define for_each_memblock(type, region)     \
     for (region = memblock.type.regions;    \
          region < (memblock.type.regions + memblock.type.cnt); \
@@ -140,6 +145,11 @@ memblock_alloc_node(phys_addr_t size, phys_addr_t align)
 {
     return memblock_alloc_try_nid(size, align);
 }
+
+void
+__next_reserved_mem_region(u64 *idx,
+                           phys_addr_t *out_start,
+                           phys_addr_t *out_end);
 
 extern struct memblock memblock;
 

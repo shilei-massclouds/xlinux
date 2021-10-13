@@ -2,7 +2,7 @@
 #ifndef _LINUX_REFCOUNT_H
 #define _LINUX_REFCOUNT_H
 
-#include <types.h>
+#include <atomic.h>
 
 typedef struct refcount_struct {
     atomic_t refs;

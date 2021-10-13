@@ -16,6 +16,17 @@
 
 #define KERN_VIRT_SIZE (-PAGE_OFFSET)
 
+#define pfn_valid(pfn) \
+    (((pfn) >= ARCH_PFN_OFFSET) && (((pfn) - ARCH_PFN_OFFSET) < max_mapnr))
+
+#define __pfn_to_page(pfn)  (mem_map + ((pfn) - ARCH_PFN_OFFSET))
+
+#define __page_to_pfn(page) \
+    ((unsigned long)((page) - mem_map) + ARCH_PFN_OFFSET)
+
+#define page_to_pfn __page_to_pfn
+#define pfn_to_page __pfn_to_page
+
 /*
  * paging: SV-39, va-39bits, pa-56bits
  * root -> pgd(pge) -> pmd(pme) -> pt(pte) -> phy_page
@@ -106,6 +117,9 @@
 
 extern unsigned long va_pa_offset;
 
+extern unsigned long pfn_base;
+#define ARCH_PFN_OFFSET (pfn_base)
+
 typedef struct {
     unsigned long pgprot;
 } pgprot_t;
@@ -129,12 +143,22 @@ typedef struct {
 typedef struct page *pgtable_t;
 
 struct page {
-    /* slab */
-    struct {
+    /* Atomic flags, some possibly updated asynchronously */
+    unsigned long flags;
+
+    struct {    /* Page cache and anonymous pages */
+        struct list_head lru;
+    };
+
+    struct {    /* slab */
         struct list_head slab_list;
         struct kmem_cache *slab_cache; /* not slob */
         void *freelist; /* first free object */
         void *s_mem;    /* first object */
+    };
+
+    struct {    /* Tail pages of compound page */
+        unsigned long compound_head;    /* Bit zero is set */
     };
 
     unsigned int active;

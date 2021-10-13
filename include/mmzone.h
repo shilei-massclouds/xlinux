@@ -2,6 +2,8 @@
 #ifndef _LINUX_MMZONE_H
 #define _LINUX_MMZONE_H
 
+#include <atomic.h>
+
 #define MAX_ORDER 11
 #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
 
@@ -64,6 +66,7 @@ struct zone {
     /* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
     unsigned long   zone_start_pfn;
 
+    atomic_long_t   managed_pages;
     unsigned long   spanned_pages;
     unsigned long   present_pages;
 

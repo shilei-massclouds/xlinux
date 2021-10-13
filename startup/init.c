@@ -5,6 +5,9 @@
 #include <export.h>
 #include <kernel.h>
 
+free_pages_to_t free_pages_to_buddy_fn;
+EXPORT_SYMBOL(free_pages_to_buddy_fn);
+
 start_kernel_t start_kernel_fn;
 EXPORT_SYMBOL(start_kernel_fn);
 

@@ -37,21 +37,6 @@ extern const unsigned char _ctype[];
 #define __round_mask(x, y) ((__typeof__(x))((y)-1))
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
 
-typedef struct {
-    int counter;
-} atomic_t;
-
-#define __READ_ONCE(x)  (*(const volatile typeof(x) *)&(x))
-
-#define atomic_read(v)  READ_ONCE((v)->counter)
-
-#define WRITE_ONCE(x, val)                        \
-do {                                    \
-    *(volatile typeof(x) *)&(x) = (val);                \
-} while (0)
-
-#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
-
 typedef unsigned long   uintptr_t;
 
 typedef _Bool           bool;

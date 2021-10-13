@@ -9,12 +9,25 @@
 #include <string.h>
 #include <printk.h>
 #include <memblock.h>
+#include <mmzone.h>
 
 #define INIT_MEMBLOCK_REGIONS           128
 #define INIT_MEMBLOCK_RESERVED_REGIONS  INIT_MEMBLOCK_REGIONS
 
+void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
+EXPORT_SYMBOL(reserve_bootmem_region_fn);
+
 extern phys_addr_t dt_memory_base;
 extern phys_addr_t dt_memory_size;
+
+struct pglist_data contig_page_data;
+EXPORT_SYMBOL(contig_page_data);
+
+unsigned long max_mapnr;
+EXPORT_SYMBOL(max_mapnr);
+
+struct page *mem_map;
+EXPORT_SYMBOL(mem_map);
 
 static struct memblock_region
 memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS];
@@ -388,16 +401,99 @@ __next_mem_pfn_range(int *idx,
 }
 EXPORT_SYMBOL(__next_mem_pfn_range);
 
+void
+reset_node_managed_pages(void)
+{
+    struct zone *z;
+    pg_data_t *pgdat = NODE_DATA(0);
+
+    for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+        atomic_long_set(&z->managed_pages, 0);
+}
+
+static int reset_managed_pages_done;
+
+void
+reset_all_zones_managed_pages(void)
+{
+    if (reset_managed_pages_done)
+        return;
+
+    reset_node_managed_pages();
+
+    reset_managed_pages_done = 1;
+}
+
+static unsigned long
+free_low_memory_core_early(void)
+{
+    u64 i;
+    phys_addr_t start;
+    phys_addr_t end;
+
+    BUG_ON(reserve_bootmem_region_fn == NULL);
+
+    for_each_reserved_mem_region(i, &start, &end)
+        reserve_bootmem_region_fn(start, end);
+}
+
+/**
+ * memblock_free_all - release free pages to the buddy allocator
+ *
+ * Return: the number of pages actually released.
+ */
+static unsigned long
+memblock_free_all(void)
+{
+    unsigned long pages;
+
+    reset_all_zones_managed_pages();
+
+    pages = free_low_memory_core_early();
+    //totalram_pages_add(pages);
+
+    return pages;
+}
+
+void
+__next_reserved_mem_region(u64 *idx,
+                           phys_addr_t *out_start,
+                           phys_addr_t *out_end)
+{
+    struct memblock_type *type = &memblock.reserved;
+
+    if (*idx < type->cnt) {
+        struct memblock_region *r = &type->regions[*idx];
+        phys_addr_t base = r->base;
+        phys_addr_t size = r->size;
+
+        if (out_start)
+            *out_start = base;
+        if (out_end)
+            *out_end = base + size - 1;
+
+        *idx += 1;
+        return;
+    }
+
+    /* signal end of iteration */
+    *idx = ULLONG_MAX;
+}
+
 static int
 init_module(void)
 {
     printk("module[memblock]: init begin ...\n");
+
+    free_pages_to_buddy_fn = memblock_free_all;
+
     if (dt_memory_base && dt_memory_size)
         memblock_add(dt_memory_base, dt_memory_size);
 
     setup_vm_final(memblock.memory.regions,
                    memblock.memory.cnt,
                    memblock_phys_alloc);
+
     printk("module[memblock]: init end!\n");
     return 0;
 }
