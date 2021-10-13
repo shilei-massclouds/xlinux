@@ -159,4 +159,6 @@ memblock_start_of_DRAM(void);
 phys_addr_t
 memblock_end_of_DRAM(void);
 
+unsigned long memblock_free_all(void);
+
 #endif /* _MEMBLOCK_H */

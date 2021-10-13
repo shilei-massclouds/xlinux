@@ -442,7 +442,7 @@ free_low_memory_core_early(void)
  *
  * Return: the number of pages actually released.
  */
-static unsigned long
+unsigned long
 memblock_free_all(void)
 {
     unsigned long pages;
@@ -454,6 +454,7 @@ memblock_free_all(void)
 
     return pages;
 }
+EXPORT_SYMBOL(memblock_free_all);
 
 void
 __next_reserved_mem_region(u64 *idx,
@@ -484,8 +485,6 @@ static int
 init_module(void)
 {
     printk("module[memblock]: init begin ...\n");
-
-    free_pages_to_buddy_fn = memblock_free_all;
 
     if (dt_memory_base && dt_memory_size)
         memblock_add(dt_memory_base, dt_memory_size);

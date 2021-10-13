@@ -423,7 +423,7 @@ init_module(void)
     set_max_mapnr(max_low_pfn);
 
     zone_sizes_init();
-    free_pages_to_buddy_fn();
+    memblock_free_all();
 
     printk("module[buddy]: init end!\n");
     return 0;
