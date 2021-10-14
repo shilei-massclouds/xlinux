@@ -18,6 +18,15 @@
          i != (u64)ULLONG_MAX;                                      \
          __next_reserved_mem_region(&i, p_start, p_end))
 
+#define for_each_mem_range(i, type_a, type_b, flags, p_start, p_end) \
+    for (i = 0, __next_mem_range(&i, flags, type_a, type_b, p_start, p_end); \
+         i != (u64)ULLONG_MAX;                                       \
+         __next_mem_range(&i, flags, type_a, type_b, p_start, p_end))
+
+#define for_each_free_mem_range(i, flags, p_start, p_end)       \
+    for_each_mem_range(i, &memblock.memory, &memblock.reserved, \
+                       flags, p_start, p_end)
+
 #define for_each_memblock(type, region)     \
     for (region = memblock.type.regions;    \
          region < (memblock.type.regions + memblock.type.cnt); \
@@ -150,6 +159,13 @@ void
 __next_reserved_mem_region(u64 *idx,
                            phys_addr_t *out_start,
                            phys_addr_t *out_end);
+
+void
+__next_mem_range(u64 *idx, enum memblock_flags flags,
+                 struct memblock_type *type_a,
+                 struct memblock_type *type_b,
+                 phys_addr_t *out_start,
+                 phys_addr_t *out_end);
 
 extern struct memblock memblock;
 

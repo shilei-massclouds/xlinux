@@ -10,13 +10,16 @@
 #include <mmzone.h>
 #include <printk.h>
 #include <memblock.h>
+#include <page_ref.h>
 #include <page-flags.h>
+#include <pageblock-flags.h>
 
 extern void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
+extern void (*free_pages_core_fn)(struct page *, unsigned int);
 extern struct pglist_data contig_page_data;
 extern struct page *mem_map;
 
-unsigned long max_low_pfn;
+extern unsigned long max_low_pfn;
 
 static unsigned long
 arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
@@ -269,6 +272,45 @@ calc_memmap_size(unsigned long spanned_pages,
     return PAGE_ALIGN(spanned_pages * sizeof(struct page)) >> PAGE_SHIFT;
 }
 
+/*
+ * Calculate the size of the zone->blockflags rounded to an unsigned long
+ * Start by making sure zonesize is a multiple of pageblock_order by rounding
+ * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
+ * round what is now in bits to nearest long in bits, then return it in
+ * bytes.
+ */
+static unsigned long
+usemap_size(unsigned long zone_start_pfn, unsigned long zonesize)
+{
+    unsigned long usemapsize;
+
+    zonesize += zone_start_pfn & (pageblock_nr_pages-1);
+    usemapsize = roundup(zonesize, pageblock_nr_pages);
+    usemapsize = usemapsize >> pageblock_order;
+    usemapsize *= NR_PAGEBLOCK_BITS;
+    usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
+
+    return usemapsize / 8;
+}
+
+static void
+setup_usemap(struct pglist_data *pgdat,
+             struct zone *zone,
+             unsigned long zone_start_pfn,
+             unsigned long zonesize)
+{
+    unsigned long usemapsize = usemap_size(zone_start_pfn, zonesize);
+    zone->pageblock_flags = NULL;
+    if (usemapsize) {
+        zone->pageblock_flags =
+            memblock_alloc_node(usemapsize, SMP_CACHE_BYTES);
+
+        if (!zone->pageblock_flags)
+            panic("Failed to allocate %ld bytes for zone %s pageblock flags\n",
+                  usemapsize, zone->name);
+    }
+}
+
 static void
 free_area_init_core(struct pglist_data *pgdat)
 {
@@ -305,6 +347,7 @@ free_area_init_core(struct pglist_data *pgdat)
         if (!size)
             continue;
 
+        setup_usemap(pgdat, zone, zone_start_pfn, size);
         init_currently_empty_zone(zone, zone_start_pfn, size);
     }
 }
@@ -412,12 +455,259 @@ reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
     }
 }
 
+/* Return a pointer to the bitmap storing bits affecting a block of pages */
+static inline unsigned long *
+get_pageblock_bitmap(struct page *page, unsigned long pfn)
+{
+    return page_zone(page)->pageblock_flags;
+}
+
+static inline int
+pfn_to_bitidx(struct page *page, unsigned long pfn)
+{
+    pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
+    return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+}
+
+/**
+ * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
+ * @page: The page within the block of interest
+ * @pfn: The target page frame number
+ * @mask: mask of bits that the caller is interested in
+ *
+ * Return: pageblock_bits flags
+ */
+static __always_inline unsigned long
+__get_pfnblock_flags_mask(struct page *page,
+                          unsigned long pfn,
+                          unsigned long mask)
+{
+    unsigned long *bitmap;
+    unsigned long bitidx, word_bitidx;
+    unsigned long word;
+
+    bitmap = get_pageblock_bitmap(page, pfn);
+    bitidx = pfn_to_bitidx(page, pfn);
+    word_bitidx = bitidx / BITS_PER_LONG;
+    bitidx &= (BITS_PER_LONG-1);
+
+    word = bitmap[word_bitidx];
+    return (word >> bitidx) & mask;
+}
+
+static __always_inline int
+get_pfnblock_migratetype(struct page *page, unsigned long pfn)
+{
+    return __get_pfnblock_flags_mask(page, pfn, MIGRATETYPE_MASK);
+}
+
+static inline bool
+page_is_buddy(struct page *page, struct page *buddy, unsigned int order)
+{
+    if (!PageBuddy(buddy))
+        return false;
+
+    if (page_order(buddy) != order)
+        return false;
+
+    /*
+     * zone check is done late to avoid uselessly calculating
+     * zone/node ids for pages that could never merge.
+     */
+    if (page_zone_id(page) != page_zone_id(buddy))
+        return false;
+
+    return true;
+}
+
+static inline void set_page_order(struct page *page, unsigned int order)
+{
+    set_page_private(page, order);
+    __SetPageBuddy(page);
+}
+
+static inline bool
+buddy_merge_likely(unsigned long pfn,
+                   unsigned long buddy_pfn,
+                   struct page *page,
+                   unsigned int order)
+{
+    struct page *higher_page, *higher_buddy;
+    unsigned long combined_pfn;
+
+    if (order >= MAX_ORDER - 2)
+        return false;
+
+    combined_pfn = buddy_pfn & pfn;
+    higher_page = page + (combined_pfn - pfn);
+    buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
+    higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+
+    return page_is_buddy(higher_page, higher_buddy, order + 1);
+}
+
+/* Used for pages not on another list */
+static inline void
+add_to_free_list(struct page *page,
+                 struct zone *zone,
+                 unsigned int order,
+                 int migratetype)
+{
+    struct free_area *area = &zone->free_area[order];
+
+    list_add(&page->lru, &area->free_list[migratetype]);
+    area->nr_free++;
+}
+
+/* Used for pages not on another list */
+static inline void
+add_to_free_list_tail(struct page *page,
+                      struct zone *zone,
+                      unsigned int order,
+                      int migratetype)
+{
+    struct free_area *area = &zone->free_area[order];
+
+    list_add_tail(&page->lru, &area->free_list[migratetype]);
+    area->nr_free++;
+}
+
+static inline void
+del_page_from_free_list(struct page *page,
+                        struct zone *zone,
+                        unsigned int order)
+{
+    list_del(&page->lru);
+    __ClearPageBuddy(page);
+    set_page_private(page, 0);
+    zone->free_area[order].nr_free--;
+}
+
+/*
+ * Freeing function for a buddy system allocator.
+ *
+ * The concept of a buddy system is to maintain direct-mapped table
+ * (containing bit values) for memory blocks of various "orders".
+ * The bottom level table contains the map for the smallest allocatable
+ * units of memory (here, pages), and each level above it describes
+ * pairs of units from the levels below, hence, "buddies".
+ * At a high level, all that happens here is marking the table entry
+ * at the bottom level available, and propagating the changes upward
+ * as necessary, plus some accounting needed to play nicely with other
+ * parts of the VM system.
+ * At each level, we keep a list of pages, which are heads of continuous
+ * free pages of length of (1 << order) and marked with PageBuddy.
+ * Page's order is recorded in page_private(page) field.
+ * So when we are allocating or freeing one, we can derive the state of the
+ * other.  That is, if we allocate a small block, and both were
+ * free, the remainder of the region must be split into blocks.
+ * If a block is freed, and its buddy is also free, then this
+ * triggers coalescing into a block of larger size.
+ *
+ * -- nyc
+ */
+
+static inline void
+__free_one_page(struct page *page,
+                unsigned long pfn,
+                struct zone *zone,
+                unsigned int order,
+                int migratetype,
+                bool report)
+{
+    unsigned long buddy_pfn;
+    unsigned long combined_pfn;
+    struct page *buddy;
+    bool to_tail;
+
+    while (order < MAX_ORDER - 1) {
+        buddy_pfn = __find_buddy_pfn(pfn, order);
+        buddy = page + (buddy_pfn - pfn);
+
+        if (!page_is_buddy(page, buddy, order))
+            goto done_merging;
+
+        del_page_from_free_list(buddy, zone, order);
+
+        combined_pfn = buddy_pfn & pfn;
+        page = page + (combined_pfn - pfn);
+        pfn = combined_pfn;
+        order++;
+    }
+
+ done_merging:
+    set_page_order(page, order);
+
+    to_tail = buddy_merge_likely(pfn, buddy_pfn, page, order);
+    if (to_tail)
+        add_to_free_list_tail(page, zone, order, migratetype);
+    else
+        add_to_free_list(page, zone, order, migratetype);
+}
+
+static void
+free_one_page(struct zone *zone,
+              struct page *page,
+              unsigned long pfn,
+              unsigned int order,
+              int migratetype)
+{
+    __free_one_page(page, pfn, zone, order, migratetype, true);
+}
+
+
+static void
+__free_pages_ok(struct page *page, unsigned int order)
+{
+    unsigned long flags;
+    int migratetype;
+    unsigned long pfn = page_to_pfn(page);
+
+    migratetype = get_pfnblock_migratetype(page, pfn);
+    free_one_page(page_zone(page), page, pfn, order, migratetype);
+}
+
+static inline void
+free_the_page(struct page *page, unsigned int order)
+{
+    if (order == 0)     /* Via pcp? */
+        __free_pages_ok(page, order);
+    else
+        __free_pages_ok(page, order);
+}
+
+void
+__free_pages(struct page *page, unsigned int order)
+{
+    if (put_page_testzero(page))
+        free_the_page(page, order);
+}
+EXPORT_SYMBOL(__free_pages);
+
+void
+__free_pages_core(struct page *page, unsigned int order)
+{
+    unsigned int loop;
+    unsigned int nr_pages = 1 << order;
+    struct page *p = page;
+
+    for (loop = 0; loop < nr_pages; loop++, p++) {
+        __ClearPageReserved(p);
+        set_page_count(p, 0);
+    }
+
+    atomic_long_add(nr_pages, &page_zone(page)->managed_pages);
+    set_page_refcounted(page);
+    __free_pages(page, order);
+}
+
 static int
 init_module(void)
 {
     printk("module[buddy]: init begin ...\n");
 
     reserve_bootmem_region_fn = reserve_bootmem_region;
+    free_pages_core_fn = __free_pages_core;
 
     max_low_pfn = PFN_DOWN(memblock_end_of_DRAM());
     set_max_mapnr(max_low_pfn);

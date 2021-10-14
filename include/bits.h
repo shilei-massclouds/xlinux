@@ -2,6 +2,8 @@
 #ifndef _GENERIC_BITS_H_
 #define _GENERIC_BITS_H_
 
+#include <compiler_attributes.h>
+
 #define BITS_PER_LONG       64
 #define BITS_PER_LONG_LONG  64
 

@@ -7,7 +7,9 @@
 #define MAX_ORDER 11
 #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
 
-#define MAX_NR_ZONES 3  /* __MAX_NR_ZONES */
+#define MAX_NR_ZONES    3   /* __MAX_NR_ZONES */
+#define ZONES_SHIFT     2
+#define ZONES_WIDTH     ZONES_SHIFT
 
 /*
  * zone_idx() returns 0 for the ZONE_DMA zone,
@@ -46,14 +48,14 @@ enum migratetype {
     MIGRATE_UNMOVABLE,
     MIGRATE_MOVABLE,
     MIGRATE_RECLAIMABLE,
-    MIGRATE_PCPTYPES,   /* the number of types on the pcp lists */
-    MIGRATE_HIGHATOMIC = MIGRATE_PCPTYPES,
     MIGRATE_TYPES
 };
 
 #define for_each_migratetype_order(order, type) \
     for (order = 0; order < MAX_ORDER; order++) \
         for (type = 0; type < MIGRATE_TYPES; type++)
+
+#define MIGRATETYPE_MASK ((1UL << PB_migratetype_bits) - 1)
 
 struct free_area {
     struct list_head    free_list[MIGRATE_TYPES];
@@ -62,6 +64,12 @@ struct free_area {
 
 struct zone {
     struct pglist_data  *zone_pgdat;
+
+    /*
+     * Flags for a pageblock_nr_pages block. See pageblock-flags.h.
+     * In SPARSEMEM, this map is stored in struct mem_section
+     */
+    unsigned long   *pageblock_flags;
 
     /* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
     unsigned long   zone_start_pfn;

@@ -114,6 +114,7 @@
 #ifndef __ASSEMBLY__
 
 #include <list.h>
+#include <atomic.h>
 
 extern unsigned long va_pa_offset;
 
@@ -148,6 +149,9 @@ struct page {
 
     struct {    /* Page cache and anonymous pages */
         struct list_head lru;
+
+        /* Indicates order in the buddy system if PageBuddy */
+        unsigned long private;
     };
 
     struct {    /* slab */
@@ -161,7 +165,13 @@ struct page {
         unsigned long compound_head;    /* Bit zero is set */
     };
 
-    unsigned int active;
+    union {
+        unsigned int page_type;
+        unsigned int active;
+    };
+
+    /* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
+    atomic_t _refcount;
 };
 
 #include <log2.h>
@@ -184,5 +194,7 @@ struct page {
 /* test whether an address (unsigned long or pointer) is aligned to PAGE_SIZE */
 #define PAGE_ALIGNED(addr)  IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
 #define PAGE_ALIGN(addr)    _ALIGN(addr, PAGE_SIZE)
+
+#define page_private(page)  ((page)->private)
 
 #endif /* _PAGE_H */

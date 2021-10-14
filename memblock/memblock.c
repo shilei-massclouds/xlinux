@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define X_DEBUG
+
+//#define X_DEBUG
 #include <mm.h>
 #include <bug.h>
 #include <page.h>
@@ -17,14 +18,23 @@
 void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
 EXPORT_SYMBOL(reserve_bootmem_region_fn);
 
+void (*free_pages_core_fn)(struct page *, unsigned int);
+EXPORT_SYMBOL(free_pages_core_fn);
+
 extern phys_addr_t dt_memory_base;
 extern phys_addr_t dt_memory_size;
+
+atomic_long_t _totalram_pages;
+EXPORT_SYMBOL(_totalram_pages);
 
 struct pglist_data contig_page_data;
 EXPORT_SYMBOL(contig_page_data);
 
 unsigned long max_mapnr;
 EXPORT_SYMBOL(max_mapnr);
+
+unsigned long max_low_pfn;
+EXPORT_SYMBOL(max_low_pfn);
 
 struct page *mem_map;
 EXPORT_SYMBOL(mem_map);
@@ -424,17 +434,61 @@ reset_all_zones_managed_pages(void)
     reset_managed_pages_done = 1;
 }
 
+void
+memblock_free_pages(struct page *page, unsigned long pfn, unsigned int order)
+{
+    BUG_ON(!free_pages_core_fn);
+    free_pages_core_fn(page, order);
+}
+
+static void
+__free_pages_memory(unsigned long start, unsigned long end)
+{
+    int order;
+
+    while (start < end) {
+        order = min(MAX_ORDER - 1UL, __ffs(start));
+
+        while (start + (1UL << order) > end)
+            order--;
+
+        memblock_free_pages(pfn_to_page(start), start, order);
+
+        start += (1UL << order);
+    }
+}
+
+static unsigned long
+__free_memory_core(phys_addr_t start, phys_addr_t end)
+{
+    unsigned long start_pfn = PFN_UP(start);
+    unsigned long end_pfn = min_t(unsigned long, PFN_DOWN(end), max_low_pfn);
+
+    if (start_pfn >= end_pfn)
+        return 0;
+
+    __free_pages_memory(start_pfn, end_pfn);
+
+    return end_pfn - start_pfn;
+}
+
 static unsigned long
 free_low_memory_core_early(void)
 {
     u64 i;
     phys_addr_t start;
     phys_addr_t end;
+    unsigned long count = 0;
 
     BUG_ON(reserve_bootmem_region_fn == NULL);
 
     for_each_reserved_mem_region(i, &start, &end)
         reserve_bootmem_region_fn(start, end);
+
+    for_each_free_mem_range(i, MEMBLOCK_NONE, &start, &end)
+        count += __free_memory_core(start, end);
+
+    return count;
 }
 
 /**
@@ -450,7 +504,7 @@ memblock_free_all(void)
     reset_all_zones_managed_pages();
 
     pages = free_low_memory_core_early();
-    //totalram_pages_add(pages);
+    totalram_pages_add(pages);
 
     return pages;
 }
@@ -475,6 +529,75 @@ __next_reserved_mem_region(u64 *idx,
 
         *idx += 1;
         return;
+    }
+
+    /* signal end of iteration */
+    *idx = ULLONG_MAX;
+}
+
+void
+__next_mem_range(u64 *idx, enum memblock_flags flags,
+                 struct memblock_type *type_a,
+                 struct memblock_type *type_b,
+                 phys_addr_t *out_start,
+                 phys_addr_t *out_end)
+{
+    int idx_a = *idx & 0xffffffff;
+    int idx_b = *idx >> 32;
+
+    for (; idx_a < type_a->cnt; idx_a++) {
+        struct memblock_region *m = &type_a->regions[idx_a];
+
+        phys_addr_t m_start = m->base;
+        phys_addr_t m_end = m->base + m->size;
+
+        if (!type_b) {
+            if (out_start)
+                *out_start = m_start;
+            if (out_end)
+                *out_end = m_end;
+            idx_a++;
+            *idx = (u32)idx_a | (u64)idx_b << 32;
+            return;
+        }
+
+        /* scan areas before each reservation */
+        for (; idx_b < type_b->cnt + 1; idx_b++) {
+            struct memblock_region *r;
+            phys_addr_t r_start;
+            phys_addr_t r_end;
+
+            r = &type_b->regions[idx_b];
+            r_start = idx_b ? r[-1].base + r[-1].size : 0;
+            r_end = idx_b < type_b->cnt ?
+                r->base : PHYS_ADDR_MAX;
+
+            /*
+             * if idx_b advanced past idx_a,
+             * break out to advance idx_a
+             */
+            if (r_start >= m_end)
+                break;
+
+            /* if the two regions intersect, we're done */
+            if (m_start < r_end) {
+                if (out_start)
+                    *out_start =
+                        max(m_start, r_start);
+                if (out_end)
+                    *out_end = min(m_end, r_end);
+                /*
+                 * The region which ends first is
+                 * advanced for the next iteration.
+                 */
+                if (m_end <= r_end)
+                    idx_a++;
+                else
+                    idx_b++;
+                *idx = (u32)idx_a | (u64)idx_b << 32;
+                return;
+            }
+        }
     }
 
     /* signal end of iteration */
