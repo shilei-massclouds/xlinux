@@ -150,6 +150,8 @@ struct page {
     struct {    /* Page cache and anonymous pages */
         struct list_head lru;
 
+        pgoff_t index;  /* Our offset within mapping. */
+
         /* Indicates order in the buddy system if PageBuddy */
         unsigned long private;
     };

@@ -21,6 +21,25 @@
 
 #define page_address(page) lowmem_page_address(page)
 
+#define ALLOC_WMARK_LOW     WMARK_LOW
+
+struct alloc_context {
+    struct zonelist *zonelist;
+    struct zoneref *preferred_zoneref;
+
+    /*
+     * highest_zoneidx represents highest usable zone index of
+     * the allocation request. Due to the nature of the zone,
+     * memory on lower zone than the highest_zoneidx will be
+     * protected by lowmem_reserve[highest_zoneidx].
+     *
+     * highest_zoneidx is also used by reclaim/compaction to limit
+     * the target zone since higher zone than this index cannot be
+     * usable for this allocation request.
+     */
+    enum zone_type highest_zoneidx;
+};
+
 extern unsigned long max_mapnr;
 
 static inline void set_max_mapnr(unsigned long limit)

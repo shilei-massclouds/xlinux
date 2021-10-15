@@ -2,17 +2,18 @@
 
 #include <mm.h>
 #include <bug.h>
+#include <gfp.h>
 #include <page.h>
 #include <sizes.h>
 #include <export.h>
 #include <kernel.h>
+#include <percpu.h>
 #include <string.h>
 #include <mmzone.h>
 #include <printk.h>
 #include <memblock.h>
 #include <page_ref.h>
 #include <page-flags.h>
-#include <pageblock-flags.h>
 
 extern void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
 extern void (*free_pages_core_fn)(struct page *, unsigned int);
@@ -227,9 +228,10 @@ alloc_node_mem_map(struct pglist_data *pgdat)
 static void
 zone_init_free_lists(struct zone *zone)
 {
-    unsigned int order, t;
-    for_each_migratetype_order(order, t) {
-        INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
+    unsigned int order;
+
+    for_each_order(order) {
+        INIT_LIST_HEAD(&zone->free_area[order].free_list);
         zone->free_area[order].nr_free = 0;
     }
 }
@@ -272,45 +274,6 @@ calc_memmap_size(unsigned long spanned_pages,
     return PAGE_ALIGN(spanned_pages * sizeof(struct page)) >> PAGE_SHIFT;
 }
 
-/*
- * Calculate the size of the zone->blockflags rounded to an unsigned long
- * Start by making sure zonesize is a multiple of pageblock_order by rounding
- * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
- * round what is now in bits to nearest long in bits, then return it in
- * bytes.
- */
-static unsigned long
-usemap_size(unsigned long zone_start_pfn, unsigned long zonesize)
-{
-    unsigned long usemapsize;
-
-    zonesize += zone_start_pfn & (pageblock_nr_pages-1);
-    usemapsize = roundup(zonesize, pageblock_nr_pages);
-    usemapsize = usemapsize >> pageblock_order;
-    usemapsize *= NR_PAGEBLOCK_BITS;
-    usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
-
-    return usemapsize / 8;
-}
-
-static void
-setup_usemap(struct pglist_data *pgdat,
-             struct zone *zone,
-             unsigned long zone_start_pfn,
-             unsigned long zonesize)
-{
-    unsigned long usemapsize = usemap_size(zone_start_pfn, zonesize);
-    zone->pageblock_flags = NULL;
-    if (usemapsize) {
-        zone->pageblock_flags =
-            memblock_alloc_node(usemapsize, SMP_CACHE_BYTES);
-
-        if (!zone->pageblock_flags)
-            panic("Failed to allocate %ld bytes for zone %s pageblock flags\n",
-                  usemapsize, zone->name);
-    }
-}
-
 static void
 free_area_init_core(struct pglist_data *pgdat)
 {
@@ -347,7 +310,6 @@ free_area_init_core(struct pglist_data *pgdat)
         if (!size)
             continue;
 
-        setup_usemap(pgdat, zone, zone_start_pfn, size);
         init_currently_empty_zone(zone, zone_start_pfn, size);
     }
 }
@@ -455,52 +417,6 @@ reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
     }
 }
 
-/* Return a pointer to the bitmap storing bits affecting a block of pages */
-static inline unsigned long *
-get_pageblock_bitmap(struct page *page, unsigned long pfn)
-{
-    return page_zone(page)->pageblock_flags;
-}
-
-static inline int
-pfn_to_bitidx(struct page *page, unsigned long pfn)
-{
-    pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
-    return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
-}
-
-/**
- * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
- * @page: The page within the block of interest
- * @pfn: The target page frame number
- * @mask: mask of bits that the caller is interested in
- *
- * Return: pageblock_bits flags
- */
-static __always_inline unsigned long
-__get_pfnblock_flags_mask(struct page *page,
-                          unsigned long pfn,
-                          unsigned long mask)
-{
-    unsigned long *bitmap;
-    unsigned long bitidx, word_bitidx;
-    unsigned long word;
-
-    bitmap = get_pageblock_bitmap(page, pfn);
-    bitidx = pfn_to_bitidx(page, pfn);
-    word_bitidx = bitidx / BITS_PER_LONG;
-    bitidx &= (BITS_PER_LONG-1);
-
-    word = bitmap[word_bitidx];
-    return (word >> bitidx) & mask;
-}
-
-static __always_inline int
-get_pfnblock_migratetype(struct page *page, unsigned long pfn)
-{
-    return __get_pfnblock_flags_mask(page, pfn, MIGRATETYPE_MASK);
-}
-
 static inline bool
 page_is_buddy(struct page *page, struct page *buddy, unsigned int order)
 {
@@ -550,12 +466,11 @@ buddy_merge_likely(unsigned long pfn,
 static inline void
 add_to_free_list(struct page *page,
                  struct zone *zone,
-                 unsigned int order,
-                 int migratetype)
+                 unsigned int order)
 {
     struct free_area *area = &zone->free_area[order];
 
-    list_add(&page->lru, &area->free_list[migratetype]);
+    list_add(&page->lru, &area->free_list);
     area->nr_free++;
 }
 
@@ -563,12 +478,11 @@ add_to_free_list(struct page *page,
 static inline void
 add_to_free_list_tail(struct page *page,
                       struct zone *zone,
-                      unsigned int order,
-                      int migratetype)
+                      unsigned int order)
 {
     struct free_area *area = &zone->free_area[order];
 
-    list_add_tail(&page->lru, &area->free_list[migratetype]);
+    list_add_tail(&page->lru, &area->free_list);
     area->nr_free++;
 }
 
@@ -612,7 +526,6 @@ __free_one_page(struct page *page,
                 unsigned long pfn,
                 struct zone *zone,
                 unsigned int order,
-                int migratetype,
                 bool report)
 {
     unsigned long buddy_pfn;
@@ -640,19 +553,18 @@ __free_one_page(struct page *page,
 
     to_tail = buddy_merge_likely(pfn, buddy_pfn, page, order);
     if (to_tail)
-        add_to_free_list_tail(page, zone, order, migratetype);
+        add_to_free_list_tail(page, zone, order);
     else
-        add_to_free_list(page, zone, order, migratetype);
+        add_to_free_list(page, zone, order);
 }
 
 static void
 free_one_page(struct zone *zone,
               struct page *page,
               unsigned long pfn,
-              unsigned int order,
-              int migratetype)
+              unsigned int order)
 {
-    __free_one_page(page, pfn, zone, order, migratetype, true);
+    __free_one_page(page, pfn, zone, order, true);
 }
 
 
@@ -660,11 +572,9 @@ static void
 __free_pages_ok(struct page *page, unsigned int order)
 {
     unsigned long flags;
-    int migratetype;
     unsigned long pfn = page_to_pfn(page);
 
-    migratetype = get_pfnblock_migratetype(page, pfn);
-    free_one_page(page_zone(page), page, pfn, order, migratetype);
+    free_one_page(page_zone(page), page, pfn, order);
 }
 
 static inline void
@@ -699,6 +609,258 @@ __free_pages_core(struct page *page, unsigned int order)
     atomic_long_add(nr_pages, &page_zone(page)->managed_pages);
     set_page_refcounted(page);
     __free_pages(page, order);
+}
+
+static inline bool
+prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
+                    struct alloc_context *ac)
+{
+    ac->highest_zoneidx = gfp_zone(gfp_mask);
+    ac->zonelist = node_zonelist(gfp_mask);
+}
+
+/* Determine whether to spread dirty pages and what the first usable zone */
+static inline void
+finalise_ac(gfp_t gfp_mask, struct alloc_context *ac)
+{
+    /*
+     * The preferred zone is used for statistics but crucially it is
+     * also used as the starting point for the zonelist iterator. It
+     * may get reset for allocations that ignore memory policies.
+     */
+    ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+                                                 ac->highest_zoneidx);
+}
+
+static inline void
+expand(struct zone *zone, struct page *page, int low, int high)
+{
+    unsigned long size = 1 << high;
+
+    while (high > low) {
+        high--;
+        size >>= 1;
+
+        add_to_free_list(&page[size], zone, high);
+        set_page_order(&page[size], high);
+    }
+}
+
+/*
+ * Go through the free lists and remove
+ * the smallest available page from the freelists
+ */
+static __always_inline struct page *
+__rmqueue_smallest(struct zone *zone, unsigned int order)
+{
+    unsigned int current_order;
+    struct free_area *area;
+    struct page *page;
+
+    /* Find a page of the appropriate size in the preferred list */
+    for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+        area = &(zone->free_area[current_order]);
+        page = get_page_from_free_area(area);
+        if (!page)
+            continue;
+        del_page_from_free_list(page, zone, current_order);
+        expand(zone, page, order, current_order);
+        return page;
+    }
+
+    return NULL;
+}
+
+/*
+ * Do the hard work of removing an element from the buddy allocator.
+ * Call me with the zone->lock already held.
+ */
+static __always_inline struct page *
+__rmqueue(struct zone *zone, unsigned int order, unsigned int alloc_flags)
+{
+    struct page *page;
+
+    page = __rmqueue_smallest(zone, order);
+    if (unlikely(!page)) {
+        panic("bad rmqueue smallest!\n");
+    }
+    return page;
+}
+
+/*
+ * Obtain a specified number of elements from the buddy allocator,
+ * all under a single hold of the lock, for efficiency.
+ * Add them to the supplied list.
+ * Returns the number of new pages which were placed at *list.
+ */
+static int
+rmqueue_bulk(struct zone *zone,
+             unsigned int order,
+             unsigned long count,
+             struct list_head *list,
+             unsigned int alloc_flags)
+{
+    int i;
+    int alloced = 0;
+
+    for (i = 0; i < count; ++i) {
+        struct page *page = __rmqueue(zone, order, alloc_flags);
+        if (unlikely(page == NULL))
+            break;
+
+        /*
+         * Split buddy pages returned by expand() are received here in
+         * physical page order. The page is added to the tail of
+         * caller's list. From the callers perspective, the linked list
+         * is ordered by page number under some conditions. This is
+         * useful for IO devices that can forward direction from the
+         * head, thus also in the physical page order. This is useful
+         * for IO devices that can merge IO requests if the physical
+         * pages are ordered properly.
+         */
+        list_add_tail(&page->lru, list);
+        alloced++;
+    }
+
+    return alloced;
+}
+
+static inline bool check_new_pcp(struct page *page)
+{
+    return false;
+}
+
+/* Remove page from the per-cpu list, caller must protect the list */
+static struct page *
+__rmqueue_pcplist(struct zone *zone,
+                  unsigned int alloc_flags,
+                  struct per_cpu_pages *pcp,
+                  struct list_head *list)
+{
+    struct page *page;
+
+    do {
+        if (list_empty(list)) {
+            pcp->count += rmqueue_bulk(zone, 0, pcp->batch, list, alloc_flags);
+            if (unlikely(list_empty(list)))
+                return NULL;
+        }
+
+        page = list_first_entry(list, struct page, lru);
+        list_del(&page->lru);
+        pcp->count--;
+    } while (check_new_pcp(page));
+
+    return page;
+}
+
+static struct page *
+rmqueue_pcplist(struct zone *preferred_zone,
+                struct zone *zone,
+                gfp_t gfp_flags,
+                unsigned int alloc_flags)
+{
+    struct per_cpu_pages *pcp;
+    struct list_head *list;
+
+    pcp = &this_cpu_ptr(zone->pageset)->pcp;
+    list = &pcp->lists;
+    return __rmqueue_pcplist(zone, alloc_flags, pcp, list);
+}
+
+static inline struct page *
+rmqueue(struct zone *preferred_zone,
+        struct zone *zone,
+        unsigned int order,
+        gfp_t gfp_flags,
+        unsigned int alloc_flags)
+{
+    struct page *page;
+
+    if (likely(order == 0)) {
+        page = rmqueue_pcplist(preferred_zone, zone, gfp_flags, alloc_flags);
+        goto out;
+    }
+
+    panic("bad order(%u)\n");
+
+ out:
+    return page;
+}
+
+/*
+ * get_page_from_freelist goes through the zonelist trying to allocate
+ * a page.
+ */
+static struct page *
+get_page_from_freelist(gfp_t gfp_mask,
+                       unsigned int order,
+                       int alloc_flags,
+                       const struct alloc_context *ac)
+{
+    struct zoneref *z;
+    struct zone *zone;
+
+    z = ac->preferred_zoneref;
+
+    for_next_zone_zonelist_nodemask(zone, z, ac->zonelist,
+                                    ac->highest_zoneidx) {
+        struct page *page;
+
+        page = rmqueue(ac->preferred_zoneref->zone, zone, order,
+                       gfp_mask, alloc_flags);
+        if (page) {
+            return page;
+        }
+
+        panic("bad rmqueue!\n");
+    }
+
+    return NULL;
+}
+
+struct page *
+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order)
+{
+    struct page *page;
+    unsigned int alloc_flags = ALLOC_WMARK_LOW;
+    struct alloc_context ac = {};
+
+    if (unlikely(order >= MAX_ORDER)) {
+        panic("bad alloc order %u\n", order);
+        return NULL;
+    }
+
+    if (!prepare_alloc_pages(gfp_mask, order, &ac))
+        return NULL;
+
+    finalise_ac(gfp_mask, &ac);
+
+    /* First allocation attempt */
+    page = get_page_from_freelist(gfp_mask, order, alloc_flags, &ac);
+    if (likely(page))
+        goto out;
+
+    panic("alloc failed!\n");
+
+ out:
+    return page;
+}
+EXPORT_SYMBOL(__alloc_pages_nodemask);
+
+/* Returns the next zone at or below highest_zoneidx in a zonelist */
+struct zoneref *
+__next_zones_zonelist(struct zoneref *z,
+                      enum zone_type highest_zoneidx)
+{
+    /*
+     * Find the next suitable zone to use for the allocation.
+     * Only filter based on nodemask if it's set
+     */
+    while (zonelist_zone_idx(z) > highest_zoneidx)
+        z++;
+
+    return z;
 }
 
 static int

@@ -9,6 +9,8 @@
 #define __attribute_const__     __attribute__((__const__))
 #define __always_inline         inline __attribute__((__always_inline__))
 
+#define __force
+
 #define likely(x)   (x)
 #define unlikely(x) (x)
 

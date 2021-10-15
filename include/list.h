@@ -29,6 +29,9 @@
 #define list_entry(ptr, type, member) \
     container_of(ptr, type, member)
 
+#define list_first_entry(ptr, type, member) \
+    list_entry((ptr)->next, type, member)
+
 /**
  * Loop through the list given by head and set pos to struct in the list.
  *
@@ -64,7 +67,6 @@
     struct list_head *pos__ = head__->next;             \
     pos__ != head__ ? list_entry(pos__, type, member) : NULL; \
 })
-
 
 #define LIST_HEAD_INIT(name) { &(name), &(name) }
 

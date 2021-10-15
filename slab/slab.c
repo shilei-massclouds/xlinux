@@ -306,15 +306,6 @@ gfp_exact_node(gfp_t flags)
     return flags & ~__GFP_NOFAIL;
 }
 
-/* Todo: re-implement it in page_alloc.c */
-struct page *
-__alloc_pages_nodemask(gfp_t gfp_mask,
-                       unsigned int order,
-                       int preferred_nid)
-{
-    return (struct page *) memblock_alloc(sizeof(struct page), sizeof(struct page));
-}
-
 /*
  * Interface to system's page allocator. No need to hold the
  * kmem_cache_node ->list_lock.

@@ -122,6 +122,11 @@ typedef phys_addr_t resource_size_t;
 typedef unsigned int gfp_t;
 typedef unsigned int slab_flags_t;
 
+/*
+ * The type of an index into the pagecache.
+ */
+#define pgoff_t unsigned long
+
 #endif /*  __ASSEMBLY__ */
 
 #define swab32(x) ((u32)(                    \
