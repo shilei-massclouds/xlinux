@@ -190,4 +190,10 @@ atomic_dec_and_test(atomic_t *v)
     return atomic_dec_return(v) == 0;
 }
 
+static __always_inline long
+atomic_long_read(const atomic_long_t *v)
+{
+    return atomic64_read(v);
+}
+
 #endif /* _ASM_GENERIC_ATOMIC_LONG_H */

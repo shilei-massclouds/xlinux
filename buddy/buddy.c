@@ -22,6 +22,8 @@ extern struct page *mem_map;
 
 extern unsigned long max_low_pfn;
 
+static struct per_cpu_pageset boot_pageset;
+
 static unsigned long
 arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
 
@@ -258,6 +260,17 @@ init_currently_empty_zone(struct zone *zone,
 }
 
 static void
+zone_pcp_init(struct zone *zone)
+{
+    /*
+     * per cpu subsystem is not up at this point. The following code
+     * relies on the ability of the linker to provide the
+     * offset of a (static) per cpu variable into the per cpu area.
+     */
+    zone->pageset = &boot_pageset;
+}
+
+static void
 zone_init_internals(struct zone *zone,
                     enum zone_type idx,
                     unsigned long remaining_pages)
@@ -265,6 +278,7 @@ zone_init_internals(struct zone *zone,
     atomic_long_set(&zone->managed_pages, remaining_pages);
     zone->name = zone_names[idx];
     zone->zone_pgdat = NODE_DATA(0);
+    zone_pcp_init(zone);
 }
 
 static unsigned long
@@ -617,6 +631,7 @@ prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
 {
     ac->highest_zoneidx = gfp_zone(gfp_mask);
     ac->zonelist = node_zonelist(gfp_mask);
+    return true;
 }
 
 /* Determine whether to spread dirty pages and what the first usable zone */
@@ -863,6 +878,103 @@ __next_zones_zonelist(struct zoneref *z,
     return z;
 }
 
+static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+{
+    zoneref->zone = zone;
+    zoneref->zone_idx = zone_idx(zone);
+}
+
+/*
+ * Builds allocation fallback zone lists.
+ *
+ * Add all populated zones of a node to the zonelist.
+ */
+static int
+build_zonerefs_node(pg_data_t *pgdat, struct zoneref *zonerefs)
+{
+    struct zone *zone;
+    enum zone_type zone_type = MAX_NR_ZONES;
+    int nr_zones = 0;
+
+    do {
+        zone_type--;
+        zone = pgdat->node_zones + zone_type;
+        if (managed_zone(zone)) {
+            zoneref_set_zone(zone, &zonerefs[nr_zones++]);
+        }
+    } while (zone_type);
+
+    return nr_zones;
+}
+
+static void
+build_zonelists(pg_data_t *pgdat)
+{
+    struct zoneref *zonerefs;
+    int nr_zones;
+
+    zonerefs = pgdat->node_zonelists[ZONELIST_FALLBACK]._zonerefs;
+    nr_zones = build_zonerefs_node(pgdat, zonerefs);
+    zonerefs += nr_zones;
+
+    zonerefs->zone = NULL;
+    zonerefs->zone_idx = 0;
+}
+
+static void
+__build_all_zonelists(void *data)
+{
+    build_zonelists(NODE_DATA(0));
+}
+
+static void
+pageset_update(struct per_cpu_pages *pcp,
+               unsigned long high,
+               unsigned long batch)
+{
+    /* start with a fail safe value for batch */
+    pcp->batch = 1;
+
+    /* Update high, then batch, in order */
+    pcp->high = high;
+
+    pcp->batch = batch;
+}
+
+/* a companion to pageset_set_high() */
+static void
+pageset_set_batch(struct per_cpu_pageset *p, unsigned long batch)
+{
+    pageset_update(&p->pcp, 6 * batch, max(1UL, 1 * batch));
+}
+
+static void
+pageset_init(struct per_cpu_pageset *p)
+{
+    struct per_cpu_pages *pcp;
+
+    memset(p, 0, sizeof(*p));
+
+    pcp = &p->pcp;
+    INIT_LIST_HEAD(&pcp->lists);
+}
+
+static void
+setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
+{
+    pageset_init(p);
+    pageset_set_batch(p, batch);
+}
+
+static void
+build_all_zonelists_init(void)
+{
+    int cpu;
+
+    __build_all_zonelists(NULL);
+    setup_pageset(&boot_pageset, 0);
+}
+
 static int
 init_module(void)
 {
@@ -875,6 +987,7 @@ init_module(void)
     set_max_mapnr(max_low_pfn);
 
     zone_sizes_init();
+    build_all_zonelists_init();
     memblock_free_all();
 
     printk("module[buddy]: init end!\n");

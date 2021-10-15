@@ -238,4 +238,16 @@ get_page_from_free_area(struct free_area *area)
     return list_first_entry_or_null(&area->free_list, struct page, lru);
 }
 
+static inline unsigned long
+zone_managed_pages(struct zone *zone)
+{
+    return (unsigned long)atomic_long_read(&zone->managed_pages);
+}
+
+static inline bool
+managed_zone(struct zone *zone)
+{
+    return zone_managed_pages(zone);
+}
+
 #endif /* _LINUX_MMZONE_H */
