@@ -7,7 +7,6 @@
 #include <sizes.h>
 #include <export.h>
 #include <kernel.h>
-#include <percpu.h>
 #include <string.h>
 #include <mmzone.h>
 #include <printk.h>
@@ -778,7 +777,7 @@ rmqueue_pcplist(struct zone *preferred_zone,
     struct per_cpu_pages *pcp;
     struct list_head *list;
 
-    pcp = &this_cpu_ptr(zone->pageset)->pcp;
+    pcp = &zone->pageset->pcp;
     list = &pcp->lists;
     return __rmqueue_pcplist(zone, alloc_flags, pcp, list);
 }

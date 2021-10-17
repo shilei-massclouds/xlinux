@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#define X_DEBUG
 #include <mm.h>
 #include <errno.h>
 #include <list.h>
@@ -7,7 +8,6 @@
 #include <export.h>
 #include <kernel.h>
 #include <string.h>
-#include <percpu.h>
 #include <printk.h>
 #include <memblock.h>
 
@@ -193,7 +193,7 @@ kmalloc_slab(size_t size, gfp_t flags)
 static inline struct array_cache *
 cpu_cache_get(struct kmem_cache *cachep)
 {
-    return this_cpu_ptr(cachep->cpu_cache);
+    return cachep->cpu_cache;
 }
 
 static int
@@ -672,7 +672,7 @@ alloc_kmem_cache_cpus(struct kmem_cache *cachep,
     pr_debug("%s: ...\n", __func__);
 
     size = sizeof(void *) * entries + sizeof(struct array_cache);
-    cpu_cache = __alloc_percpu(size, sizeof(void *));
+    cpu_cache = memblock_alloc(size, sizeof(void *));
 
     if (!cpu_cache)
         return NULL;
