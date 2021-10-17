@@ -4,7 +4,7 @@
 #include <klist.h>
 #include <device.h>
 #include <export.h>
-#include <memblock.h>
+#include <slab.h>
 
 static struct bus_type *
 bus_get(struct bus_type *bus)
@@ -44,7 +44,7 @@ bus_register(struct bus_type *bus)
     int retval;
     struct subsys_private *priv;
 
-    priv = memblock_alloc(sizeof(struct subsys_private), 8);
+    priv = kzalloc(sizeof(struct subsys_private), GFP_KERNEL);
     if (!priv)
         return -ENOMEM;
 

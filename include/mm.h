@@ -57,9 +57,7 @@ static inline void totalram_pages_add(long count)
 static __always_inline void *
 lowmem_page_address(const struct page *page)
 {
-    return memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-    //Todo: replace up with below
-    //return page_to_virt(page);
+    return page_to_virt(page);
 }
 
 extern pge_t early_pgd[];

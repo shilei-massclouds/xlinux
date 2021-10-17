@@ -8,6 +8,15 @@
 #include <types.h>
 #include <pgtable-bits.h>
 
+#define __va_to_pa(x)       ((unsigned long)(x) - va_pa_offset)
+#define __virt_to_phys(x)   __va_to_pa(x)
+#define __pa(x)             __virt_to_phys((unsigned long)(x))
+#define virt_to_phys(x)     __pa((unsigned long)x)
+
+#define __pa_to_va(x)   ((void *)((unsigned long) (x) + va_pa_offset))
+#define __va(x)         ((void *)__pa_to_va((phys_addr_t)(x)))
+#define phys_to_virt(x) __va(x)
+
 #define PAGE_SHIFT	(12)
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
@@ -24,8 +33,24 @@
 #define __page_to_pfn(page) \
     ((unsigned long)((page) - mem_map) + ARCH_PFN_OFFSET)
 
+#define PFN_ALIGN(x) (((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
+
+#define PFN_UP(x)    (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+#define PFN_DOWN(x)  ((x) >> PAGE_SHIFT)
+#define PFN_PHYS(x)  ((phys_addr_t)(x) << PAGE_SHIFT)
+#define PHYS_PFN(x)  ((unsigned long)((x) >> PAGE_SHIFT))
+
+#define phys_to_pfn(phys)   (PFN_DOWN(phys))
+#define pfn_to_phys(pfn)    (PFN_PHYS(pfn))
+
 #define page_to_pfn __page_to_pfn
 #define pfn_to_page __pfn_to_page
+
+#define virt_to_pfn(vaddr)  (phys_to_pfn(__pa(vaddr)))
+#define pfn_to_virt(pfn)    (__va(pfn_to_phys(pfn)))
+
+#define virt_to_page(vaddr) (pfn_to_page(virt_to_pfn(vaddr)))
+#define page_to_virt(page)  (pfn_to_virt(page_to_pfn(page)))
 
 /*
  * paging: SV-39, va-39bits, pa-56bits
@@ -65,12 +90,6 @@
 #define pgprot_val(x)   ((x).pgprot)
 #define __pgprot(x)     ((pgprot_t) { (x) })
 
-#define PFN_ALIGN(x)    (((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
-#define PFN_UP(x)       (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)     ((x) >> PAGE_SHIFT)
-#define PFN_PHYS(x)     ((phys_addr_t)(x) << PAGE_SHIFT)
-#define PHYS_PFN(x)     ((unsigned long)((x) >> PAGE_SHIFT))
-
 #define pfn_pge(pfn, prot) \
     __pge(((pfn) << _PAGE_PFN_SHIFT) | pgprot_val((prot)))
 
@@ -102,21 +121,13 @@
 
 #define FIXMAP_PAGE_NORMAL  PAGE_KERNEL
 
-#define __va_to_pa(x)       ((unsigned long)(x) - va_pa_offset)
-#define __virt_to_phys(x)   __va_to_pa(x)
-#define __pa(x)             __virt_to_phys((unsigned long)(x))
-#define virt_to_phys(x)     __pa((unsigned long)x)
-
-#define __pa_to_va(x)   ((void *)((unsigned long) (x) + va_pa_offset))
-#define __va(x)         ((void *)__pa_to_va((phys_addr_t)(x)))
-#define phys_to_virt(x) __va(x)
-
 #ifndef __ASSEMBLY__
 
 #include <list.h>
 #include <atomic.h>
 
 extern unsigned long va_pa_offset;
+extern struct page *mem_map;
 
 extern unsigned long pfn_base;
 #define ARCH_PFN_OFFSET (pfn_base)

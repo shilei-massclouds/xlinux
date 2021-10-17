@@ -2,7 +2,7 @@
 
 #include <export.h>
 #include <string.h>
-#include <memblock.h>
+#include <slab.h>
 
 void
 kfree_const(const void *x)
@@ -11,7 +11,7 @@ kfree_const(const void *x)
 EXPORT_SYMBOL(kfree_const);
 
 char *
-kstrdup(const char *s)
+kstrdup(const char *s, gfp_t gfp)
 {
     size_t len;
     char *buf;
@@ -20,7 +20,7 @@ kstrdup(const char *s)
         return NULL;
 
     len = strlen(s) + 1;
-    buf = memblock_alloc(len, 8);
+    buf = kmalloc_track_caller(len, gfp);
     if (buf)
         memcpy(buf, s, len);
     return buf;
@@ -28,8 +28,8 @@ kstrdup(const char *s)
 EXPORT_SYMBOL(kstrdup);
 
 const char *
-kstrdup_const(const char *s)
+kstrdup_const(const char *s, gfp_t gfp)
 {
-    return kstrdup(s);
+    return kstrdup(s, gfp);
 }
 EXPORT_SYMBOL(kstrdup_const);

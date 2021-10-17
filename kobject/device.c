@@ -4,12 +4,12 @@
 #include <export.h>
 #include <device.h>
 #include <errno.h>
-#include <memblock.h>
+#include <slab.h>
 
 static int
 device_private_init(struct device *dev)
 {
-    dev->p = memblock_alloc(sizeof(*dev->p), 8);
+    dev->p = kzalloc(sizeof(*dev->p), GFP_KERNEL);
     if (!dev->p)
         return -ENOMEM;
     dev->p->device = dev;

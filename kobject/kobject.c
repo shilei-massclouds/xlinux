@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <mm.h>
 #include <bug.h>
+#include <gfp.h>
 #include <acgcc.h>
 #include <errno.h>
 #include <export.h>
@@ -71,7 +72,7 @@ kobject_set_name_vargs(struct kobject *kobj,
     if (kobj->name && !fmt)
         return 0;
 
-    s = kvasprintf_const(fmt, vargs);
+    s = kvasprintf_const(GFP_KERNEL, fmt, vargs);
     if (!s)
         return -ENOMEM;
 

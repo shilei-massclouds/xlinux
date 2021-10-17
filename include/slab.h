@@ -204,4 +204,8 @@ kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
     return kmem_cache_alloc(k, flags | __GFP_ZERO);
 }
 
+extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+#define kmalloc_track_caller(size, flags) \
+    __kmalloc_track_caller(size, flags, _RET_IP_)
+
 #endif /* _LINUX_SLAB_H */

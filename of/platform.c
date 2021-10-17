@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <bug.h>
 #include <fdt.h>
+#include <slab.h>
 #include <device.h>
 #include <errno.h>
 #include <string.h>
 #include <export.h>
-#include <memblock.h>
 #include <of_platform.h>
 
 const struct of_device_id
@@ -203,7 +203,7 @@ platform_device_alloc(const char *name, int id)
 {
     struct platform_object *pa;
 
-    pa = memblock_alloc(sizeof(*pa) + strlen(name) + 1, 8);
+    pa = kzalloc(sizeof(*pa) + strlen(name) + 1, GFP_KERNEL);
 
     return pa ? &pa->pdev : NULL;
 }

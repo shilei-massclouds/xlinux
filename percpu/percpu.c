@@ -3,12 +3,12 @@
 #include <percpu.h>
 #include <export.h>
 #include <printk.h>
-#include <memblock.h>
+#include <slab.h>
 
 static void *
 pcpu_alloc(size_t size, size_t align, bool reserved, gfp_t gfp)
 {
-    return memblock_alloc(size, align);
+    return kzalloc(size, gfp);
 }
 
 void *

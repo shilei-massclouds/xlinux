@@ -56,9 +56,9 @@ kbasename(const char *path)
     return tail ? tail + 1 : path;
 }
 
-char *kvasprintf(const char *fmt, va_list ap);
+char *kvasprintf(gfp_t gfp, const char *fmt, va_list ap);
 
 const char *
-kvasprintf_const(const char *fmt, va_list ap);
+kvasprintf_const(gfp_t gfp, const char *fmt, va_list ap);
 
 #endif /* _LINUX_STRING_H */
