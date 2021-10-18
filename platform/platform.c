@@ -68,7 +68,7 @@ __of_device_is_compatible(const struct device_node *device,
         for (cp = of_prop_next_string(prop, NULL); cp;
              cp = of_prop_next_string(prop, cp), index++) {
             if (of_compat_cmp(cp, compat, strlen(compat)) == 0) {
-                printk("%s: %s, %s\n", __func__, cp, compat);
+                pr_debug("%s: %s, %s\n", __func__, cp, compat);
                 score = INT_MAX/2 - (index << 2);
                 break;
             }
@@ -181,7 +181,7 @@ of_device_alloc(struct device_node *np,
     if (!dev)
         return NULL;
 
-    printk("%s: %s bus_id(%s) parent(%lx)\n",
+    pr_debug("%s: %s bus_id(%s) parent(%lx)\n",
            __func__, np->full_name, bus_id, parent);
 
     dev->dev.of_node = of_node_get(np);
@@ -198,7 +198,7 @@ int
 of_device_add(struct platform_device *ofdev)
 {
     ofdev->name = dev_name(&ofdev->dev);
-    printk("%s: %s\n", __func__, ofdev->name);
+    pr_debug("%s: %s\n", __func__, ofdev->name);
     ofdev->id = PLATFORM_DEVID_NONE;
     return device_add(&ofdev->dev);
 }
@@ -285,7 +285,7 @@ of_platform_bus_create(struct device_node *bus,
     const struct of_dev_auxdata *auxdata;
     int rc = 0;
 
-    printk("%s\n", bus->full_name);
+    pr_debug("%s\n", bus->full_name);
 
     /* Make sure it has a compatible property */
     if (strict && (!of_get_property(bus, "compatible", NULL))) {
@@ -293,7 +293,7 @@ of_platform_bus_create(struct device_node *bus,
     }
 
     if (of_node_check_flag(bus, OF_POPULATED_BUS)) {
-        printk("%s() - skipping %lxOF, already populated\n",
+        pr_debug("%s() - skipping %lxOF, already populated\n",
                __func__, bus);
         return 0;
     }
@@ -309,7 +309,7 @@ of_platform_bus_create(struct device_node *bus,
         return 0;
 
     for_each_child_of_node(bus, child) {
-        printk("   create child: %s\n", child->full_name);
+        pr_debug("   create child: %s\n", child->full_name);
         rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
         if (rc) {
             of_node_put(child);
@@ -333,7 +333,7 @@ of_platform_populate(struct device_node *root,
     if (!root)
         return -EINVAL;
 
-    printk("%s()\n", __func__);
+    pr_debug("%s()\n", __func__);
 
     for_each_child_of_node(root, child) {
         rc = of_platform_bus_create(child, matches, lookup, parent, true);

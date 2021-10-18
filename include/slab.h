@@ -10,8 +10,7 @@
 #include <kernel.h>
 #include <compiler_attributes.h>
 
-#define KMALLOC_SHIFT_HIGH  \
-    ((MAX_ORDER + PAGE_SHIFT - 1) <= 25 ? (MAX_ORDER + PAGE_SHIFT - 1) : 25)
+#define KMALLOC_SHIFT_HIGH  (MAX_ORDER + PAGE_SHIFT - 1)
 #define KMALLOC_SHIFT_MAX   KMALLOC_SHIFT_HIGH
 #define KMALLOC_SHIFT_LOW   5
 
@@ -36,8 +35,7 @@
 
 #define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
 
-#define SLAB_OBJ_MIN_SIZE \
-    (KMALLOC_MIN_SIZE < 16 ? (KMALLOC_MIN_SIZE) : 16)
+#define SLAB_OBJ_MIN_SIZE 16
 
 #define SLAB_HWCACHE_ALIGN      ((slab_flags_t)0x00002000U)
 #define ARCH_SLAB_MINALIGN      __alignof__(unsigned long long)
@@ -51,12 +49,6 @@ enum slab_state {
     FULL            /* Everything is working */
 };
 
-enum kmalloc_cache_type {
-    KMALLOC_NORMAL = 0,
-    KMALLOC_RECLAIM,
-    NR_KMALLOC_TYPES
-};
-
 struct kmem_cache_node {
     struct list_head slabs_partial; /* partial list first, better asm code */
     struct list_head slabs_full;
@@ -64,22 +56,13 @@ struct kmem_cache_node {
     unsigned long total_slabs;      /* length of all slab lists */
     unsigned long free_slabs;       /* length of free slab list only */
     unsigned long free_objects;
-//    unsigned int free_limit;
-    unsigned int colour_next;       /* Per-node cache coloring */
-    struct array_cache *shared;     /* shared per node */
-    struct alien_cache **alien;     /* on other nodes */
-//    unsigned long next_reap;    /* updated without locking */
-    int free_touched;               /* updated without locking */
 };
 
 struct kmem_cache {
     struct array_cache *cpu_cache;
 
 /* 1) Cache tunables. */
-    unsigned int batchcount;
     unsigned int limit;
-    unsigned int shared;
-
     unsigned int size;
 
 /* 2) touched by every alloc & free from the backend */
@@ -91,24 +74,17 @@ struct kmem_cache {
     unsigned int gfporder;
     unsigned int freelist_size;
 
-    size_t colour;              /* cache colouring range */
-    unsigned int colour_off;    /* colour offset */
-
 /* 4) cache creation/removal */
     const char *name;
     struct list_head list;
-    int refcount;
     int object_size;
     int align;
 
-    unsigned int useroffset;    /* Usercopy region offset */
-    unsigned int usersize;      /* Usercopy region size */
-
-    struct kmem_cache_node *node[MAX_NUMNODES];
+    struct kmem_cache_node *node;
 };
 
 extern const struct kmalloc_info_struct {
-    const char *name[NR_KMALLOC_TYPES];
+    const char *name;
     unsigned int size;
 } kmalloc_info[];
 
@@ -122,34 +98,10 @@ kmalloc(size_t size, gfp_t flags)
     return __kmalloc(size, flags);
 }
 
-static __always_inline void *
-__kmalloc_node(size_t size, gfp_t flags, int node)
-{
-    return __kmalloc(size, flags);
-}
-
-static __always_inline void *
-kmalloc_node(size_t size, gfp_t flags, int node)
-{
-    return __kmalloc_node(size, flags, node);
-}
-
 static inline void *
 kzalloc(size_t size, gfp_t flags)
 {
     return kmalloc(size, flags | __GFP_ZERO);
-}
-
-static __always_inline enum kmalloc_cache_type
-kmalloc_type(gfp_t flags)
-{
-    return flags & __GFP_RECLAIMABLE ? KMALLOC_RECLAIM : KMALLOC_NORMAL;
-}
-
-static inline struct kmem_cache_node *
-get_node(struct kmem_cache *s, int node)
-{
-    return s->node[node];
 }
 
 static __always_inline unsigned int
@@ -161,10 +113,11 @@ kmalloc_index(size_t size)
     if (size <= KMALLOC_MIN_SIZE)
         return KMALLOC_SHIFT_LOW;
 
-    if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
+    if (size > 64 && size <= 96)
         return 1;
-    if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
+    if (size > 128 && size <= 192)
         return 2;
+
     if (size <=          8) return 3;
     if (size <=         16) return 4;
     if (size <=         32) return 5;
@@ -209,9 +162,5 @@ cpu_cache_get(struct kmem_cache *cachep)
 {
     return cachep->cpu_cache;
 }
-
-extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
-#define kmalloc_track_caller(size, flags) \
-    __kmalloc_track_caller(size, flags, _RET_IP_)
 
 #endif /* _LINUX_SLAB_H */

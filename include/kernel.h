@@ -4,8 +4,6 @@
 
 #include <types.h>
 
-#define MAX_NUMNODES    1
-
 #define ALIGN(x, a) _ALIGN((x), (a))
 
 #define L1_CACHE_SHIFT  6

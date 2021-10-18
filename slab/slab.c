@@ -16,9 +16,7 @@
 #define OBJFREELIST_SLAB(x) ((x)->flags & CFLGS_OBJFREELIST_SLAB)
 
 #define CACHE_CACHE 0
-#define SIZE_NODE (MAX_NUMNODES)
-
-#define BATCHREFILL_LIMIT   16
+#define SIZE_NODE   1
 
 #define ARCH_KMALLOC_FLAGS SLAB_HWCACHE_ALIGN
 
@@ -27,41 +25,18 @@
 #define SLAB_OBJ_MAX_NUM \
     ((1 << sizeof(freelist_idx_t) * BITS_PER_BYTE) - 1)
 
-#define MAKE_LIST(cachep, listp, slab, nodeid)  \
+#define MAKE_LIST(cachep, listp, slab)          \
     do {                                        \
         INIT_LIST_HEAD(listp);                  \
-        list_splice(&get_node(cachep, nodeid)->slab, listp);    \
+        list_splice(&cachep->node->slab, listp); \
     } while (0)
 
-#define MAKE_ALL_LISTS(cachep, ptr, nodeid) \
-    do {                                    \
-    MAKE_LIST((cachep), (&(ptr)->slabs_full), slabs_full, nodeid); \
-    MAKE_LIST((cachep), (&(ptr)->slabs_partial), slabs_partial, nodeid); \
-    MAKE_LIST((cachep), (&(ptr)->slabs_free), slabs_free, nodeid);  \
-    } while (0)
-
-#define FREELIST_BYTE_INDEX \
-    (((PAGE_SIZE >> BITS_PER_BYTE) <= SLAB_OBJ_MIN_SIZE) ? 1 : 0)
-
-#if FREELIST_BYTE_INDEX
 typedef unsigned char freelist_idx_t;
-#else
-typedef unsigned short freelist_idx_t;
-#endif
-
-/*
- * Do not go above this order unless 0 objects fit into the slab or
- * overridden on the command line.
- */
-#define SLAB_MAX_ORDER_HI   1
-#define SLAB_MAX_ORDER_LO   0
-static int slab_max_order = SLAB_MAX_ORDER_LO;
 
 struct array_cache {
     unsigned int avail;
     unsigned int limit;
     unsigned int batchcount;
-    unsigned int touched;
     void *entry[];
     /*
      * Must have this definition in here for the proper
@@ -74,12 +49,12 @@ extern size_t reserved_chunk_size;
 extern void *reserved_chunk_ptr;
 
 struct kmem_cache *
-kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1] = {};
+kmalloc_caches[KMALLOC_SHIFT_HIGH + 1] = {};
 EXPORT_SYMBOL(kmalloc_caches);
 
 LIST_HEAD(slab_caches);
 
-#define NUM_INIT_LISTS (2 * MAX_NUMNODES)
+#define NUM_INIT_LISTS 2
 static struct kmem_cache_node init_kmem_cache_node[NUM_INIT_LISTS];
 
 enum slab_state slab_state;
@@ -88,9 +63,7 @@ struct kmem_cache *kmem_cache;
 #define BOOT_CPUCACHE_ENTRIES   1
 /* internal cache of cache description objs */
 static struct kmem_cache kmem_cache_boot = {
-    .batchcount = 1,
     .limit = BOOT_CPUCACHE_ENTRIES,
-    .shared = 1,
     .size = sizeof(struct kmem_cache),
     .name = "kmem_cache",
 };
@@ -129,11 +102,10 @@ size_index[24] = {
     2   /* 192 */
 };
 
-#define INIT_KMALLOC_INFO(__size, __short_size)             \
-{                                                           \
-    .name[KMALLOC_NORMAL]  = "kmalloc-" #__short_size,      \
-    .name[KMALLOC_RECLAIM] = "kmalloc-rcl-" #__short_size,  \
-    .size = __size,                     \
+#define INIT_KMALLOC_INFO(__size, __short_size) \
+{                                               \
+    .name = "kmalloc-" #__short_size,           \
+    .size = __size,                             \
 }
 
 const struct kmalloc_info_struct kmalloc_info[] = {
@@ -187,33 +159,11 @@ kmalloc_slab(size_t size, gfp_t flags)
         index = fls(size - 1);
     }
 
-    pr_debug("%s: type(%u) index(%u)\n",
-           __func__, kmalloc_type(flags), index);
-    return kmalloc_caches[kmalloc_type(flags)][index];
-}
-
-static int
-transfer_objects(struct array_cache *to,
-                 struct array_cache *from,
-                 unsigned int max)
-{
-    /* Figure out how many entries to transfer */
-    int nr = min3(from->avail, max, to->limit - to->avail);
-
-    if (!nr)
-        return 0;
-
-    memcpy(to->entry + to->avail,
-           from->entry + from->avail - nr,
-           sizeof(void *) * nr);
-
-    from->avail -= nr;
-    to->avail += nr;
-    return nr;
+    return kmalloc_caches[index];
 }
 
 static struct page *
-get_first_slab(struct kmem_cache_node *n, bool pfmemalloc)
+get_first_slab(struct kmem_cache_node *n)
 {
     struct page *page;
 
@@ -234,8 +184,6 @@ index_to_obj(struct kmem_cache *cache,
              struct page *page,
              unsigned int idx)
 {
-    pr_debug("%s: s_mem(%lx) idx(%u) size(%u)\n",
-           __func__, page->s_mem, idx, cache->size);
     return page->s_mem + cache->size * idx;
 }
 
@@ -251,7 +199,6 @@ slab_get_obj(struct kmem_cache *cachep, struct page *page)
 {
     void *objp;
     objp = index_to_obj(cachep, page, get_free_obj(page, page->active));
-    pr_debug("%s: objp(%lx)\n", __func__, objp);
     page->active++;
     return objp;
 }
@@ -267,15 +214,9 @@ alloc_block(struct kmem_cache *cachep,
      * allocation.
      */
     BUG_ON(page->active >= cachep->num);
-
-    pr_debug("%s: ... active(%u) num(%u) freelist(%lx)\n",
-           __func__, page->active, cachep->num, page->freelist);
-
     while (page->active < cachep->num && batchcount--) {
         ac->entry[ac->avail++] = slab_get_obj(cachep, page);
     }
-    pr_debug("%s: ok! avail(%u) active(%u)\n", __func__, ac->avail, page->active);
-
     return batchcount;
 }
 
@@ -291,7 +232,6 @@ fixup_slab_list(struct kmem_cache *cachep,
         if (OBJFREELIST_SLAB(cachep))
             page->freelist = NULL;
     } else {
-        pr_debug("+++ %s: page(%lx)\n", __func__, page);
         list_add(&page->slab_list, &n->slabs_partial);
     }
 }
@@ -311,42 +251,34 @@ gfp_exact_node(gfp_t flags)
  * would be relatively rare and ignorable.
  */
 static struct page *
-kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+kmem_getpages(struct kmem_cache *cachep, gfp_t flags)
 {
     struct page *page;
-
-    page = __alloc_pages_node(nodeid, flags, cachep->gfporder);
+    page = alloc_pages(flags, cachep->gfporder);
     if (!page) {
-        panic("slab out of memory!\n");
+        panic("slab out of memory!");
         return NULL;
     }
-
     return page;
 }
 
 static void *
 alloc_slabmgmt(struct kmem_cache *cachep,
-               struct page *page, int colour_off,
-               gfp_t local_flags, int nodeid)
+               struct page *page,
+               gfp_t local_flags)
 {
     void *freelist;
     void *addr = page_address(page);
 
-    pr_debug("%s: addr(%lx) colour_off(%d)\n",
-           __func__, addr, colour_off);
-
-    page->s_mem = addr + colour_off;
+    page->s_mem = addr;
     page->active = 0;
 
     if (OBJFREELIST_SLAB(cachep)) {
-        pr_debug("%s: freelist_size NULL!\n", __func__);
         freelist = NULL;
     } else {
         /* We will use last bytes at the slab for freelist */
         freelist = addr +
             (PAGE_SIZE << cachep->gfporder) - cachep->freelist_size;
-
-        pr_debug("%s: freelist_size(%u)\n", __func__, cachep->freelist_size);
     }
 
     return freelist;
@@ -381,37 +313,26 @@ cache_init_objs(struct kmem_cache *cachep, struct page *page)
 }
 
 static struct page *
-cache_grow_begin(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+cache_grow_begin(struct kmem_cache *cachep, gfp_t flags)
 {
     void *freelist;
-    size_t offset;
     struct page *page;
 
-    pr_debug("%s: ...\n", __func__);
-
-    offset = 0;
-
     /*
-     * Get mem for the objs.  Attempt to allocate a physical page from
-     * 'nodeid'.
+     * Get mem for the objs. Attempt to allocate a physical page.
      */
-    page = kmem_getpages(cachep, flags, nodeid);
+    page = kmem_getpages(cachep, flags);
     if (!page)
         goto failed;
 
     /* Get slab management. */
-    freelist = alloc_slabmgmt(cachep, page, offset, flags, 0);
-
+    freelist = alloc_slabmgmt(cachep, page, flags);
     slab_map_pages(cachep, page, freelist);
-
     cache_init_objs(cachep, page);
-
-    pr_debug("%s: ok! freelist(%lx)\n", __func__, page->freelist);
-
     return page;
 
  failed:
-    panic("%s: ... (%u)(%d)\n", __func__, flags, nodeid);
+    panic("%s: ... (%u)", __func__, flags);
     return NULL;
 }
 
@@ -421,13 +342,11 @@ cache_grow_end(struct kmem_cache *cachep, struct page *page)
     struct kmem_cache_node *n;
     void *list = NULL;
 
-    pr_debug("%s: ... page->active(%u)\n", __func__, page->active);
-
     if (!page)
         return;
 
     INIT_LIST_HEAD(&page->slab_list);
-    n = get_node(cachep, 0);
+    n = cachep->node;
 
     n->total_slabs++;
     if (!page->active) {
@@ -438,8 +357,6 @@ cache_grow_end(struct kmem_cache *cachep, struct page *page)
     }
 
     n->free_objects += cachep->num - page->active;
-
-    pr_debug("%s: ok!\n", __func__);
 }
 
 static void *
@@ -447,46 +364,22 @@ cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
 {
     int batchcount;
     struct array_cache *ac;
-    struct array_cache *shared;
     struct kmem_cache_node *n;
     struct page *page;
     void *list = NULL;
 
-    pr_debug("%s: flags(%x)\n", __func__, flags);
-
     ac = cpu_cache_get(cachep);
     batchcount = ac->batchcount;
-    if (!ac->touched && batchcount > BATCHREFILL_LIMIT) {
-        /*
-         * If there was little recent activity on this cache, then
-         * perform only a partial refill.  Otherwise we could generate
-         * refill bouncing.
-         */
-        batchcount = BATCHREFILL_LIMIT;
-    }
-    n = get_node(cachep, 0);
+    n = cachep->node;
 
     BUG_ON(ac->avail > 0 || !n);
-    shared = n->shared;
-    if (!n->free_objects && (!shared || !shared->avail)) {
-        pr_debug("%s: free_objects zero\n", __func__);
-        goto direct_grow;
-    }
-
-    pr_debug("%s: free_objects NOT zero! free_objects(%u)\n",
-           __func__, n->free_objects);
-
-    shared = n->shared;
-
-    /* See if we can refill from the shared array */
-    if (shared && transfer_objects(ac, shared, batchcount)) {
-        shared->touched = 1;
+    if (!n->free_objects) {
         goto direct_grow;
     }
 
     while (batchcount > 0) {
         /* Get slab alloc is to come from. */
-        page = get_first_slab(n, false);
+        page = get_first_slab(n);
         if (!page)
             goto must_grow;
 
@@ -499,7 +392,7 @@ cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
 
  direct_grow:
     if (unlikely(!ac->avail)) {
-        page = cache_grow_begin(cachep, gfp_exact_node(flags), 0);
+        page = cache_grow_begin(cachep, gfp_exact_node(flags));
 
         /*
          * cache_grow_begin() can reenable interrupts,
@@ -514,10 +407,6 @@ cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
             return NULL;
     }
 
-    ac->touched = 1;
-
-    pr_debug("%s: ok! avail(%u) ret(%lx)\n",
-           __func__, ac->avail, ac->entry[ac->avail-1]);
     return ac->entry[--ac->avail];
 }
 
@@ -527,8 +416,6 @@ ____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
     struct array_cache *ac;
     ac = cpu_cache_get(cachep);
     if (likely(ac->avail)) {
-        pr_debug("%s: avail(%u)\n", __func__, ac->avail);
-        ac->touched = 1;
         return ac->entry[--ac->avail];
     }
     return cache_alloc_refill(cachep, flags);
@@ -551,15 +438,9 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
 {
     void *objp;
 
-    pr_debug("%s: (%lx) ...\n", __func__, cachep->object_size);
-
     objp = __do_cache_alloc(cachep, flags);
-
     if (unlikely(slab_want_init_on_alloc(flags, cachep)) && objp)
         memset(objp, 0, cachep->object_size);
-
-    pr_debug("%s: (%lx) (%lx) ok!\n",
-           __func__, cachep->object_size, objp);
 
     return objp;
 }
@@ -574,14 +455,12 @@ __do_kmalloc(size_t size, gfp_t flags, unsigned long caller)
         return NULL;
 
     cachep = kmalloc_slab(size, flags);
-    pr_debug("%s: (%lx)(%lx)(%lx) %u\n",
-           __func__, cachep, cpu_cache_get(cachep),
-           cachep->object_size, size);
     if (unlikely(ZERO_OR_NULL_PTR(cachep)))
         return cachep;
 
     return slab_alloc(cachep, flags, caller);
 }
+EXPORT_SYMBOL(__do_kmalloc);
 
 void *
 __kmalloc(size_t size, gfp_t flags)
@@ -591,18 +470,14 @@ __kmalloc(size_t size, gfp_t flags)
 EXPORT_SYMBOL(__kmalloc);
 
 static void
-kmem_cache_node_init(struct kmem_cache_node *parent)
+kmem_cache_node_init(struct kmem_cache_node *node)
 {
-    INIT_LIST_HEAD(&parent->slabs_full);
-    INIT_LIST_HEAD(&parent->slabs_partial);
-    INIT_LIST_HEAD(&parent->slabs_free);
-    parent->total_slabs = 0;
-    parent->free_slabs = 0;
-    parent->shared = NULL;
-    parent->alien = NULL;
-    parent->colour_next = 0;
-    parent->free_objects = 0;
-    parent->free_touched = 0;
+    INIT_LIST_HEAD(&node->slabs_full);
+    INIT_LIST_HEAD(&node->slabs_partial);
+    INIT_LIST_HEAD(&node->slabs_free);
+    node->total_slabs = 0;
+    node->free_slabs = 0;
+    node->free_objects = 0;
 }
 
 static unsigned int
@@ -636,16 +511,6 @@ bool slab_is_available(void)
     return slab_state >= UP;
 }
 
-/* Called with slab_mutex held always */
-static int
-enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
-{
-    int err;
-    int limit = 0;
-    int shared = 0;
-    int batchcount = 0;
-}
-
 static void
 init_arraycache(struct array_cache *ac, int limit, int batch)
 {
@@ -653,7 +518,6 @@ init_arraycache(struct array_cache *ac, int limit, int batch)
         ac->avail = 0;
         ac->limit = limit;
         ac->batchcount = batch;
-        ac->touched = 0;
     }
 }
 
@@ -687,16 +551,14 @@ alloc_kmem_cache_cpus(struct kmem_cache *cachep,
 static void
 set_up_node(struct kmem_cache *cachep, int index)
 {
-    cachep->node[0] = &init_kmem_cache_node[index];
+    cachep->node = &init_kmem_cache_node[index];
 }
 
 static int
 setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 {
-    pr_debug("%s: ... slab_state(%u)\n", __func__, slab_state);
-
     if (slab_state >= FULL)
-        return enable_cpucache(cachep, gfp);
+        panic("slab state is already FULL! ");
 
     cachep->cpu_cache = alloc_kmem_cache_cpus(cachep, 1, 1);
     if (!cachep->cpu_cache)
@@ -709,27 +571,16 @@ setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
         /* For kmem_cache_node */
         set_up_node(cachep, SIZE_NODE);
     } else {
-        cachep->node[0] = kmalloc_node(
-            sizeof(struct kmem_cache_node), gfp, 0);
-        BUG_ON(!cachep->node[0]);
-        kmem_cache_node_init(cachep->node[0]);
+        cachep->node = kmalloc(sizeof(struct kmem_cache_node), gfp);
+        BUG_ON(!cachep->node);
+        kmem_cache_node_init(cachep->node);
     }
 
     cpu_cache_get(cachep)->avail = 0;
     cpu_cache_get(cachep)->limit = BOOT_CPUCACHE_ENTRIES;
     cpu_cache_get(cachep)->batchcount = 1;
-    cpu_cache_get(cachep)->touched = 0;
-    cachep->batchcount = 1;
     cachep->limit = BOOT_CPUCACHE_ENTRIES;
-
-    pr_debug("%s: ok! (%lx)(%lx)\n", __func__, cachep, cpu_cache_get(cachep));
     return 0;
-}
-
-void
-__kmem_cache_release(struct kmem_cache *cachep)
-{
-    // Todo:
 }
 
 static unsigned int
@@ -749,7 +600,6 @@ cache_estimate(unsigned long gfporder,
         *left_over = slab_size %
             (buffer_size + sizeof(freelist_idx_t));
     }
-
     return num;
 }
 
@@ -777,19 +627,7 @@ calculate_slab_order(struct kmem_cache *cachep,
         cachep->num = num;
         cachep->gfporder = gfporder;
         left_over = remainder;
-
-        /*
-         * Large number of objects is good, but very large slabs are
-         * currently bad for the gfp()s.
-         */
-        if (gfporder >= slab_max_order)
-            break;
-
-        /*
-         * Acceptable internal fragmentation?
-         */
-        if (left_over * 8 <= (PAGE_SIZE << gfporder))
-            break;
+        break;
     }
     return left_over;
 }
@@ -799,19 +637,15 @@ set_objfreelist_slab_cache(struct kmem_cache *cachep,
                            size_t size,
                            slab_flags_t flags)
 {
-    size_t left;
-
     cachep->num = 0;
 
-    left = calculate_slab_order(cachep, size,
-                                flags | CFLGS_OBJFREELIST_SLAB);
+    calculate_slab_order(cachep, size, flags | CFLGS_OBJFREELIST_SLAB);
     if (!cachep->num)
         return false;
 
     if (cachep->num * sizeof(freelist_idx_t) > cachep->object_size)
         return false;
 
-    cachep->colour = left / cachep->colour_off;
     return true;
 }
 
@@ -826,20 +660,16 @@ set_on_slab_cache(struct kmem_cache *cachep, size_t size, slab_flags_t flags)
     if (!cachep->num)
         return false;
 
-    cachep->colour = left / cachep->colour_off;
-
     return true;
 }
 
 int
 __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
 {
-    size_t ralign = BYTES_PER_WORD;
-    gfp_t gfp;
     int err;
+    gfp_t gfp;
+    size_t ralign = BYTES_PER_WORD;
     unsigned int size = cachep->size;
-
-    pr_debug("%s: ... size(%u) flags(%x)\n", __func__, size, flags);
 
     /*
      * Check that size is in terms of words.  This is needed to avoid
@@ -853,10 +683,6 @@ __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
     }
 
     cachep->align = ralign;
-    cachep->colour_off = cache_line_size();
-    /* Offset must be a multiple of the alignment. */
-    if (cachep->colour_off < cachep->align)
-        cachep->colour_off = cachep->align;
 
     if (slab_is_available())
         gfp = GFP_KERNEL;
@@ -865,14 +691,10 @@ __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
 
     size = ALIGN(size, cachep->align);
 
-    if (FREELIST_BYTE_INDEX && size < SLAB_OBJ_MIN_SIZE)
+    if (size < SLAB_OBJ_MIN_SIZE)
         size = ALIGN(SLAB_OBJ_MIN_SIZE, cachep->align);
 
-    pr_debug("%s: colour_off(%u) size(%u) align(%u)\n",
-           __func__, cachep->colour_off, size, cachep->align);
-
     if (set_objfreelist_slab_cache(cachep, size, flags)) {
-        pr_debug("%s: carry objfreelist ...\n", __func__);
         flags |= CFLGS_OBJFREELIST_SLAB;
         goto done;
     }
@@ -880,7 +702,7 @@ __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
     if (set_on_slab_cache(cachep, size, flags))
         goto done;
 
-    panic("bad cache!\n");
+    panic("bad cache!");
     return -E2BIG;
 
  done:
@@ -890,20 +712,15 @@ __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
 
     err = setup_cpu_cache(cachep, gfp);
     if (err) {
-        __kmem_cache_release(cachep);
-        return err;
+        panic("cannot create cpu cache!");
     }
-
-    pr_debug("%s: ok!\n", __func__);
-
     return 0;
 }
 
 /* Create a cache during boot when no slab services are available yet */
 void
 create_boot_cache(struct kmem_cache *s, const char *name,
-                  unsigned int size, slab_flags_t flags,
-                  unsigned int useroffset, unsigned int usersize)
+                  unsigned int size, slab_flags_t flags)
 {
     int err;
     unsigned int align = ARCH_KMALLOC_MINALIGN;
@@ -919,29 +736,21 @@ create_boot_cache(struct kmem_cache *s, const char *name,
         align = max(align, size);
     s->align = calculate_alignment(flags, align, size);
 
-    s->useroffset = useroffset;
-    s->usersize = usersize;
-
     err = __kmem_cache_create(s, flags);
     if (err)
-        panic("Creation of kmalloc slab %s size=%u failed. Reason %d\n",
+        panic("Creation of kmalloc slab %s size=%u failed. Reason %d",
               name, size, err);
-
-    s->refcount = -1;
 }
 
 struct kmem_cache *
-create_kmalloc_cache(const char *name,
-                     unsigned int size, slab_flags_t flags,
-                     unsigned int useroffset, unsigned int usersize)
+create_kmalloc_cache(const char *name, unsigned int size, slab_flags_t flags)
 {
     struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
     if (!s)
         panic("Out of memory when creating slab %s\n", name);
 
-    create_boot_cache(s, name, size, flags, useroffset, usersize);
+    create_boot_cache(s, name, size, flags);
     list_add(&s->list, &slab_caches);
-    s->refcount = 1;
     return s;
 }
 
@@ -956,35 +765,11 @@ void setup_kmalloc_cache_index_table(void)
 {
     unsigned int i;
 
-    BUG_ON(KMALLOC_MIN_SIZE > 256 ||
-           (KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
-
     for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
         unsigned int elem = size_index_elem(i);
-
         if (elem >= ARRAY_SIZE(size_index))
             break;
         size_index[elem] = KMALLOC_SHIFT_LOW;
-    }
-
-    if (KMALLOC_MIN_SIZE >= 64) {
-        /*
-         * The 96 byte size cache is not used if the alignment
-         * is 64 byte.
-         */
-        for (i = 64 + 8; i <= 96; i += 8)
-            size_index[size_index_elem(i)] = 7;
-
-    }
-
-    if (KMALLOC_MIN_SIZE >= 128) {
-        /*
-         * The 192 byte sized cache is not used if the alignment
-         * is 128 byte. Redirect kmalloc to use the 256 byte cache
-         * instead.
-         */
-        for (i = 128 + 8; i <= 192; i += 8)
-            size_index[size_index_elem(i)] = 8;
     }
 }
 
@@ -994,67 +779,49 @@ void setup_kmalloc_cache_index_table(void)
  * before smp_init().
  */
 static void
-init_list(struct kmem_cache *cachep,
-          struct kmem_cache_node *list,
-          int nodeid)
+init_list(struct kmem_cache *cachep, struct kmem_cache_node *list)
 {
     struct kmem_cache_node *ptr;
 
-    ptr = kmalloc_node(sizeof(struct kmem_cache_node), GFP_NOWAIT, nodeid);
+    ptr = kmalloc(sizeof(struct kmem_cache_node), GFP_NOWAIT);
     BUG_ON(!ptr);
 
     memcpy(ptr, list, sizeof(struct kmem_cache_node));
 
-    //MAKE_ALL_LISTS(cachep, ptr, nodeid);
-    MAKE_LIST((cachep), (&(ptr)->slabs_full), slabs_full, nodeid);
-    MAKE_LIST((cachep), (&(ptr)->slabs_free), slabs_free, nodeid);
-    INIT_LIST_HEAD(&ptr->slabs_partial);
-    pr_debug("%s: 1 (%lx) cachep(%lx) ptr(%lx)\n",
-           __func__, cpu_cache_get(kmalloc_caches[0][7]),
-           kmalloc_caches[0][7], ptr);
-    {
-        struct list_head *one = &ptr->slabs_partial;
-        struct list_head *two = &cachep->node[0]->slabs_partial;
-        pr_debug("(%lx)\n", two->next);
-    }
-    list_splice(&cachep->node[0]->slabs_partial, &ptr->slabs_partial);
-    pr_debug("%s: 2 (%lx) cachep(%lx) ptr(%lx)\n",
-           __func__, cpu_cache_get(kmalloc_caches[0][7]), kmalloc_caches[0][7], ptr);
-    cachep->node[nodeid] = ptr;
+    MAKE_LIST((cachep), (&(ptr)->slabs_full), slabs_full);
+    MAKE_LIST((cachep), (&(ptr)->slabs_free), slabs_free);
+    MAKE_LIST((cachep), (&(ptr)->slabs_partial), slabs_partial);
+
+    cachep->node = ptr;
 }
 
 static void
-new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
+new_kmalloc_cache(int idx, slab_flags_t flags)
 {
-    pr_debug("%s: type(%u) index(%u)\n", __func__, type, idx);
-    kmalloc_caches[type][idx] =
-        create_kmalloc_cache(kmalloc_info[idx].name[type],
-                             kmalloc_info[idx].size, flags, 0,
-                             kmalloc_info[idx].size);
+    kmalloc_caches[idx] =
+        create_kmalloc_cache(kmalloc_info[idx].name,
+                             kmalloc_info[idx].size,
+                             flags);
 }
 
 void
 create_kmalloc_caches(slab_flags_t flags)
 {
     int i;
-    enum kmalloc_cache_type type;
 
-    for (type = KMALLOC_NORMAL; type <= KMALLOC_RECLAIM; type++) {
-        for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-            pr_debug("%s: type(%d) i(%d)\n", __func__, type, i);
-            if (!kmalloc_caches[type][i])
-                new_kmalloc_cache(i, type, flags);
+    for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
+        if (!kmalloc_caches[i])
+            new_kmalloc_cache(i, flags);
 
-            /*
-             * Caches that are not of the two-to-the-power-of size.
-             * These have to be created immediately after the
-             * earlier power of two caches
-             */
-            if (KMALLOC_MIN_SIZE <= 32 && i == 6 && !kmalloc_caches[type][1])
-                new_kmalloc_cache(1, type, flags);
-            if (KMALLOC_MIN_SIZE <= 64 && i == 7 && !kmalloc_caches[type][2])
-                new_kmalloc_cache(2, type, flags);
-        }
+        /*
+         * Caches that are not of the two-to-the-power-of size.
+         * These have to be created immediately after the
+         * earlier power of two caches
+         */
+        if (i == 6 && !kmalloc_caches[1])
+            new_kmalloc_cache(1, flags);
+        if (i == 7 && !kmalloc_caches[2])
+            new_kmalloc_cache(2, flags);
     }
 
     /* Kmalloc array is now usable */
@@ -1066,61 +833,37 @@ kmem_cache_init(void)
 {
     int i;
 
+    /* Static cache_cache */
     kmem_cache = &kmem_cache_boot;
 
+    /* Static node_cache for cache_cache and node_cache */
     for (i = 0; i < NUM_INIT_LISTS; i++)
         kmem_cache_node_init(&init_kmem_cache_node[i]);
 
-    pr_debug("===%s: init kmem_cache ...\n", __func__);
-
+    /* Init cache_cache and attach static node_cache for it. */
     create_boot_cache(kmem_cache, "kmem_cache",
-                      offsetof(struct kmem_cache, node) +
-                      sizeof(struct kmem_cache_node *),
-                      SLAB_HWCACHE_ALIGN, 0, 0);
+                      sizeof(struct kmem_cache),
+                      SLAB_HWCACHE_ALIGN);
     list_add(&kmem_cache->list, &slab_caches);
     slab_state = PARTIAL;
 
-    pr_debug("===%s: create cache for kmem_cache_node ...\n", __func__);
-
-    /*
-     * Initialize the caches that provide memory for the  kmem_cache_node
-     * structures first.  Without this, further allocations will bug.
-     */
-    kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE] =
-        create_kmalloc_cache(kmalloc_info[INDEX_NODE].name[KMALLOC_NORMAL],
+    /* Create node_cache by cache_cache */
+    kmalloc_caches[INDEX_NODE] =
+        create_kmalloc_cache(kmalloc_info[INDEX_NODE].name,
                              kmalloc_info[INDEX_NODE].size,
-                             ARCH_KMALLOC_FLAGS, 0,
-                             kmalloc_info[INDEX_NODE].size);
-
+                             ARCH_KMALLOC_FLAGS);
     slab_state = PARTIAL_NODE;
+
+    /* Adjust index table */
     setup_kmalloc_cache_index_table();
 
-    pr_debug("%s: replace node for kmem_cache ... (%lx)\n",
-           __func__, kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE]);
+    init_list(kmem_cache, &init_kmem_cache_node[CACHE_CACHE]);
 
-    init_list(kmem_cache, &init_kmem_cache_node[CACHE_CACHE], 0);
+    init_list(kmalloc_caches[INDEX_NODE], &init_kmem_cache_node[SIZE_NODE]);
 
-    pr_debug("%s: replace node for kmalloc_cache for node size ...\n", __func__);
-
-    init_list(kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE],
-              &init_kmem_cache_node[SIZE_NODE], 0);
-
-    pr_debug("%s: replace node for kmalloc_cache for node size ok!\n", __func__);
-
-    pr_debug("=========================\n");
     create_kmalloc_caches(ARCH_KMALLOC_FLAGS);
-    pr_debug("=========================\n");
-
-    pr_debug("%s: ok!\n", __func__);
 }
 EXPORT_SYMBOL(kmem_cache_init);
-
-void *
-__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
-{
-    return __do_kmalloc(size, flags, caller);
-}
-EXPORT_SYMBOL(__kmalloc_track_caller);
 
 static int
 init_module(void)

@@ -61,29 +61,12 @@ struct page *
 __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order);
 
 static inline struct page *
-__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
+__alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
     return __alloc_pages_nodemask(gfp_mask, order);
 }
 
-/*
- * Allocate pages, preferring the node given as nid. The node must be valid and
- * online. For more general interface, see alloc_pages_node().
- */
-static inline struct page *
-__alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
-{
-    BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-    return __alloc_pages(gfp_mask, order, nid);
-}
-
-static inline struct page *
-alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
-{
-    return __alloc_pages_node(nid, gfp_mask, order);
-}
-
-#define alloc_pages(gfp_mask, order) alloc_pages_node(0, gfp_mask, order)
+#define alloc_pages(gfp_mask, order) __alloc_pages(gfp_mask, order)
 
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
 

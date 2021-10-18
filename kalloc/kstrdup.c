@@ -20,7 +20,7 @@ kstrdup(const char *s, gfp_t gfp)
         return NULL;
 
     len = strlen(s) + 1;
-    buf = kmalloc_track_caller(len, gfp);
+    buf = kmalloc(len, gfp);
     if (buf)
         memcpy(buf, s, len);
     return buf;

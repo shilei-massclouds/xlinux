@@ -21,8 +21,7 @@ bus_add_device(struct device *dev)
     struct bus_type *bus = bus_get(dev->bus);
 
     if (bus) {
-        printk("bus: '%s': add device %s\n",
-                   bus->name, dev_name(dev));
+        pr_debug("bus: '%s': add device %s\n", bus->name, dev_name(dev));
         klist_add_tail(&dev->p->knode_bus, &bus->p->klist_devices);
     }
     return 0;

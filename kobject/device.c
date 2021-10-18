@@ -20,7 +20,7 @@ int device_add(struct device *dev)
 {
     int error = -EINVAL;
 
-    printk("device: '%s': %s\n", dev_name(dev), __func__);
+    pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 
     if (!dev->p) {
         error = device_private_init(dev);

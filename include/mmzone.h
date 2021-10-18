@@ -15,7 +15,7 @@
 #define ZONES_WIDTH     ZONES_SHIFT
 
 /* Maximum number of zones on a zonelist */
-#define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
+#define MAX_ZONES_PER_ZONELIST MAX_NR_ZONES
 
 enum {
     ZONELIST_FALLBACK,  /* zonelist with fallback */
