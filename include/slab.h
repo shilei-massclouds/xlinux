@@ -204,6 +204,12 @@ kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
     return kmem_cache_alloc(k, flags | __GFP_ZERO);
 }
 
+static inline struct array_cache *
+cpu_cache_get(struct kmem_cache *cachep)
+{
+    return cachep->cpu_cache;
+}
+
 extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
 #define kmalloc_track_caller(size, flags) \
     __kmalloc_track_caller(size, flags, _RET_IP_)

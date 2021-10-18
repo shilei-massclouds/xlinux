@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define X_DEBUG
+//#define X_DEBUG
 #include <mm.h>
 #include <errno.h>
 #include <list.h>
@@ -9,7 +9,6 @@
 #include <kernel.h>
 #include <string.h>
 #include <printk.h>
-#include <memblock.h>
 
 #define BYTES_PER_WORD  sizeof(void *)
 
@@ -70,6 +69,9 @@ struct array_cache {
      * the entries.
      */
 };
+
+extern size_t reserved_chunk_size;
+extern void *reserved_chunk_ptr;
 
 struct kmem_cache *
 kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1] = {};
@@ -190,12 +192,6 @@ kmalloc_slab(size_t size, gfp_t flags)
     return kmalloc_caches[kmalloc_type(flags)][index];
 }
 
-static inline struct array_cache *
-cpu_cache_get(struct kmem_cache *cachep)
-{
-    return cachep->cpu_cache;
-}
-
 static int
 transfer_objects(struct array_cache *to,
                  struct array_cache *from,
@@ -295,7 +291,7 @@ fixup_slab_list(struct kmem_cache *cachep,
         if (OBJFREELIST_SLAB(cachep))
             page->freelist = NULL;
     } else {
-        pr_debug("+++ %s: page(%lx)\n", page);
+        pr_debug("+++ %s: page(%lx)\n", __func__, page);
         list_add(&page->slab_list, &n->slabs_partial);
     }
 }
@@ -555,14 +551,14 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
 {
     void *objp;
 
-    pr_debug("%s: (%u) ...\n", __func__, cachep->object_size);
+    pr_debug("%s: (%lx) ...\n", __func__, cachep->object_size);
 
     objp = __do_cache_alloc(cachep, flags);
 
     if (unlikely(slab_want_init_on_alloc(flags, cachep)) && objp)
         memset(objp, 0, cachep->object_size);
 
-    pr_debug("%s: (%u) (%lx) ok!\n",
+    pr_debug("%s: (%lx) (%lx) ok!\n",
            __func__, cachep->object_size, objp);
 
     return objp;
@@ -578,8 +574,9 @@ __do_kmalloc(size_t size, gfp_t flags, unsigned long caller)
         return NULL;
 
     cachep = kmalloc_slab(size, flags);
-    pr_debug("%s: (%lx)(%lx) %u\n",
-           __func__, cachep, cpu_cache_get(cachep), size);
+    pr_debug("%s: (%lx)(%lx)(%lx) %u\n",
+           __func__, cachep, cpu_cache_get(cachep),
+           cachep->object_size, size);
     if (unlikely(ZERO_OR_NULL_PTR(cachep)))
         return cachep;
 
@@ -669,17 +666,20 @@ alloc_kmem_cache_cpus(struct kmem_cache *cachep,
     size_t size;
     struct array_cache *cpu_cache;
 
-    pr_debug("%s: ...\n", __func__);
+    pr_debug("%s: (%lx) object_size(%lx) ...\n",
+             __func__, cachep, cachep->object_size);
 
     size = sizeof(void *) * entries + sizeof(struct array_cache);
-    cpu_cache = memblock_alloc(size, sizeof(void *));
-
+    if (size > reserved_chunk_size || !reserved_chunk_ptr)
+        panic("bad reserved chunk [%lx] (%lu)",
+              reserved_chunk_ptr, reserved_chunk_size);
+    cpu_cache = reserved_chunk_ptr;
     if (!cpu_cache)
         return NULL;
 
     init_arraycache(cpu_cache, entries, batchcount);
 
-    pr_debug("%s: ok!\n", __func__);
+    pr_debug("%s: ok! (%lx)\n", __func__, cpu_cache_get(cachep));
 
     return cpu_cache;
 }
@@ -722,7 +722,7 @@ setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
     cachep->batchcount = 1;
     cachep->limit = BOOT_CPUCACHE_ENTRIES;
 
-    pr_debug("%s: ok!\n", __func__);
+    pr_debug("%s: ok! (%lx)(%lx)\n", __func__, cachep, cpu_cache_get(cachep));
     return 0;
 }
 
@@ -1091,6 +1091,7 @@ kmem_cache_init(void)
                              kmalloc_info[INDEX_NODE].size,
                              ARCH_KMALLOC_FLAGS, 0,
                              kmalloc_info[INDEX_NODE].size);
+
     slab_state = PARTIAL_NODE;
     setup_kmalloc_cache_index_table();
 

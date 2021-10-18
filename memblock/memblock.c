@@ -15,6 +15,8 @@
 #define INIT_MEMBLOCK_REGIONS           128
 #define INIT_MEMBLOCK_RESERVED_REGIONS  INIT_MEMBLOCK_REGIONS
 
+static bool _memblock_stopped;
+
 void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
 EXPORT_SYMBOL(reserve_bootmem_region_fn);
 
@@ -239,6 +241,9 @@ memblock_alloc_range_nid(phys_addr_t size, phys_addr_t align)
 {
     phys_addr_t found;
     enum memblock_flags flags = MEMBLOCK_NONE;
+
+    if (_memblock_stopped)
+        panic("memblock has been stopped!");
 
     if (!align) {
         align = SMP_CACHE_BYTES;
@@ -500,6 +505,11 @@ unsigned long
 memblock_free_all(void)
 {
     unsigned long pages;
+
+    if (_memblock_stopped)
+        panic("memblock has been stopped!\n");
+
+    _memblock_stopped = true;
 
     reset_all_zones_managed_pages();
 

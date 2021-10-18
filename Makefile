@@ -6,7 +6,7 @@ PHONY := all clean
 
 SUBDIRS		:= startup lib early_dt \
 	mm memblock buddy slab kalloc \
-	of kobject init
+	of platform kobject init
 
 CLEAN_DIRS	:= $(addprefix _clean_, $(SUBDIRS))
 

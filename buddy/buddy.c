@@ -21,6 +21,11 @@ extern struct page *mem_map;
 
 extern unsigned long max_low_pfn;
 
+size_t reserved_chunk_size;
+EXPORT_SYMBOL(reserved_chunk_size);
+void *reserved_chunk_ptr;
+EXPORT_SYMBOL(reserved_chunk_ptr);
+
 static struct per_cpu_pageset boot_pageset;
 
 static unsigned long
@@ -677,6 +682,7 @@ __rmqueue_smallest(struct zone *zone, unsigned int order)
         page = get_page_from_free_area(area);
         if (!page)
             continue;
+
         del_page_from_free_list(page, zone, current_order);
         expand(zone, page, order, current_order);
         return page;
@@ -789,16 +795,19 @@ rmqueue(struct zone *preferred_zone,
         gfp_t gfp_flags,
         unsigned int alloc_flags)
 {
-    struct page *page;
+    struct page *page = NULL;
 
     if (likely(order == 0)) {
         page = rmqueue_pcplist(preferred_zone, zone, gfp_flags, alloc_flags);
         goto out;
     }
 
-    panic("bad order(%u)\n");
+    page = __rmqueue(zone, order, alloc_flags);
 
  out:
+    if (!page)
+        panic("bad order(%u)\n", order);
+
     return page;
 }
 
@@ -974,6 +983,25 @@ build_all_zonelists_init(void)
     setup_pageset(&boot_pageset, 0);
 }
 
+static void
+reserve_first_chunk_for_cpu_cache(void)
+{
+    reserved_chunk_size = 64;
+    reserved_chunk_ptr =
+        memblock_alloc(reserved_chunk_size, sizeof(void *));
+}
+
+unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
+{
+    struct page *page;
+
+    page = alloc_pages(gfp_mask & ~__GFP_HIGHMEM, order);
+    if (!page)
+        return 0;
+    return (unsigned long) page_address(page);
+}
+EXPORT_SYMBOL(__get_free_pages);
+
 static int
 init_module(void)
 {
@@ -987,6 +1015,8 @@ init_module(void)
 
     zone_sizes_init();
     build_all_zonelists_init();
+
+    reserve_first_chunk_for_cpu_cache();
     memblock_free_all();
 
     printk("module[buddy]: init end!\n");

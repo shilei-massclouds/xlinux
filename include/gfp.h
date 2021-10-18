@@ -87,6 +87,8 @@ alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
 
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
 
+unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+
 #define __GFP_DMA       ((__force gfp_t)___GFP_DMA)
 #define __GFP_HIGHMEM   ((__force gfp_t)___GFP_HIGHMEM)
 #define __GFP_DMA32     ((__force gfp_t)___GFP_DMA32)

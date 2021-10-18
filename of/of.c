@@ -2,11 +2,10 @@
 
 #include <bug.h>
 #include <fdt.h>
+#include <slab.h>
 #include <errno.h>
 #include <export.h>
 #include <string.h>
-#include <memblock.h>
-#include <of_platform.h>
 
 struct device_node *of_aliases;
 struct device_node *of_chosen;
@@ -129,7 +128,7 @@ of_find_node_opts_by_path(const char *path, const char **opts)
             return NULL;
         path = p;
     }
-    
+
     /* Step down the tree matching path components */
     if (!np)
         np = of_node_get(of_root);
@@ -139,7 +138,7 @@ of_find_node_opts_by_path(const char *path, const char **opts)
 EXPORT_SYMBOL(of_find_node_opts_by_path);
 
 static void
-of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
+of_alias_scan(void)
 {
 	of_aliases = of_find_node_by_path("/aliases");
 	if (of_aliases)
@@ -157,6 +156,42 @@ of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
     }
 }
+
+const char *
+of_prop_next_string(struct property *prop, const char *cur)
+{
+    const void *curv = cur;
+
+    if (!prop)
+        return NULL;
+
+    if (!cur)
+        return prop->value;
+
+    curv += strlen(cur) + 1;
+    if (curv >= prop->value + prop->length)
+        return NULL;
+
+    return curv;
+}
+EXPORT_SYMBOL(of_prop_next_string);
+
+int
+of_property_read_string(const struct device_node *np,
+                        const char *propname,
+                        const char **out_string)
+{
+    const struct property *prop = of_find_property(np, propname, NULL);
+    if (!prop)
+        return -EINVAL;
+    if (!prop->value)
+        return -ENODATA;
+    if (strnlen(prop->value, prop->length) >= prop->length)
+        return -EILSEQ;
+    *out_string = prop->value;
+    return 0;
+}
+EXPORT_SYMBOL(of_property_read_string);
 
 static void
 reverse_nodes(struct device_node *parent)
@@ -351,6 +386,69 @@ populate_node(const void *blob,
     return true;
 }
 
+struct property *
+__of_find_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp;
+
+    if (!np)
+        return NULL;
+
+    for (pp = np->properties; pp; pp = pp->next) {
+        if (of_prop_cmp(pp->name, name) == 0) {
+            if (lenp)
+                *lenp = pp->length;
+            break;
+        }
+    }
+
+    return pp;
+}
+EXPORT_SYMBOL(__of_find_property);
+
+struct property *
+of_find_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp;
+    unsigned long flags;
+
+    //raw_spin_lock_irqsave(&devtree_lock, flags);
+    pp = __of_find_property(np, name, lenp);
+    //raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+    return pp;
+}
+EXPORT_SYMBOL(of_find_property);
+
+const void *
+__of_get_property(const struct device_node *np,
+                  const char *name, int *lenp)
+{
+    struct property *pp = __of_find_property(np, name, lenp);
+
+    return pp ? pp->value : NULL;
+}
+EXPORT_SYMBOL(__of_get_property);
+
+const void *
+of_get_property(const struct device_node *np, const char *name, int *lenp)
+{
+    struct property *pp = of_find_property(np, name, lenp);
+
+    return pp ? pp->value : NULL;
+}
+EXPORT_SYMBOL(of_get_property);
+
+struct device_node *
+of_get_next_child(const struct device_node *node,
+                  struct device_node *prev)
+{
+    struct device_node *next;
+    next = __of_get_next_child(node, prev);
+    return next;
+}
+EXPORT_SYMBOL(of_get_next_child);
+
 static int
 unflatten_dt_nodes(const void *blob,
                    void *mem,
@@ -404,8 +502,7 @@ unflatten_dt_nodes(const void *blob,
 void *
 __unflatten_device_tree(const void *blob,
                         struct device_node *dad,
-                        struct device_node **mynodes,
-                        void *(*dt_alloc)(u64 size, u64 align))
+                        struct device_node **mynodes)
 {
 	int size;
 	void *mem;
@@ -433,10 +530,9 @@ __unflatten_device_tree(const void *blob,
 		return NULL;
 
 	size = _ALIGN(size, 4);
-	printk("  size is %d, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
-	mem = dt_alloc(size + 4, __alignof__(struct device_node));
+    mem = (void *)__get_free_pages(GFP_KERNEL, order_base_2(PFN_UP(size)));
 	if (!mem)
 		return NULL;
 
@@ -459,11 +555,10 @@ __unflatten_device_tree(const void *blob,
 void
 unflatten_device_tree(void)
 {
-    __unflatten_device_tree(initial_boot_params, NULL, &of_root,
-                            memblock_alloc);
+    __unflatten_device_tree(initial_boot_params, NULL, &of_root);
 
     /* Get pointer to "/chosen" nodes for use everywhere */
-    of_alias_scan(memblock_alloc);
+    of_alias_scan();
     printk("stdout (%s)\n", of_stdout->full_name);
 }
 EXPORT_SYMBOL(unflatten_device_tree);
@@ -473,8 +568,6 @@ init_module(void)
 {
     printk("module[of]: init begin ...\n");
     unflatten_device_tree();
-    platform_bus_init();
-    of_platform_default_populate_init();
     printk("module[of]: init end!\n");
     return 0;
 }

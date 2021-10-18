@@ -83,7 +83,7 @@ static __always_inline int fls(unsigned int x)
     return r;
 }
 
-static __always_inline int fls64(unsigned long word)
+static __always_inline int __fls(unsigned long word)
 {
     int num = BITS_PER_LONG - 1;
 
@@ -110,6 +110,13 @@ static __always_inline int fls64(unsigned long word)
     if (!(word & (~0ul << (BITS_PER_LONG-1))))
         num -= 1;
     return num;
+}
+
+static __always_inline int fls64(u64 x)
+{
+    if (x == 0)
+        return 0;
+    return __fls(x) + 1;
 }
 
 /*

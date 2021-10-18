@@ -2,4 +2,4 @@
 
 target_y := ko
 
-obj_y := of.o
+obj_y := platform.o

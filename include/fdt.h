@@ -2,11 +2,11 @@
 #ifndef LIBFDT_H
 #define LIBFDT_H
 
+#include <bits.h>
 #include <types.h>
 #include <fwnode.h>
-#include <kobject.h>
 #include <kernel.h>
-#include <bits.h>
+#include <kobject.h>
 
 #define of_compat_cmp(s1, s2, l)    strcasecmp((s1), (s2))
 #define of_prop_cmp(s1, s2)         strcmp((s1), (s2))
@@ -241,8 +241,7 @@ typedef int (*of_scan_flat_dt_cb)(unsigned long node,
 void *
 __unflatten_device_tree(const void *blob,
                         struct device_node *dad,
-                        struct device_node **mynodes,
-                        void *(*dt_alloc)(u64 size, u64 align));
+                        struct device_node **mynodes);
 
 int
 of_scan_flat_dt(of_scan_flat_dt_cb cb, void *data);
@@ -392,5 +391,8 @@ fdt_next_node(const void *fdt, int offset, int *depth);
 
 const char *
 fdt_get_string(const void *fdt, int stroffset, int *lenp);
+
+struct property *
+of_find_property(const struct device_node *np, const char *name, int *lenp);
 
 #endif /* LIBFDT_H */
