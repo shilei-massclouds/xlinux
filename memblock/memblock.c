@@ -15,6 +15,9 @@
 #define INIT_MEMBLOCK_REGIONS           128
 #define INIT_MEMBLOCK_RESERVED_REGIONS  INIT_MEMBLOCK_REGIONS
 
+extern uintptr_t kernel_start;
+extern uintptr_t kernel_size;
+
 static bool _memblock_stopped;
 
 void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
@@ -621,6 +624,8 @@ init_module(void)
 
     if (dt_memory_base && dt_memory_size)
         memblock_add(dt_memory_base, dt_memory_size);
+
+    memblock_reserve(kernel_start, kernel_size);
 
     setup_vm_final(memblock.memory.regions,
                    memblock.memory.cnt,

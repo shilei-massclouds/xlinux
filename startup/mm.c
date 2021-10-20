@@ -10,6 +10,9 @@
 #error "Don't use absolute addressing now."
 #endif
 
+uintptr_t kernel_start = 0;
+EXPORT_SYMBOL(kernel_start);
+
 pge_t early_pgd[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(early_pgd);
 pme_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
@@ -52,4 +55,6 @@ void setup_early_pge(uintptr_t dtb_pa)
     early_pgd[pge_idx] = pfn_pge(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
 
     dtb_early_pa = dtb_pa;
+
+    kernel_start = load_pa;
 }

@@ -21,17 +21,9 @@ kmalloc_specific_size(int size)
 static int
 test_kmalloc(void)
 {
-/*
- * When condition is for (i = 8; i < 40960; i += 64), panic as:
- * dec32: bad instruction (0x200800cf) at (0xffffffe000003000
- */
-/*
- * If limit reaches 4088, the program will halt or panic:
- * dec16: bad instruction (0x8220)
- */
     int i;
 
-    for (i = 8; i < 4087; i += 8) {
+    for (i = 8; i < KMALLOC_MAX_SIZE; i += 8) {
         printk("%d\n", i);
         if (kmalloc_specific_size(i-1))
             return -1;
@@ -43,27 +35,34 @@ test_kmalloc(void)
             return -1;
     }
 
+    for (i = 0; i < 2; i++) {
+        if (kmalloc_specific_size(0x200000-1))
+            return -1;
+    }
+
     return 0;
 }
 
 static int
 test_kfree(void)
 {
-    void *p;
+    void *p0;
+    void *p1;
+    void *p2;
 
     kfree(NULL);
 
-    /* first malloc */
-    p = kmalloc(37, GFP_KERNEL);
-    if (p == NULL)
+    p0 = kmalloc(37, GFP_KERNEL);
+    if (p0 == NULL)
         return -1;
-    kfree(p);
+    kfree(p0);
 
-    /* second malloc */
-    p = kmalloc(38, GFP_KERNEL);
-    if (p == NULL)
+    p1 = kmalloc(38, GFP_KERNEL);
+    p2 = kmalloc(38, GFP_KERNEL);
+    if (p1 == NULL || p2 == NULL)
         return -1;
-    kfree(p);
+    kfree(p1);
+    kfree(p2);
 
     return 0;
 }

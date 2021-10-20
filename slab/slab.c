@@ -259,6 +259,7 @@ kmem_getpages(struct kmem_cache *cachep, gfp_t flags)
         panic("slab out of memory!");
         return NULL;
     }
+
     __SetPageSlab(page);
     return page;
 }

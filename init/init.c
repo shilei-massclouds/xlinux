@@ -5,7 +5,7 @@
 #include <printk.h>
 #include <of_platform.h>
 
-extern u32 kernel_size;
+extern uintptr_t kernel_size;
 
 static void
 start_kernel(void)
@@ -13,7 +13,7 @@ start_kernel(void)
     printk("start_kernel: init ...\n");
 
     if (kernel_size >= PME_SIZE)
-        panic("kernel size (%lu) is too large!\n", kernel_size);
+        panic("kernel size (%lu) is over PME_SIZE!", kernel_size);
 
     printk("start_kernel: init ok!\n");
 }

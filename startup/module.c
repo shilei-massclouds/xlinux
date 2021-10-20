@@ -15,6 +15,7 @@
 #define ROUND_UP(x, n) (((x) + (n) - 1UL) & ~((n) - 1UL))
 
 extern char _end[];
+extern uintptr_t kernel_start;
 
 extern const struct kernel_symbol _start_ksymtab[];
 extern const struct kernel_symbol _end_ksymtab[];
@@ -24,7 +25,7 @@ extern const struct kernel_symbol _end_ksymtab[];
 LIST_HEAD(modules);
 EXPORT_SYMBOL(modules);
 
-u32 kernel_size = 0;
+uintptr_t kernel_size = 0;
 EXPORT_SYMBOL(kernel_size);
 
 struct module kernel_module;
@@ -465,19 +466,23 @@ init_other_modules(void)
 
         mod = finalize_module(dst_addr, &info);
 
-        do_init_module(mod);
-
         /* next */
         src_addr += ROUND_UP(info.len, 8);
         dst_addr += ROUND_UP(info.layout.size, 8);
     }
 
-    kernel_size = dst_addr;
+    kernel_size = __pa(dst_addr) - kernel_start;
 }
 
 void load_modules(void)
 {
+    struct module *mod;
+
     init_kernel_module();
 
     init_other_modules();
+
+    list_for_each_entry(mod, &modules, list) {
+        do_init_module(mod);
+    }
 }
