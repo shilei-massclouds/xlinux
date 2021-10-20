@@ -533,13 +533,18 @@ alloc_kmem_cache_cpus(struct kmem_cache *cachep,
     pr_debug("%s: (%lx) object_size(%lx) ...\n",
              __func__, cachep, cachep->object_size);
 
+    if (!reserved_chunk_ptr || !reserved_chunk_size)
+        panic("no reserved memory for cpu_cache");
+
     size = sizeof(void *) * entries + sizeof(struct array_cache);
-    if (size > reserved_chunk_size || !reserved_chunk_ptr)
-        panic("bad reserved chunk [%lx] (%lu)",
-              reserved_chunk_ptr, reserved_chunk_size);
+    if (size > reserved_chunk_size)
+        panic("need %lu, but now is memory %lu",
+              size, reserved_chunk_size);
+
     cpu_cache = reserved_chunk_ptr;
-    if (!cpu_cache)
-        return NULL;
+
+    reserved_chunk_ptr += size;
+    reserved_chunk_size -= size;
 
     init_arraycache(cpu_cache, entries, batchcount);
 
