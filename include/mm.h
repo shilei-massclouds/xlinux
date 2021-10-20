@@ -6,6 +6,7 @@
 #include <atomic.h>
 #include <mmzone.h>
 #include <memblock.h>
+#include <page-flags.h>
 
 /* Page flags: | ZONE | [LAST_CPUPID] | ... | FLAGS | */
 #define NODES_PGOFF     (sizeof(unsigned long)*8)
@@ -82,10 +83,10 @@ void
 clear_flash_pge(void);
 
 const char *
-kstrdup_const(const char *s);
+kstrdup_const(const char *s, gfp_t gfp);
 
 char *
-kstrdup(const char *s);
+kstrdup(const char *s, gfp_t gfp);
 
 void
 kfree_const(const void *x);
@@ -141,6 +142,13 @@ set_page_private(struct page *page, unsigned long private)
 static inline int page_zone_id(struct page *page)
 {
     return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
+}
+
+static inline struct page *virt_to_head_page(const void *x)
+{
+    struct page *page = virt_to_page(x);
+
+    return compound_head(page);
 }
 
 #endif /* _RISCV_MM_H_ */

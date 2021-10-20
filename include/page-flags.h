@@ -44,6 +44,15 @@ enum pageflags {
     __NR_PAGEFLAGS,
 };
 
+static inline struct page *compound_head(struct page *page)
+{
+    unsigned long head = READ_ONCE(page->compound_head);
+
+    if (unlikely(head & 1))
+        return (struct page *) (head - 1);
+    return page;
+}
+
 static __always_inline int PageTail(struct page *page)
 {
     return READ_ONCE(page->compound_head) & 1;
@@ -97,6 +106,9 @@ static inline int PagePoisoned(const struct page *page)
     VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);    \
     page;                                           \
 })
+#define PF_NO_TAIL(page, enforce) ({                        \
+        VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page); \
+        PF_POISONED_CHECK(compound_head(page)); })
 
 #define PF_NO_COMPOUND(page, enforce) ({                \
         VM_BUG_ON_PGFLAGS(enforce && PageCompound(page), page); \
@@ -126,6 +138,13 @@ static __always_inline void __SetPage##uname(struct page *page) \
     TESTPAGEFLAG(uname, lname, policy)  \
     SETPAGEFLAG(uname, lname, policy)   \
     CLEARPAGEFLAG(uname, lname, policy)
+
+#define __PAGEFLAG(uname, lname, policy)    \
+    TESTPAGEFLAG(uname, lname, policy)      \
+    __SETPAGEFLAG(uname, lname, policy)     \
+    __CLEARPAGEFLAG(uname, lname, policy)
+
+__PAGEFLAG(Slab, slab, PF_NO_TAIL)
 
 PAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
     __CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)

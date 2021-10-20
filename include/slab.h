@@ -2,6 +2,7 @@
 #ifndef _LINUX_SLAB_H
 #define _LINUX_SLAB_H
 
+#include <mm.h>
 #include <bug.h>
 #include <gfp.h>
 #include <types.h>
@@ -104,6 +105,8 @@ kzalloc(size_t size, gfp_t flags)
     return kmalloc(size, flags | __GFP_ZERO);
 }
 
+void kfree(const void *objp);
+
 static __always_inline unsigned int
 kmalloc_index(size_t size)
 {
@@ -161,6 +164,26 @@ static inline struct array_cache *
 cpu_cache_get(struct kmem_cache *cachep)
 {
     return cachep->cpu_cache;
+}
+
+static inline struct kmem_cache *
+virt_to_cache(const void *obj)
+{
+    struct page *page;
+
+    page = virt_to_head_page(obj);
+    if (page == NULL || !PageSlab(page))
+        panic("Object is not a Slab page!");
+
+    return page->slab_cache;
+}
+
+static inline unsigned int
+obj_to_index(const struct kmem_cache *cache,
+             const struct page *page,
+             void *obj)
+{
+    return (obj - page->s_mem) / cache->size;
 }
 
 #endif /* _LINUX_SLAB_H */

@@ -85,7 +85,7 @@ kobject_set_name_vargs(struct kobject *kobj,
     if (strchr(s, '/')) {
         char *t;
 
-        t = kstrdup(s);
+        t = kstrdup(s, GFP_KERNEL);
         kfree_const(s);
         if (!t)
             return -ENOMEM;

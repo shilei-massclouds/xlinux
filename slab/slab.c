@@ -259,6 +259,7 @@ kmem_getpages(struct kmem_cache *cachep, gfp_t flags)
         panic("slab out of memory!");
         return NULL;
     }
+    __SetPageSlab(page);
     return page;
 }
 
@@ -869,6 +870,150 @@ kmem_cache_init(void)
     create_kmalloc_caches(ARCH_KMALLOC_FLAGS);
 }
 EXPORT_SYMBOL(kmem_cache_init);
+
+static void
+slab_put_obj(struct kmem_cache *cachep, struct page *page, void *objp)
+{
+    unsigned int objnr = obj_to_index(cachep, page, objp);
+    page->active--;
+    if (!page->freelist)
+        page->freelist = objp;
+
+    set_free_obj(page, page->active, objnr);
+}
+
+static void
+free_block(struct kmem_cache *cachep,
+           void **objpp,
+           int nr_objects,
+           struct list_head *list)
+{
+    int i;
+    struct page *page;
+    struct kmem_cache_node *n = cachep->node;
+
+    n->free_objects += nr_objects;
+
+    for (i = 0; i < nr_objects; i++) {
+        void *objp;
+        struct page *page;
+
+        objp = objpp[i];
+
+        page = virt_to_head_page(objp);
+        list_del(&page->slab_list);
+        slab_put_obj(cachep, page, objp);
+
+        /* fixup slab chains */
+        if (page->active == 0) {
+            list_add(&page->slab_list, &n->slabs_free);
+            n->free_slabs++;
+        } else {
+            /* Unconditionally move a slab to the end of the
+             * partial list on free - maximum time for the
+             * other objects to be freed, too.
+             */
+            list_add_tail(&page->slab_list, &n->slabs_partial);
+        }
+    }
+}
+
+/*
+ * Interface to system's page release.
+ */
+static void
+kmem_freepages(struct kmem_cache *cachep, struct page *page)
+{
+    int order = cachep->gfporder;
+
+    BUG_ON(!PageSlab(page));
+    __ClearPageSlab(page);
+
+    __free_pages(page, order);
+}
+
+static void
+slab_destroy(struct kmem_cache *cachep, struct page *page)
+{
+    void *freelist;
+
+    freelist = page->freelist;
+    kmem_freepages(cachep, page);
+}
+
+static void
+slabs_destroy(struct kmem_cache *cachep, struct list_head *list)
+{
+    struct page *page, *n;
+
+    list_for_each_entry_safe(page, n, list, slab_list) {
+        list_del(&page->slab_list);
+        slab_destroy(cachep, page);
+    }
+}
+
+static void
+cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
+{
+    int batchcount;
+    LIST_HEAD(list);
+
+    batchcount = ac->batchcount;
+
+    free_block(cachep, ac->entry, batchcount, &list);
+
+free_done:
+    slabs_destroy(cachep, &list);
+    ac->avail -= batchcount;
+    memmove(ac->entry, &(ac->entry[batchcount]), sizeof(void *)*ac->avail);
+}
+
+static __always_inline void
+__free_one(struct array_cache *ac, void *objp)
+{
+    ac->entry[ac->avail++] = objp;
+}
+
+void
+___cache_free(struct kmem_cache *cachep, void *objp, unsigned long caller)
+{
+    struct array_cache *ac = cpu_cache_get(cachep);
+
+    if (ac->avail >= ac->limit)
+        cache_flusharray(cachep, ac);
+
+    __free_one(ac, objp);
+}
+
+static __always_inline void
+__cache_free(struct kmem_cache *cachep, void *objp, unsigned long caller)
+{
+    ___cache_free(cachep, objp, caller);
+}
+
+/**
+ * kfree - free previously allocated memory
+ * @objp: pointer returned by kmalloc.
+ *
+ * If @objp is NULL, no operation is performed.
+ *
+ * Don't free memory not originally allocated by kmalloc()
+ * or you will run into trouble.
+ */
+void kfree(const void *objp)
+{
+    struct kmem_cache *c;
+    unsigned long flags;
+
+    if (unlikely(ZERO_OR_NULL_PTR(objp)))
+        return;
+    c = virt_to_cache(objp);
+    if (!c) {
+        return;
+    }
+    __cache_free(c, (void *)objp, _RET_IP_);
+}
+EXPORT_SYMBOL(kfree);
 
 static int
 init_module(void)

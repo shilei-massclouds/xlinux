@@ -70,6 +70,8 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order)
 
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
 
+void __free_pages(struct page *page, unsigned int order);
+
 unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
 
 #define __GFP_DMA       ((__force gfp_t)___GFP_DMA)

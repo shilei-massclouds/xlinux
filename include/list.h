@@ -55,6 +55,19 @@
          pos = __container_of(pos->member.next, pos, member))
 
 /**
+ * Loop through the list, keeping a backup pointer to the element.
+ * This macro allows for the deletion of a list element
+ * while looping through the list.
+ *
+ * See list_for_each_entry for more details.
+ */
+#define list_for_each_entry_safe(pos, tmp, head, member)        \
+    for (pos = __container_of((head)->next, pos, member),       \
+         tmp = __container_of(pos->member.next, pos, member);   \
+         &pos->member != (head);                                \
+         pos = tmp, tmp = __container_of(pos->member.next, tmp, member))
+
+/**
  * list_first_entry_or_null - get the first element from a list
  * @ptr:    the list head to take the element from.
  * @type:   the type of the struct this is embedded in.
