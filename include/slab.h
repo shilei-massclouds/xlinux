@@ -186,4 +186,16 @@ obj_to_index(const struct kmem_cache *cache,
     return (obj - page->s_mem) / cache->size;
 }
 
+static __always_inline void *
+__kmalloc_node(size_t size, gfp_t flags)
+{
+    return __kmalloc(size, flags);
+}
+
+static __always_inline void *
+kmalloc_node(size_t size, gfp_t flags)
+{
+    return __kmalloc_node(size, flags);
+}
+
 #endif /* _LINUX_SLAB_H */

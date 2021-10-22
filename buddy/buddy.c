@@ -14,7 +14,7 @@
 #include <page_ref.h>
 #include <page-flags.h>
 
-#define RESERVED_CHUNK_SIZE 512
+#define RESERVED_CHUNK_SIZE (PAGE_SIZE << 2)
 
 extern void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
 extern void (*free_pages_core_fn)(struct page *, unsigned int);
@@ -990,7 +990,7 @@ reserve_first_chunk_for_cpu_cache(void)
 {
     reserved_chunk_size = RESERVED_CHUNK_SIZE;
     reserved_chunk_ptr =
-        memblock_alloc(reserved_chunk_size, sizeof(void *));
+        memblock_alloc(reserved_chunk_size, PAGE_SIZE);
 }
 
 unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)

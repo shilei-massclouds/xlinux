@@ -532,15 +532,12 @@ alloc_kmem_cache_cpus(struct kmem_cache *cachep,
     size_t size;
     struct array_cache *cpu_cache;
 
-    pr_debug("%s: (%lx) object_size(%lx) ...\n",
-             __func__, cachep, cachep->object_size);
-
     if (!reserved_chunk_ptr || !reserved_chunk_size)
         panic("no reserved memory for cpu_cache");
 
     size = sizeof(void *) * entries + sizeof(struct array_cache);
     if (size > reserved_chunk_size)
-        panic("need %lu, but now is memory %lu",
+        panic("need %lu, but left reserved chunk is %lu",
               size, reserved_chunk_size);
 
     cpu_cache = reserved_chunk_ptr;
@@ -549,9 +546,6 @@ alloc_kmem_cache_cpus(struct kmem_cache *cachep,
     reserved_chunk_size -= size;
 
     init_arraycache(cpu_cache, entries, batchcount);
-
-    pr_debug("%s: ok! (%lx)\n", __func__, cpu_cache_get(cachep));
-
     return cpu_cache;
 }
 
@@ -562,10 +556,183 @@ set_up_node(struct kmem_cache *cachep, int index)
 }
 
 static int
+init_cache_node(struct kmem_cache *cachep, gfp_t gfp)
+{
+    struct kmem_cache_node *n;
+
+    if (cachep->node)
+        return 0;
+
+    n = kmalloc_node(sizeof(struct kmem_cache_node), gfp);
+    if (!n)
+        return -ENOMEM;
+
+    kmem_cache_node_init(n);
+    cachep->node = n;
+    return 0;
+}
+
+/*
+ * Interface to system's page release.
+ */
+static void
+kmem_freepages(struct kmem_cache *cachep, struct page *page)
+{
+    int order = cachep->gfporder;
+
+    BUG_ON(!PageSlab(page));
+    __ClearPageSlab(page);
+
+    __free_pages(page, order);
+}
+
+static void
+slab_destroy(struct kmem_cache *cachep, struct page *page)
+{
+    void *freelist;
+
+    freelist = page->freelist;
+    kmem_freepages(cachep, page);
+}
+
+static void
+slabs_destroy(struct kmem_cache *cachep, struct list_head *list)
+{
+    struct page *page, *n;
+
+    list_for_each_entry_safe(page, n, list, slab_list) {
+        list_del(&page->slab_list);
+        slab_destroy(cachep, page);
+    }
+}
+
+static int
+setup_kmem_cache_node(struct kmem_cache *cachep, gfp_t gfp, bool force_change)
+{
+    if (init_cache_node(cachep, gfp))
+        panic("cannot init cache node!");
+
+    return 0;
+}
+
+static int
+setup_kmem_cache_nodes(struct kmem_cache *cachep, gfp_t gfp)
+{
+    int ret;
+    ret = setup_kmem_cache_node(cachep, gfp, true);
+    if (ret)
+        panic("setup kmem_cache_node failed!");
+
+    return 0;
+}
+
+static void
+slab_put_obj(struct kmem_cache *cachep, struct page *page, void *objp)
+{
+    unsigned int objnr = obj_to_index(cachep, page, objp);
+    page->active--;
+    if (!page->freelist)
+        page->freelist = objp;
+
+    set_free_obj(page, page->active, objnr);
+}
+
+static void
+free_block(struct kmem_cache *cachep,
+           void **objpp,
+           int nr_objects,
+           struct list_head *list)
+{
+    int i;
+    struct page *page;
+    struct kmem_cache_node *n = cachep->node;
+
+    n->free_objects += nr_objects;
+
+    for (i = 0; i < nr_objects; i++) {
+        void *objp;
+        struct page *page;
+
+        objp = objpp[i];
+
+        page = virt_to_head_page(objp);
+        list_del(&page->slab_list);
+        slab_put_obj(cachep, page, objp);
+
+        /* fixup slab chains */
+        if (page->active == 0) {
+            list_add(&page->slab_list, &n->slabs_free);
+            n->free_slabs++;
+        } else {
+            /* Unconditionally move a slab to the end of the
+             * partial list on free - maximum time for the
+             * other objects to be freed, too.
+             */
+            list_add_tail(&page->slab_list, &n->slabs_partial);
+        }
+    }
+}
+
+static int
+do_tune_cpucache(struct kmem_cache *cachep,
+                 int limit,
+                 int batchcount,
+                 gfp_t gfp)
+{
+    struct array_cache *cpu_cache;
+    struct array_cache *prev;
+    LIST_HEAD(list);
+
+    cpu_cache = alloc_kmem_cache_cpus(cachep, limit, batchcount);
+    if (!cpu_cache)
+        return -ENOMEM;
+
+    prev = cachep->cpu_cache;
+    cachep->cpu_cache = cpu_cache;
+
+    cachep->limit = limit;
+
+    if (!prev)
+        goto setup_node;
+
+    free_block(cachep, prev->entry, prev->avail, &list);
+    slabs_destroy(cachep, &list);
+
+ setup_node:
+    return setup_kmem_cache_nodes(cachep, gfp);
+}
+
+static int
+enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
+{
+    int err;
+    int limit = 0;
+    int batchcount = 0;
+
+    if (cachep->size > 131072)
+        limit = 1;
+    else if (cachep->size > PAGE_SIZE)
+        limit = 8;
+    else if (cachep->size > 1024)
+        limit = 24;
+    else if (cachep->size > 256)
+        limit = 54;
+    else
+        limit = 120;
+
+    batchcount = (limit + 1) / 2;
+    err = do_tune_cpucache(cachep, limit, batchcount, gfp);
+    if (err)
+        panic("enable_cpucache failed for %s, error %d", cachep->name, -err);
+
+    return err;
+}
+
+static int
 setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 {
     if (slab_state >= FULL)
-        panic("slab state is already FULL! ");
+        return enable_cpucache(cachep, gfp);
 
     cachep->cpu_cache = alloc_kmem_cache_cpus(cachep, 1, 1);
     if (!cachep->cpu_cache)
@@ -873,87 +1040,6 @@ kmem_cache_init(void)
 EXPORT_SYMBOL(kmem_cache_init);
 
 static void
-slab_put_obj(struct kmem_cache *cachep, struct page *page, void *objp)
-{
-    unsigned int objnr = obj_to_index(cachep, page, objp);
-    page->active--;
-    if (!page->freelist)
-        page->freelist = objp;
-
-    set_free_obj(page, page->active, objnr);
-}
-
-static void
-free_block(struct kmem_cache *cachep,
-           void **objpp,
-           int nr_objects,
-           struct list_head *list)
-{
-    int i;
-    struct page *page;
-    struct kmem_cache_node *n = cachep->node;
-
-    n->free_objects += nr_objects;
-
-    for (i = 0; i < nr_objects; i++) {
-        void *objp;
-        struct page *page;
-
-        objp = objpp[i];
-
-        page = virt_to_head_page(objp);
-        list_del(&page->slab_list);
-        slab_put_obj(cachep, page, objp);
-
-        /* fixup slab chains */
-        if (page->active == 0) {
-            list_add(&page->slab_list, &n->slabs_free);
-            n->free_slabs++;
-        } else {
-            /* Unconditionally move a slab to the end of the
-             * partial list on free - maximum time for the
-             * other objects to be freed, too.
-             */
-            list_add_tail(&page->slab_list, &n->slabs_partial);
-        }
-    }
-}
-
-/*
- * Interface to system's page release.
- */
-static void
-kmem_freepages(struct kmem_cache *cachep, struct page *page)
-{
-    int order = cachep->gfporder;
-
-    BUG_ON(!PageSlab(page));
-    __ClearPageSlab(page);
-
-    __free_pages(page, order);
-}
-
-static void
-slab_destroy(struct kmem_cache *cachep, struct page *page)
-{
-    void *freelist;
-
-    freelist = page->freelist;
-    kmem_freepages(cachep, page);
-}
-
-static void
-slabs_destroy(struct kmem_cache *cachep, struct list_head *list)
-{
-    struct page *page, *n;
-
-    list_for_each_entry_safe(page, n, list, slab_list) {
-        list_del(&page->slab_list);
-        slab_destroy(cachep, page);
-    }
-}
-
-static void
 cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
 {
     int batchcount;
@@ -1016,11 +1102,26 @@ void kfree(const void *objp)
 }
 EXPORT_SYMBOL(kfree);
 
+void
+kmem_cache_init_late(void)
+{
+    struct kmem_cache *cachep;
+
+    /* 6) resize the head arrays to their final sizes */
+    list_for_each_entry(cachep, &slab_caches, list)
+        if (enable_cpucache(cachep, GFP_NOWAIT))
+            BUG();
+
+    /* Done! */
+    slab_state = FULL;
+}
+
 static int
 init_module(void)
 {
     printk("module[slab]: init begin ...\n");
     kmem_cache_init();
+    kmem_cache_init_late();
     printk("module[slab]: init end!\n");
     return 0;
 }
