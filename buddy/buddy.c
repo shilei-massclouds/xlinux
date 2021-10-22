@@ -74,8 +74,7 @@ get_pfn_range_for_nid(unsigned long *start_pfn, unsigned long *end_pfn)
 }
 
 static unsigned long
-zone_spanned_pages_in_node(int nid,
-                           unsigned long zone_type,
+zone_spanned_pages_in_node(unsigned long zone_type,
                            unsigned long node_start_pfn,
                            unsigned long node_end_pfn,
                            unsigned long *zone_start_pfn,
@@ -108,8 +107,7 @@ zone_spanned_pages_in_node(int nid,
  * then all holes in the requested range will be accounted for.
  */
 unsigned long
-__absent_pages_in_range(int nid,
-                        unsigned long range_start_pfn,
+__absent_pages_in_range(unsigned long range_start_pfn,
                         unsigned long range_end_pfn)
 {
     unsigned long nr_absent = range_end_pfn - range_start_pfn;
@@ -127,8 +125,7 @@ __absent_pages_in_range(int nid,
 
 /* Return the number of page frames in holes in a zone on a node */
 static unsigned long
-zone_absent_pages_in_node(int nid,
-                          unsigned long zone_type,
+zone_absent_pages_in_node(unsigned long zone_type,
                           unsigned long node_start_pfn,
                           unsigned long node_end_pfn)
 {
@@ -143,7 +140,7 @@ zone_absent_pages_in_node(int nid,
     zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
     zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
 
-    return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+    return __absent_pages_in_range(zone_start_pfn, zone_end_pfn);
 }
 
 static void
@@ -161,11 +158,11 @@ calculate_node_totalpages(struct pglist_data *pgdat,
         unsigned long spanned, absent;
         unsigned long size, real_size;
 
-        spanned = zone_spanned_pages_in_node(0, i,
+        spanned = zone_spanned_pages_in_node(i,
                                              node_start_pfn, node_end_pfn,
                                              &zone_start_pfn, &zone_end_pfn);
 
-        absent = zone_absent_pages_in_node(0, i, node_start_pfn, node_end_pfn);
+        absent = zone_absent_pages_in_node(i, node_start_pfn, node_end_pfn);
 
         size = spanned;
         real_size = size - absent;
@@ -704,8 +701,9 @@ __rmqueue(struct zone *zone, unsigned int order, unsigned int alloc_flags)
 
     page = __rmqueue_smallest(zone, order);
     if (unlikely(!page)) {
-        panic("bad rmqueue smallest!\n");
+        panic("bad __rmqueue_smallest! order(%u)", order);
     }
+
     return page;
 }
 
@@ -864,12 +862,10 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order)
     /* First allocation attempt */
     page = get_page_from_freelist(gfp_mask, order, alloc_flags, &ac);
     if (likely(page))
-        goto out;
+        return page;
 
     panic("alloc failed!\n");
-
- out:
-    return page;
+    return NULL;
 }
 EXPORT_SYMBOL(__alloc_pages_nodemask);
 
@@ -979,8 +975,6 @@ setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
 static void
 build_all_zonelists_init(void)
 {
-    int cpu;
-
     __build_all_zonelists(NULL);
     setup_pageset(&boot_pageset, 0);
 }

@@ -3,16 +3,31 @@
 #include <printk.h>
 
 static int
+test_alloc_pages(void)
+{
+    int i;
+
+    for (i = 0; i < MAX_ORDER; i++) {
+        struct page *page;
+        page = alloc_pages(GFP_KERNEL, i);
+        if(!page)
+            return -1;
+
+        printk("alloc order(%d) ok!\n", i);
+    }
+
+    return 0;
+}
+
+static int
 init_module(void)
 {
-    struct page *page;
-
     printk("module[test_buddy]: init begin ...\n");
-    page = alloc_page(GFP_KERNEL);
-    if(!page)
-        panic("bad alloc!\n");
 
-    printk(_GREEN("alloc one page okay!\n"));
+    if(test_alloc_pages())
+        printk(_RED("alloc pages failed!\n"));
+    else
+        printk(_GREEN("alloc pages okay!\n"));
 
     printk("module[test_buddy]: init end!\n");
     return 0;
