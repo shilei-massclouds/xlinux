@@ -18,14 +18,14 @@
          i != (u64)ULLONG_MAX;                                      \
          __next_reserved_mem_region(&i, p_start, p_end))
 
-#define for_each_mem_range(i, type_a, type_b, flags, p_start, p_end) \
-    for (i = 0, __next_mem_range(&i, flags, type_a, type_b, p_start, p_end); \
+#define for_each_mem_range(i, type_a, type_b, p_start, p_end) \
+    for (i = 0, __next_mem_range(&i, type_a, type_b, p_start, p_end); \
          i != (u64)ULLONG_MAX;                                       \
-         __next_mem_range(&i, flags, type_a, type_b, p_start, p_end))
+         __next_mem_range(&i, type_a, type_b, p_start, p_end))
 
-#define for_each_free_mem_range(i, flags, p_start, p_end)       \
+#define for_each_free_mem_range(i, p_start, p_end)       \
     for_each_mem_range(i, &memblock.memory, &memblock.reserved, \
-                       flags, p_start, p_end)
+                       p_start, p_end)
 
 #define for_each_memblock(type, region)     \
     for (region = memblock.type.regions;    \
@@ -37,18 +37,18 @@
          i < memblock_type->cnt;                        \
          i++, rgn = &memblock_type->regions[i])
 
-#define for_each_mem_range_rev(i, type_a, type_b, flags, \
-                               p_start, p_end)           \
-    for (i = (u64)ULLONG_MAX,                            \
-         __next_mem_range_rev(&i, flags, type_a, type_b, \
-                              p_start, p_end);           \
-         i != (u64)ULLONG_MAX;                           \
-         __next_mem_range_rev(&i, flags, type_a, type_b, \
+#define for_each_mem_range_rev(i, type_a, type_b, \
+                               p_start, p_end)    \
+    for (i = (u64)ULLONG_MAX,                     \
+         __next_mem_range_rev(&i, type_a, type_b, \
+                              p_start, p_end);    \
+         i != (u64)ULLONG_MAX;                    \
+         __next_mem_range_rev(&i, type_a, type_b, \
                               p_start, p_end))
 
-#define for_each_free_mem_range_reverse(i, flags, p_start, p_end) \
+#define for_each_free_mem_range_reverse(i, p_start, p_end) \
     for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved, \
-                           flags, p_start, p_end)
+                           p_start, p_end)
 
 void
 __next_mem_pfn_range(int *idx,
@@ -60,29 +60,13 @@ __next_mem_pfn_range(int *idx,
          i >= 0; __next_mem_pfn_range(&i, p_start, p_end))
 
 /**
- * enum memblock_flags - definition of memory region attributes
- * @MEMBLOCK_NONE: no special request
- * @MEMBLOCK_HOTPLUG: hotpluggable region
- * @MEMBLOCK_MIRROR: mirrored region
- * @MEMBLOCK_NOMAP: don't add to kernel direct mapping
- */
-enum memblock_flags {
-    MEMBLOCK_NONE       = 0x0,  /* No special request */
-    MEMBLOCK_HOTPLUG    = 0x1,  /* hotpluggable region */
-    MEMBLOCK_MIRROR     = 0x2,  /* mirrored region */
-    MEMBLOCK_NOMAP      = 0x4,  /* don't add to kernel direct mapping */
-};
-
-/**
  * struct memblock_region - represents a memory region
  * @base: base address of the region
  * @size: size of the region
- * @flags: memory region attributes
  */
 struct memblock_region {
     phys_addr_t base;
     phys_addr_t size;
-    enum memblock_flags flags;
 };
 
 /**
@@ -122,7 +106,7 @@ void *
 memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align);
 
 void
-__next_mem_range_rev(u64 *idx, enum memblock_flags flags,
+__next_mem_range_rev(u64 *idx,
                      struct memblock_type *type_a,
                      struct memblock_type *type_b,
                      phys_addr_t *out_start,
@@ -161,7 +145,7 @@ __next_reserved_mem_region(u64 *idx,
                            phys_addr_t *out_end);
 
 void
-__next_mem_range(u64 *idx, enum memblock_flags flags,
+__next_mem_range(u64 *idx,
                  struct memblock_type *type_a,
                  struct memblock_type *type_b,
                  phys_addr_t *out_start,

@@ -224,10 +224,6 @@ alloc_node_mem_map(struct pglist_data *pgdat)
         if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
             mem_map -= offset;
     }
-
-    printk("%s: node 0, pgdat %lx, node_mem_map %lx\n",
-           __func__, (unsigned long)pgdat,
-           (unsigned long)pgdat->node_mem_map);
 }
 
 static void
@@ -285,8 +281,7 @@ zone_init_internals(struct zone *zone,
 }
 
 static unsigned long
-calc_memmap_size(unsigned long spanned_pages,
-                 unsigned long present_pages)
+calc_memmap_size(unsigned long spanned_pages)
 {
     return PAGE_ALIGN(spanned_pages * sizeof(struct page)) >> PAGE_SHIFT;
 }
@@ -306,7 +301,7 @@ free_area_init_core(struct pglist_data *pgdat)
         size = zone->spanned_pages;
         freesize = zone->present_pages;
 
-        memmap_pages = calc_memmap_size(size, freesize);
+        memmap_pages = calc_memmap_size(size);
         if (freesize >= memmap_pages) {
             freesize -= memmap_pages;
             if (memmap_pages)
@@ -348,6 +343,7 @@ free_area_init_node(void)
     printk("Initmem setup [mem %lx-%lx]\n",
            (u64)start_pfn << PAGE_SHIFT,
            end_pfn ? ((u64)end_pfn << PAGE_SHIFT) - 1 : 0);
+
     calculate_node_totalpages(pgdat, start_pfn, end_pfn);
 
     alloc_node_mem_map(pgdat);
@@ -404,8 +400,7 @@ zone_sizes_init(void)
 {
     unsigned long max_zone_pfns[MAX_NR_ZONES] = {0, };
 
-    max_zone_pfns[ZONE_DMA32] =
-        PFN_DOWN(min(4UL * SZ_1G, (unsigned long) PFN_PHYS(max_low_pfn)));
+    max_zone_pfns[ZONE_DMA32] = min(PFN_DOWN(4UL * SZ_1G), max_low_pfn);
     max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
     free_area_init(max_zone_pfns);
@@ -928,7 +923,7 @@ build_zonelists(pg_data_t *pgdat)
 }
 
 static void
-__build_all_zonelists(void *data)
+__build_all_zonelists(void)
 {
     build_zonelists(NODE_DATA(0));
 }
@@ -938,9 +933,6 @@ pageset_update(struct per_cpu_pages *pcp,
                unsigned long high,
                unsigned long batch)
 {
-    /* start with a fail safe value for batch */
-    pcp->batch = 1;
-
     /* Update high, then batch, in order */
     pcp->high = high;
 
@@ -975,7 +967,7 @@ setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
 static void
 build_all_zonelists_init(void)
 {
-    __build_all_zonelists(NULL);
+    __build_all_zonelists();
     setup_pageset(&boot_pageset, 0);
 }
 

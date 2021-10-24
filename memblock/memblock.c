@@ -73,15 +73,13 @@ memblock_cap_size(phys_addr_t base, phys_addr_t *size)
 
 static void
 memblock_insert_region(struct memblock_type *type, int idx,
-                       phys_addr_t base, phys_addr_t size,
-                       enum memblock_flags flags)
+                       phys_addr_t base, phys_addr_t size)
 {
 	struct memblock_region *rgn = &type->regions[idx];
 
 	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
 	rgn->base = base;
 	rgn->size = size;
-	rgn->flags = flags;
 	type->cnt++;
 	type->total_size += size;
 }
@@ -96,8 +94,7 @@ memblock_merge_regions(struct memblock_type *type)
 		struct memblock_region *this = &type->regions[i];
 		struct memblock_region *next = &type->regions[i + 1];
 
-		if (this->base + this->size != next->base ||
-		    this->flags != next->flags) {
+		if (this->base + this->size != next->base) {
 			i++;
 			continue;
         }
@@ -111,8 +108,7 @@ memblock_merge_regions(struct memblock_type *type)
 
 static int
 memblock_add_range(struct memblock_type *type,
-                   phys_addr_t base, phys_addr_t size,
-                   enum memblock_flags flags)
+                   phys_addr_t base, phys_addr_t size)
 {
     int idx;
     int nr_new;
@@ -128,7 +124,6 @@ memblock_add_range(struct memblock_type *type,
 	if (type->regions[0].size == 0) {
 		type->regions[0].base = base;
 		type->regions[0].size = size;
-		type->regions[0].flags = flags;
 		type->total_size = size;
 		return 0;
 	}
@@ -158,9 +153,7 @@ repeat:
 		if (rbase > base) {
 			nr_new++;
 			if (insert)
-				memblock_insert_region(type, idx++,
-                                       base, rbase - base,
-                                       flags);
+                memblock_insert_region(type, idx++, base, rbase - base);
         }
 		/* area below @rend is dealt with, forget about it */
 		base = min(rend, end);
@@ -170,7 +163,7 @@ repeat:
 	if (base < end) {
 		nr_new++;
 		if (insert)
-			memblock_insert_region(type, idx, base, end - base, flags);
+			memblock_insert_region(type, idx, base, end - base);
 	}
 
 	if (!nr_new)
@@ -200,19 +193,18 @@ memblock_add(phys_addr_t base, phys_addr_t size)
 
     pr_debug("%s: [%lx-%lx]\n", __func__, base, size);
 
-	return memblock_add_range(&memblock.memory, base, size, 0);
+	return memblock_add_range(&memblock.memory, base, size);
 }
 EXPORT_SYMBOL(memblock_add);
 
 static phys_addr_t
 __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
-                               phys_addr_t size, phys_addr_t align,
-                               enum memblock_flags flags)
+                               phys_addr_t size, phys_addr_t align)
 {
     u64 i;
     phys_addr_t this_start, this_end, cand;
 
-    for_each_free_mem_range_reverse(i, flags, &this_start, &this_end) {
+    for_each_free_mem_range_reverse(i, &this_start, &this_end) {
         this_start = clamp(this_start, start, end);
         this_end = clamp(this_end, start, end);
 
@@ -229,21 +221,18 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
 
 static phys_addr_t
 memblock_find_in_range_node(phys_addr_t size,
-                            phys_addr_t align,
-                            enum memblock_flags flags)
+                            phys_addr_t align)
 {
     phys_addr_t start = PAGE_SIZE;
     phys_addr_t end = memblock.current_limit;
 
-    return __memblock_find_range_top_down(start, end,
-                                          size, align, flags);
+    return __memblock_find_range_top_down(start, end, size, align);
 }
 
 phys_addr_t
 memblock_alloc_range_nid(phys_addr_t size, phys_addr_t align)
 {
     phys_addr_t found;
-    enum memblock_flags flags = MEMBLOCK_NONE;
 
     if (_memblock_stopped)
         panic("memblock has been stopped!");
@@ -252,7 +241,7 @@ memblock_alloc_range_nid(phys_addr_t size, phys_addr_t align)
         align = SMP_CACHE_BYTES;
     }
 
-    found = memblock_find_in_range_node(size, align, flags);
+    found = memblock_find_in_range_node(size, align);
     if (found == 0)
         return 0;
 
@@ -291,7 +280,7 @@ memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align)
 EXPORT_SYMBOL(memblock_alloc_try_nid);
 
 void
-__next_mem_range_rev(u64 *idx, enum memblock_flags flags,
+__next_mem_range_rev(u64 *idx,
                      struct memblock_type *type_a,
                      struct memblock_type *type_b,
                      phys_addr_t *out_start,
@@ -364,7 +353,7 @@ memblock_reserve(phys_addr_t base, phys_addr_t size)
 
 	pr_debug("%s: [%lx-%lx]\n", __func__, base, end);
 
-	return memblock_add_range(&memblock.reserved, base, size, 0);
+	return memblock_add_range(&memblock.reserved, base, size);
 }
 
 phys_addr_t
@@ -443,7 +432,7 @@ reset_all_zones_managed_pages(void)
 }
 
 void
-memblock_free_pages(struct page *page, unsigned long pfn, unsigned int order)
+memblock_free_pages(struct page *page, unsigned int order)
 {
     BUG_ON(!free_pages_core_fn);
     free_pages_core_fn(page, order);
@@ -460,7 +449,7 @@ __free_pages_memory(unsigned long start, unsigned long end)
         while (start + (1UL << order) > end)
             order--;
 
-        memblock_free_pages(pfn_to_page(start), start, order);
+        memblock_free_pages(pfn_to_page(start), order);
 
         start += (1UL << order);
     }
@@ -493,7 +482,7 @@ free_low_memory_core_early(void)
     for_each_reserved_mem_region(i, &start, &end)
         reserve_bootmem_region_fn(start, end);
 
-    for_each_free_mem_range(i, MEMBLOCK_NONE, &start, &end)
+    for_each_free_mem_range(i, &start, &end)
         count += __free_memory_core(start, end);
 
     return count;
@@ -510,7 +499,7 @@ memblock_free_all(void)
     unsigned long pages;
 
     if (_memblock_stopped)
-        panic("memblock has been stopped!\n");
+        panic("memblock has been stopped!");
 
     _memblock_stopped = true;
 
@@ -549,7 +538,7 @@ __next_reserved_mem_region(u64 *idx,
 }
 
 void
-__next_mem_range(u64 *idx, enum memblock_flags flags,
+__next_mem_range(u64 *idx,
                  struct memblock_type *type_a,
                  struct memblock_type *type_b,
                  phys_addr_t *out_start,
@@ -582,8 +571,7 @@ __next_mem_range(u64 *idx, enum memblock_flags flags,
 
             r = &type_b->regions[idx_b];
             r_start = idx_b ? r[-1].base + r[-1].size : 0;
-            r_end = idx_b < type_b->cnt ?
-                r->base : PHYS_ADDR_MAX;
+            r_end = idx_b < type_b->cnt ? r->base : PHYS_ADDR_MAX;
 
             /*
              * if idx_b advanced past idx_a,
@@ -595,8 +583,7 @@ __next_mem_range(u64 *idx, enum memblock_flags flags,
             /* if the two regions intersect, we're done */
             if (m_start < r_end) {
                 if (out_start)
-                    *out_start =
-                        max(m_start, r_start);
+                    *out_start = max(m_start, r_start);
                 if (out_end)
                     *out_end = min(m_end, r_end);
                 /*
