@@ -4,6 +4,7 @@
 #include <export.h>
 
 extern void *__memset(void *, int, __kernel_size_t);
+extern void *__memcpy(void *, const void *, __kernel_size_t);
 
 /**
  * memset - Fill a region of memory with the given value
@@ -30,12 +31,7 @@ EXPORT_SYMBOL(memset);
  */
 void *memcpy(void *dest, const void *src, size_t count)
 {
-    char *tmp = dest;
-    const char *s = src;
-
-    while (count--)
-        *tmp++ = *s++;
-    return dest;
+    return __memcpy(dest, src, count);
 }
 EXPORT_SYMBOL(memcpy);
 
