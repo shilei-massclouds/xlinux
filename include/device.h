@@ -32,7 +32,8 @@ struct device_private {
 
 struct device {
     struct kobject kobj;
-    struct device  *parent;
+
+    struct device *parent;
 
     struct device_private *p;
 
@@ -41,7 +42,7 @@ struct device {
     struct bus_type *bus;
 
     void *platform_data;
-    struct device_node  *of_node; /* associated device tree node */
+    struct device_node *of_node; /* associated device tree node */
 };
 
 extern int device_add(struct device *dev);
