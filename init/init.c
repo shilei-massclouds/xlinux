@@ -3,7 +3,7 @@
 #include <bug.h>
 #include <fdt.h>
 #include <printk.h>
-#include <of_platform.h>
+#include <platform.h>
 
 extern uintptr_t kernel_size;
 

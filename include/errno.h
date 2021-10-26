@@ -68,4 +68,6 @@
 #define EUSERS      87  /* Too many users */
 #define ENOTSOCK    88  /* Socket operation on non-socket */
 
+#define EPROBE_DEFER    517 /* Driver requests probe retry */
+
 #endif

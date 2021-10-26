@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <export.h>
-#include <of_platform.h>
+#include <platform.h>
 
 const struct of_device_id
 of_default_bus_match_table[] = {
@@ -16,12 +16,21 @@ of_default_bus_match_table[] = {
     {} /* Empty terminated list */
 };
 
+static int platform_match(struct device *dev, struct device_driver *drv)
+{
+    /* Attempt an OF style match first */
+    if (of_driver_match_device(dev, drv))
+        return 1;
+
+    return 0;
+}
+
 struct bus_type
 platform_bus_type = {
     .name       = "platform",
+    .match      = platform_match,
     /*
     .dev_groups = platform_dev_groups,
-    .match      = platform_match,
     .uevent     = platform_uevent,
     .dma_configure  = platform_dma_configure,
     .pm     = &platform_dev_pm_ops,
@@ -68,7 +77,7 @@ __of_device_is_compatible(const struct device_node *device,
         for (cp = of_prop_next_string(prop, NULL); cp;
              cp = of_prop_next_string(prop, cp), index++) {
             if (of_compat_cmp(cp, compat, strlen(compat)) == 0) {
-                printk("%s: %s, %s\n", __func__, cp, compat);
+                pr_debug("%s: %s, %s\n", __func__, cp, compat);
                 score = INT_MAX/2 - (index << 2);
                 break;
             }
@@ -123,11 +132,7 @@ of_match_node(const struct of_device_id *matches,
               const struct device_node *node)
 {
     const struct of_device_id *match;
-    //unsigned long flags;
-
-    //raw_spin_lock_irqsave(&devtree_lock, flags);
     match = __of_match_node(matches, node);
-    //raw_spin_unlock_irqrestore(&devtree_lock, flags);
     return match;
 }
 
@@ -181,8 +186,8 @@ of_device_alloc(struct device_node *np,
     if (!dev)
         return NULL;
 
-    printk("%s: %s bus_id(%s) parent(%lx)\n",
-           __func__, np->full_name, bus_id, parent);
+    pr_debug("%s: %s bus_id(%s) parent(%lx)\n",
+             __func__, np->full_name, bus_id, parent);
 
     dev->dev.of_node = of_node_get(np);
 
@@ -198,7 +203,7 @@ int
 of_device_add(struct platform_device *ofdev)
 {
     ofdev->name = dev_name(&ofdev->dev);
-    printk("%s: %s\n", __func__, ofdev->name);
+    pr_debug("%s: %s\n", __func__, ofdev->name);
     ofdev->id = PLATFORM_DEVID_NONE;
     return device_add(&ofdev->dev);
 }
@@ -304,9 +309,9 @@ of_platform_bus_create(struct device_node *bus,
     if (!dev || !of_match_node(matches, bus))
         return 0;
 
-    printk("1: %s, %s\n", bus->full_name, bus->name);
+    pr_debug("1: %s, %s\n", bus->full_name, bus->name);
     for_each_child_of_node(bus, child) {
-        printk("   create child: %s\n", child->full_name);
+        pr_debug("   create child: %s\n", child->full_name);
         rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
         if (rc) {
             of_node_put(child);
@@ -314,7 +319,7 @@ of_platform_bus_create(struct device_node *bus,
         }
     }
     of_node_set_flag(bus, OF_POPULATED_BUS);
-    printk("3: %s, %s\n", bus->full_name, bus->name);
+    pr_debug("3: %s, %s\n", bus->full_name, bus->name);
     return rc;
 }
 
@@ -331,7 +336,7 @@ of_platform_populate(struct device_node *root,
     if (!root)
         return -EINVAL;
 
-    printk("%s root(%s)\n", __func__, root->name);
+    pr_debug("%s root(%s)\n", __func__, root->name);
 
     for_each_child_of_node(root, child) {
         rc = of_platform_bus_create(child, matches, lookup, parent, true);
@@ -369,6 +374,37 @@ platform_bus_init(void)
     return error;
 }
 EXPORT_SYMBOL(platform_bus_init);
+
+static int
+platform_drv_probe(struct device *_dev)
+{
+    int ret;
+    struct platform_driver *drv = to_platform_driver(_dev->driver);
+    struct platform_device *dev = to_platform_device(_dev);
+
+    if (drv->probe) {
+        ret = drv->probe(dev);
+    }
+    return ret;
+}
+
+int
+platform_driver_register(struct platform_driver *drv)
+{
+    drv->driver.bus = &platform_bus_type;
+    drv->driver.probe = platform_drv_probe;
+    return driver_register(&drv->driver);
+}
+EXPORT_SYMBOL(platform_driver_register);
+
+const struct of_device_id *
+of_match_device(const struct of_device_id *matches, const struct device *dev)
+{
+    if ((!matches) || (!dev->of_node))
+        return NULL;
+    return of_match_node(matches, dev->of_node);
+}
+EXPORT_SYMBOL(of_match_device);
 
 static int
 init_module(void)

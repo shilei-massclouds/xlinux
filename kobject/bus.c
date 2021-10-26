@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <printk.h>
-#include <errno.h>
 #include <klist.h>
-#include <device.h>
-#include <export.h>
 #include <slab.h>
+#include <device.h>
+#include <driver.h>
+#include <errno.h>
+#include <export.h>
+#include <printk.h>
 
 static struct bus_type *
 bus_get(struct bus_type *bus)
@@ -26,16 +27,6 @@ bus_add_device(struct device *dev)
     return 0;
 }
 
-static void
-klist_devices_get(struct klist_node *n)
-{
-}
-
-static void
-klist_devices_put(struct klist_node *n)
-{
-}
-
 int
 bus_register(struct bus_type *bus)
 {
@@ -49,12 +40,58 @@ bus_register(struct bus_type *bus)
     priv->bus = bus;
     bus->p = priv;
 
-    klist_init(&priv->klist_devices,
-               klist_devices_get,
-               klist_devices_put);
+    priv->drivers_autoprobe = 1;
+
+    priv->drivers_kset = kset_create_and_add("drivers");
+    if (!priv->drivers_kset) {
+        retval = -ENOMEM;
+        goto error;
+    }
+
+    klist_init(&priv->klist_devices);
+    klist_init(&priv->klist_drivers);
 
     printk("bus: '%s': registered\n", bus->name);
     return 0;
 
+ error:
+    kfree(bus->p);
+    bus->p = NULL;
+    return retval;
 }
 EXPORT_SYMBOL(bus_register);
+
+int
+bus_add_driver(struct device_driver *drv)
+{
+    struct bus_type *bus;
+    struct driver_private *priv;
+    int error = 0;
+
+    bus = bus_get(drv->bus);
+    if (!bus)
+        return -EINVAL;
+
+    printk("bus: '%s': add driver %s\n", bus->name, drv->name);
+
+    priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+    if (!priv) {
+        panic("no memory!");
+    }
+
+    klist_init(&priv->klist_devices);
+    priv->driver = drv;
+    drv->p = priv;
+    priv->kobj.kset = bus->p->drivers_kset;
+
+    klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
+    if (drv->bus->p->drivers_autoprobe) {
+        error = driver_attach(drv);
+        if (error)
+            panic("can not attach driver!");
+    }
+
+    panic("%s: bus(%s)", __func__, bus->name);
+    return 0;
+}
+EXPORT_SYMBOL(bus_add_driver);

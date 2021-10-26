@@ -55,7 +55,7 @@ of_have_populated_dt(void)
 static inline void
 of_node_init(struct device_node *node)
 {
-    kobject_init(&node->kobj, &of_node_ktype);
+    //kobject_init(&node->kobj, &of_node_ktype);
     node->fwnode.ops = &of_fwnode_ops;
 }
 

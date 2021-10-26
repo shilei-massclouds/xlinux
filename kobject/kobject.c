@@ -2,6 +2,7 @@
 #include <mm.h>
 #include <bug.h>
 #include <gfp.h>
+#include <slab.h>
 #include <acgcc.h>
 #include <errno.h>
 #include <export.h>
@@ -9,20 +10,7 @@
 #include <string.h>
 #include <kobject.h>
 
-static void
-kobject_init_internal(struct kobject *kobj)
-{
-    if (!kobj)
-        return;
-
-    kref_init(&kobj->kref);
-    INIT_LIST_HEAD(&kobj->entry);
-    kobj->state_in_sysfs = 0;
-    kobj->state_add_uevent_sent = 0;
-    kobj->state_remove_uevent_sent = 0;
-    kobj->state_initialized = 1;
-}
-
+/*
 void
 kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 {
@@ -37,7 +25,6 @@ kobject_init(struct kobject *kobj, struct kobj_type *ktype)
         goto error;
     }
     if (kobj->state_initialized) {
-        /* do not error out as sometimes we can recover */
         panic("kobject: tried to init an initialized object.\n");
     }
 
@@ -49,6 +36,7 @@ error:
     panic("kobject (%p): %s\n", kobj, err_str);
 }
 EXPORT_SYMBOL(kobject_init);
+*/
 
 static void
 kobject_release(struct kref *kref)
@@ -61,6 +49,20 @@ kobject_put(struct kobject *kobj)
     /* Todo: implement it */
 }
 EXPORT_SYMBOL(kobject_put);
+
+int
+kobject_set_name(struct kobject *kobj, const char *fmt, ...)
+{
+    va_list vargs;
+    int retval;
+
+    va_start(vargs, fmt);
+    retval = kobject_set_name_vargs(kobj, fmt, vargs);
+    va_end(vargs);
+
+    return retval;
+}
+EXPORT_SYMBOL(kobject_set_name);
 
 int
 kobject_set_name_vargs(struct kobject *kobj,
@@ -97,6 +99,100 @@ kobject_set_name_vargs(struct kobject *kobj,
 
     return 0;
 }
+
+struct kobject *
+kobject_get_unless_zero(struct kobject *kobj)
+{
+    if (!kobj)
+        return NULL;
+    return kobj;
+}
+EXPORT_SYMBOL(kobject_get_unless_zero);
+
+struct kobject *
+kset_find_obj(struct kset *kset, const char *name)
+{
+    struct kobject *k;
+    struct kobject *ret = NULL;
+
+    list_for_each_entry(k, &kset->list, entry) {
+        if (kobject_name(k) && !strcmp(kobject_name(k), name)) {
+            ret = kobject_get_unless_zero(k);
+            break;
+        }
+    }
+
+    return ret;
+}
+EXPORT_SYMBOL(kset_find_obj);
+
+static struct kset *
+kset_create(const char *name)
+{
+    struct kset *kset;
+    int retval;
+
+    kset = kzalloc(sizeof(*kset), GFP_KERNEL);
+    if (!kset)
+        return NULL;
+    retval = kobject_set_name(&kset->kobj, "%s", name);
+    if (retval) {
+        kfree(kset);
+        return NULL;
+    }
+    return kset;
+}
+
+static void
+kobject_init_internal(struct kobject *kobj)
+{
+    if (!kobj)
+        return;
+    INIT_LIST_HEAD(&kobj->entry);
+}
+
+void
+kset_init(struct kset *k)
+{
+    kobject_init_internal(&k->kobj);
+    INIT_LIST_HEAD(&k->list);
+}
+
+int
+kset_register(struct kset *k)
+{
+    int err;
+
+    if (!k)
+        return -EINVAL;
+
+    kset_init(k);
+    /*
+    err = kobject_add_internal(&k->kobj);
+    if (err)
+        return err;
+    */
+    return 0;
+}
+EXPORT_SYMBOL(kset_register);
+
+struct kset *
+kset_create_and_add(const char *name)
+{
+    struct kset *kset;
+    int error;
+
+    kset = kset_create(name);
+    if (!kset)
+        return NULL;
+    error = kset_register(kset);
+    if (error) {
+        kfree(kset);
+        return NULL;
+    }
+    return kset;
+}
+EXPORT_SYMBOL(kset_create_and_add);
 
 static int
 init_module(void)
