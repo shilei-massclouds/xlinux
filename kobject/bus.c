@@ -91,7 +91,6 @@ bus_add_driver(struct device_driver *drv)
             panic("can not attach driver!");
     }
 
-    panic("%s: bus(%s)", __func__, bus->name);
     return 0;
 }
 EXPORT_SYMBOL(bus_add_driver);

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#include <errno.h>
 #include <export.h>
 #include <platform.h>
 
@@ -12,8 +13,8 @@ static const struct of_device_id virtio_mmio_match[] = {
 
 static int virtio_mmio_probe(struct platform_device *pdev)
 {
-    panic("bad probe!");
-    return -1;
+    printk("%s: \n", __func__);
+    return -ENODEV;
 }
 
 static struct platform_driver virtio_mmio_driver = {

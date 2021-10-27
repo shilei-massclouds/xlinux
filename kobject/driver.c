@@ -61,7 +61,6 @@ next_device(struct klist_iter *i)
     struct device_private *dev_prv;
     struct device *dev = NULL;
     struct klist_node *n = klist_next(i);
-    printk("%s: step1 %lx\n", __func__, n);
 
     if (n) {
         dev_prv = to_device_private_bus(n);
@@ -122,11 +121,11 @@ really_probe(struct device *dev, struct device_driver *drv)
     if (dev->bus->probe) {
         ret = dev->bus->probe(dev);
         if (ret)
-            panic("probe failed!");
+            return 0;
     } else if (drv->probe) {
         ret = drv->probe(dev);
         if (ret)
-            panic("probe failed!");
+            return 0;
     }
 
     driver_bound(dev);
@@ -163,9 +162,7 @@ __driver_attach(struct device *dev, void *data)
     int ret;
     struct device_driver *drv = data;
 
-    printk("step0 (%s)\n", dev_name(dev));
     ret = driver_match_device(drv, dev);
-    printk("step1 ret(%d)\n", ret);
     if (ret == 0) {
         /* no match */
         return 0;
