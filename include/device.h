@@ -28,16 +28,8 @@ struct subsys_private {
 };
 
 struct device_private {
-    /*
-    struct klist klist_children;
-    struct klist_node knode_parent;
-    */
     struct klist_node knode_driver;
     struct klist_node knode_bus;
-    /*
-    struct klist_node knode_class;
-    struct list_head  deferred_probe;
-    */
     struct device *device;
 };
 

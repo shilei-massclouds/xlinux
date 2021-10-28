@@ -167,11 +167,6 @@ kset_register(struct kset *k)
         return -EINVAL;
 
     kset_init(k);
-    /*
-    err = kobject_add_internal(&k->kobj);
-    if (err)
-        return err;
-    */
     return 0;
 }
 EXPORT_SYMBOL(kset_register);

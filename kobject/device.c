@@ -25,17 +25,14 @@ int device_add(struct device *dev)
     if (!dev->p) {
         error = device_private_init(dev);
         if (error)
-            goto done;
+            return error;
     }
 
     error = bus_add_device(dev);
     if (error)
-        goto done;
+        return error;
 
     return 0;
-
- done:
-    return error;
 }
 EXPORT_SYMBOL(device_add);
 

@@ -21,7 +21,6 @@ static int platform_match(struct device *dev, struct device_driver *drv)
     /* Attempt an OF style match first */
     if (of_driver_match_device(dev, drv))
         return 1;
-
     return 0;
 }
 
@@ -29,12 +28,6 @@ struct bus_type
 platform_bus_type = {
     .name       = "platform",
     .match      = platform_match,
-    /*
-    .dev_groups = platform_dev_groups,
-    .uevent     = platform_uevent,
-    .dma_configure  = platform_dma_configure,
-    .pm     = &platform_dev_pm_ops,
-    */
 };
 EXPORT_SYMBOL(platform_bus_type);
 
@@ -203,7 +196,6 @@ int
 of_device_add(struct platform_device *ofdev)
 {
     ofdev->name = dev_name(&ofdev->dev);
-    pr_debug("%s: %s\n", __func__, ofdev->name);
     ofdev->id = PLATFORM_DEVID_NONE;
     return device_add(&ofdev->dev);
 }
@@ -294,7 +286,7 @@ of_platform_bus_create(struct device_node *bus,
     }
 
     if (of_node_check_flag(bus, OF_POPULATED_BUS)) {
-        printk("%s() - skipping %lxOF, already populated\n",
+        printk("%s() - skipping %lxOF, already populated",
                __func__, bus);
         return 0;
     }
@@ -309,7 +301,6 @@ of_platform_bus_create(struct device_node *bus,
     if (!dev || !of_match_node(matches, bus))
         return 0;
 
-    pr_debug("1: %s, %s\n", bus->full_name, bus->name);
     for_each_child_of_node(bus, child) {
         pr_debug("   create child: %s\n", child->full_name);
         rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
@@ -319,7 +310,6 @@ of_platform_bus_create(struct device_node *bus,
         }
     }
     of_node_set_flag(bus, OF_POPULATED_BUS);
-    pr_debug("3: %s, %s\n", bus->full_name, bus->name);
     return rc;
 }
 
@@ -347,7 +337,6 @@ of_platform_populate(struct device_node *root,
     }
 
     of_node_set_flag(root, OF_POPULATED_BUS);
-
     of_node_put(root);
     return rc;
 }
@@ -369,8 +358,7 @@ platform_bus_init(void)
     int error;
     error = bus_register(&platform_bus_type);
     if (error)
-        panic("cant register platform bus type!");
-
+        panic("can not register platform bus type!");
     return error;
 }
 EXPORT_SYMBOL(platform_bus_init);
