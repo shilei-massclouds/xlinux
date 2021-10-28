@@ -83,6 +83,9 @@ bus_add_driver(struct device_driver *drv)
     priv->driver = drv;
     drv->p = priv;
     priv->kobj.kset = bus->p->drivers_kset;
+    error = kobject_init_and_add(&priv->kobj, "%s", drv->name);
+    if (error)
+        panic("can not init driver private!");
 
     klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
     if (drv->bus->p->drivers_autoprobe) {

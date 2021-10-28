@@ -10,9 +10,16 @@
 #include <string.h>
 #include <kobject.h>
 
-/*
+static void
+kobject_init_internal(struct kobject *kobj)
+{
+    if (!kobj)
+        return;
+    INIT_LIST_HEAD(&kobj->entry);
+}
+
 void
-kobject_init(struct kobject *kobj, struct kobj_type *ktype)
+kobject_init(struct kobject *kobj)
 {
     char *err_str;
 
@@ -20,23 +27,14 @@ kobject_init(struct kobject *kobj, struct kobj_type *ktype)
         err_str = "invalid kobject pointer!";
         goto error;
     }
-    if (!ktype) {
-        err_str = "must have a ktype to be initialized properly!\n";
-        goto error;
-    }
-    if (kobj->state_initialized) {
-        panic("kobject: tried to init an initialized object.\n");
-    }
 
     kobject_init_internal(kobj);
-    kobj->ktype = ktype;
     return;
 
 error:
     panic("kobject (%p): %s\n", kobj, err_str);
 }
 EXPORT_SYMBOL(kobject_init);
-*/
 
 static void
 kobject_release(struct kref *kref)
@@ -143,19 +141,41 @@ kset_create(const char *name)
     return kset;
 }
 
-static void
-kobject_init_internal(struct kobject *kobj)
-{
-    if (!kobj)
-        return;
-    INIT_LIST_HEAD(&kobj->entry);
-}
-
 void
 kset_init(struct kset *k)
 {
     kobject_init_internal(&k->kobj);
     INIT_LIST_HEAD(&k->list);
+}
+
+/* add the kobject to its kset's list */
+static void
+kobj_kset_join(struct kobject *kobj)
+{
+    if (!kobj->kset)
+        return;
+
+    list_add_tail(&kobj->entry, &kobj->kset->list);
+}
+
+static int
+kobject_add_internal(struct kobject *kobj)
+{
+    if (!kobj)
+        return -ENOENT;
+
+    if (!kobj->name || !kobj->name[0]) {
+        panic("kobject (%p) is registered with empty name!", kobj);
+    }
+
+    if (kobj->kset)
+        kobj_kset_join(kobj);
+
+    printk("kobject: '%s' (%lx): %s: set: '%s'\n",
+           kobject_name(kobj), kobj, __func__,
+           kobj->kset ? kobject_name(&kobj->kset->kobj) : "<NULL>");
+
+    return 0;
 }
 
 int
@@ -167,7 +187,7 @@ kset_register(struct kset *k)
         return -EINVAL;
 
     kset_init(k);
-    return 0;
+    return kobject_add_internal(&k->kobj);
 }
 EXPORT_SYMBOL(kset_register);
 
@@ -188,6 +208,34 @@ kset_create_and_add(const char *name)
     return kset;
 }
 EXPORT_SYMBOL(kset_create_and_add);
+
+static int
+kobject_add_varg(struct kobject *kobj, const char *fmt, va_list vargs)
+{
+    int retval;
+    retval = kobject_set_name_vargs(kobj, fmt, vargs);
+    if (retval) {
+        panic("kobject: can not set name properly!\n");
+        return retval;
+    }
+    return kobject_add_internal(kobj);
+}
+
+int
+kobject_init_and_add(struct kobject *kobj, const char *fmt, ...)
+{
+    va_list args;
+    int retval;
+
+    kobject_init(kobj);
+
+    va_start(args, fmt);
+    retval = kobject_add_varg(kobj, fmt, args);
+    va_end(args);
+
+    return retval;
+}
+EXPORT_SYMBOL(kobject_init_and_add);
 
 static int
 init_module(void)

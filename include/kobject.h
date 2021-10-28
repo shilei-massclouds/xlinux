@@ -31,7 +31,7 @@ struct kobj_type {
     void (*get_ownership)(struct kobject *kobj, kuid_t *uid, kgid_t *gid);
 };
 
-void kobject_init(struct kobject *kobj, struct kobj_type *ktype);
+void kobject_init(struct kobject *kobj);
 extern void kobject_put(struct kobject *kobj);
 
 static inline const char *
@@ -41,14 +41,15 @@ kobject_name(const struct kobject *kobj)
 }
 
 int
-kobject_set_name_vargs(struct kobject *kobj,
-                       const char *fmt,
-                       va_list vargs);
+kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list vargs);
 
 struct kobject *
 kset_find_obj(struct kset *kset, const char *name);
 
 struct kset *
 kset_create_and_add(const char *name);
+
+int
+kobject_init_and_add(struct kobject *kobj, const char *fmt, ...);
 
 #endif /* _KOBJECT_H_ */
