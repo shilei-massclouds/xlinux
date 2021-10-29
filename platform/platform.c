@@ -8,6 +8,11 @@
 #include <export.h>
 #include <platform.h>
 
+struct device platform_bus = {
+    .init_name  = "platform",
+};
+EXPORT_SYMBOL(platform_bus);
+
 const struct of_device_id
 of_default_bus_match_table[] = {
     { .compatible = "simple-bus", },
@@ -150,6 +155,9 @@ platform_device_alloc(const char *name, int id)
     struct platform_object *pa;
 
     pa = kzalloc(sizeof(*pa) + strlen(name) + 1, GFP_KERNEL);
+    if (pa) {
+        device_initialize(&pa->pdev.dev);
+    }
 
     return pa ? &pa->pdev : NULL;
 }
@@ -174,15 +182,19 @@ of_device_alloc(struct device_node *np,
                 struct device *parent)
 {
     struct platform_device *dev;
+    struct resource temp_res;
+    int num_reg = 0;
 
     dev = platform_device_alloc("", PLATFORM_DEVID_NONE);
     if (!dev)
         return NULL;
 
-    pr_debug("%s: %s bus_id(%s) parent(%lx)\n",
-             __func__, np->full_name, bus_id, parent);
+    /* count the io and irq resources */
+    while (of_address_to_resource(np, num_reg, &temp_res) == 0)
+        num_reg++;
 
     dev->dev.of_node = of_node_get(np);
+    dev->dev.parent = parent ? : &platform_bus;
 
     if (bus_id)
         dev_set_name(&dev->dev, "%s", bus_id);
@@ -356,6 +368,11 @@ int
 platform_bus_init(void)
 {
     int error;
+    error = device_register(&platform_bus);
+    if (error) {
+        put_device(&platform_bus);
+        return error;
+    }
     error = bus_register(&platform_bus_type);
     if (error)
         panic("can not register platform bus type!");
@@ -393,6 +410,53 @@ of_match_device(const struct of_device_id *matches, const struct device *dev)
     return of_match_node(matches, dev->of_node);
 }
 EXPORT_SYMBOL(of_match_device);
+
+struct resource *
+platform_get_resource(struct platform_device *dev,
+                      unsigned int type,
+                      unsigned int num)
+{
+    u32 i;
+
+    for (i = 0; i < dev->num_resources; i++) {
+        struct resource *r = &dev->resource[i];
+        if (type == resource_type(r) && num-- == 0)
+            return r;
+    }
+    return NULL;
+}
+EXPORT_SYMBOL(platform_get_resource);
+
+void *
+devm_platform_get_and_ioremap_resource(struct platform_device *pdev,
+                                       unsigned int index,
+                                       struct resource **res)
+{
+    struct resource *r;
+    r = platform_get_resource(pdev, IORESOURCE_MEM, index);
+    if (res)
+        *res = r;
+    return devm_ioremap_resource(&pdev->dev, r);
+}
+EXPORT_SYMBOL(devm_platform_get_and_ioremap_resource);
+
+void *
+devm_platform_ioremap_resource(struct platform_device *pdev,
+                               unsigned int index)
+{
+    return devm_platform_get_and_ioremap_resource(pdev, index, NULL);
+}
+EXPORT_SYMBOL(devm_platform_ioremap_resource);
+
+struct device_node *
+of_get_parent(const struct device_node *node)
+{
+    if (!node)
+        return NULL;
+
+    return of_node_get(node->parent);
+}
+EXPORT_SYMBOL(of_get_parent);
 
 static int
 init_module(void)

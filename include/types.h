@@ -2,6 +2,12 @@
 #ifndef _LINUX_TYPES_H
 #define _LINUX_TYPES_H
 
+#define swab32(x) ((u32)(                    \
+    (((u32)(x) & (u32)0x000000ffUL) << 24) | \
+    (((u32)(x) & (u32)0x0000ff00UL) <<  8) | \
+    (((u32)(x) & (u32)0x00ff0000UL) >>  8) | \
+    (((u32)(x) & (u32)0xff000000UL) >> 24)))
+
 #ifndef __ASSEMBLY__
 
 extern const unsigned char _ctype[];
@@ -127,16 +133,15 @@ typedef unsigned int slab_flags_t;
  */
 #define pgoff_t unsigned long
 
+static inline u32 __swab32p(const u32 *p)
+{
+    return swab32(*p);
+}
+
 #endif /*  __ASSEMBLY__ */
 
-#define swab32(x) ((u32)(                    \
-    (((u32)(x) & (u32)0x000000ffUL) << 24) | \
-    (((u32)(x) & (u32)0x0000ff00UL) <<  8) | \
-    (((u32)(x) & (u32)0x00ff0000UL) >>  8) | \
-    (((u32)(x) & (u32)0xff000000UL) >> 24)))
-
 #define be32_to_cpu(x)  swab32((u32)(x))
-#define be32_to_cpup(x) swab32(*((u32*)(x)))
+#define be32_to_cpup(x) __swab32p((u32 *)(x))
 #define cpu_to_be32(x)  ((u32)swab32((x)))
 
 #define _ALIGN_MASK(x, mask)    (((x) + (mask)) & ~(mask))

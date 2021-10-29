@@ -2,7 +2,19 @@
 
 #include <errno.h>
 #include <export.h>
+#include <virtio.h>
 #include <platform.h>
+
+struct virtio_mmio_device {
+    struct virtio_device vdev;
+    struct platform_device *pdev;
+
+    void *base;
+    unsigned long version;
+
+    /* a list of queues so we can dispatch IRQs */
+    struct list_head virtqueues;
+};
 
 /* Platform driver */
 
@@ -13,7 +25,17 @@ static const struct of_device_id virtio_mmio_match[] = {
 
 static int virtio_mmio_probe(struct platform_device *pdev)
 {
-    printk("%s: \n", __func__);
+    struct virtio_mmio_device *vm_dev;
+
+    vm_dev = devm_kzalloc(&pdev->dev, sizeof(*vm_dev), GFP_KERNEL);
+    if (!vm_dev)
+        return -ENOMEM;
+
+    vm_dev->base = devm_platform_ioremap_resource(pdev, 0);
+    if (IS_ERR(vm_dev->base))
+        return PTR_ERR(vm_dev->base);
+
+    printk("%s: ok!\n", __func__);
     return -ENODEV;
 }
 

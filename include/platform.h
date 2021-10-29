@@ -5,6 +5,7 @@
 #include <fdt.h>
 #include <device.h>
 #include <driver.h>
+#include <ioport.h>
 
 #define PLATFORM_DEVID_NONE (-1)
 #define PLATFORM_DEVID_AUTO (-2)
@@ -28,6 +29,9 @@ struct platform_device {
     int id;
 
     struct device dev;
+
+    u32 num_resources;
+    struct resource *resource;
 };
 
 #define to_platform_device(x) \
@@ -57,5 +61,17 @@ of_driver_match_device(struct device *dev,
 {
     return of_match_device(drv->of_match_table, dev) != NULL;
 }
+
+void *
+devm_platform_ioremap_resource(struct platform_device *pdev,
+                               unsigned int index);
+
+int
+of_address_to_resource(struct device_node *dev,
+                       int index,
+                       struct resource *r);
+
+struct device_node *
+of_get_parent(const struct device_node *node);
 
 #endif /* OF_PLATFORM_H */

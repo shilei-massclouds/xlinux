@@ -70,4 +70,16 @@
 
 #define EPROBE_DEFER    517 /* Driver requests probe retry */
 
+static inline void *
+ERR_PTR(long error)
+{
+    return (void *) error;
+}
+
+static inline long
+PTR_ERR(const void *ptr)
+{
+    return (long) ptr;
+}
+
 #endif

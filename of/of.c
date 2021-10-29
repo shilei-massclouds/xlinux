@@ -545,7 +545,7 @@ __unflatten_device_tree(const void *blob,
 	/* Second pass, do actual unflattening */
 	unflatten_dt_nodes(blob, mem, dad, mynodes);
 	if (be32_to_cpup(mem + size) != 0xdeadbeef)
-		panic("End of tree marker overwritten: %08x\n",
+		panic("End of tree marker overwritten: %x\n",
               be32_to_cpup(mem + size));
 
 	printk(" <- unflatten_device_tree()\n");
@@ -562,6 +562,106 @@ unflatten_device_tree(void)
     printk("stdout (%s)\n", of_stdout->full_name);
 }
 EXPORT_SYMBOL(unflatten_device_tree);
+
+int
+of_bus_n_addr_cells(struct device_node *np)
+{
+    u32 cells;
+
+    for (; np; np = np->parent)
+        if (!of_property_read_u32(np, "#address-cells", &cells))
+            return cells;
+
+    /* No #address-cells property for the root node */
+    return OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
+}
+
+int
+of_n_addr_cells(struct device_node *np)
+{
+    if (np->parent)
+        np = np->parent;
+
+    return of_bus_n_addr_cells(np);
+}
+EXPORT_SYMBOL(of_n_addr_cells);
+
+int
+of_bus_n_size_cells(struct device_node *np)
+{
+    u32 cells;
+
+    for (; np; np = np->parent)
+        if (!of_property_read_u32(np, "#size-cells", &cells))
+            return cells;
+
+    /* No #size-cells property for the root node */
+    return OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
+}
+
+int of_n_size_cells(struct device_node *np)
+{
+    if (np->parent)
+        np = np->parent;
+
+    return of_bus_n_size_cells(np);
+}
+EXPORT_SYMBOL(of_n_size_cells);
+
+static void *
+of_find_property_value_of_size(const struct device_node *np,
+                               const char *propname,
+                               u32 min,
+                               u32 max,
+                               size_t *len)
+{
+    struct property *prop = of_find_property(np, propname, NULL);
+
+    if (!prop)
+        return ERR_PTR(-EINVAL);
+    if (!prop->value)
+        return ERR_PTR(-ENODATA);
+    if (prop->length < min)
+        return ERR_PTR(-EOVERFLOW);
+    if (max && prop->length > max)
+        return ERR_PTR(-EOVERFLOW);
+
+    if (len)
+        *len = prop->length;
+
+    return prop->value;
+}
+
+int
+of_property_read_variable_u32_array(const struct device_node *np,
+                                    const char *propname,
+                                    u32 *out_values,
+                                    size_t sz_min,
+                                    size_t sz_max)
+{
+    size_t sz, count;
+    const u32 *val;
+
+    val = of_find_property_value_of_size(np, propname,
+                                         (sz_min * sizeof(*out_values)),
+                                         (sz_max * sizeof(*out_values)),
+                                         &sz);
+
+    if (IS_ERR(val))
+        return PTR_ERR(val);
+
+    if (!sz_max)
+        sz = sz_min;
+    else
+        sz /= sizeof(*out_values);
+
+    count = sz;
+    while (count--)
+        *out_values++ = be32_to_cpup(val++);
+
+    return sz;
+}
+EXPORT_SYMBOL(of_property_read_variable_u32_array);
 
 static int
 init_module(void)

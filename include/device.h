@@ -2,8 +2,11 @@
 #ifndef _DEVICE_H_
 #define _DEVICE_H_
 
+#include <gfp.h>
 #include <klist.h>
+#include <ioport.h>
 #include <kobject.h>
+#include <string.h>
 
 struct device;
 struct device_driver;
@@ -52,6 +55,8 @@ struct device {
     void *platform_data;
     struct device_node *of_node; /* associated device tree node */
 
+    struct list_head devres_head;
+
     struct device_driver *driver;
 };
 
@@ -74,5 +79,25 @@ dev_name(const struct device *dev)
 extern int bus_register(struct bus_type *bus);
 
 int dev_set_name(struct device *dev, const char *fmt, ...);
+
+void *
+devm_kmalloc(struct device *dev, size_t size, gfp_t gfp);
+
+static inline void *
+devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
+{
+    return devm_kmalloc(dev, size, gfp | __GFP_ZERO);
+}
+
+typedef void (*dr_release_t)(struct device *dev, void *res);
+
+void
+device_initialize(struct device *dev);
+
+void *
+devm_ioremap_resource(struct device *dev, const struct resource *res);
+
+int
+device_register(struct device *dev);
 
 #endif /* _DEVICE_H_ */
