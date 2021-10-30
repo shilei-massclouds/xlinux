@@ -29,6 +29,14 @@ struct devres {
     u8 __aligned(ARCH_KMALLOC_MINALIGN) data[];
 };
 
+struct resource iomem_resource = {
+    .name   = "PCI mem",
+    .start  = 0,
+    .end    = -1,
+    .flags  = IORESOURCE_MEM,
+};
+EXPORT_SYMBOL(iomem_resource);
+
 static int
 device_private_init(struct device *dev)
 {
@@ -137,6 +145,18 @@ devres_add(struct device *dev, void *res)
 }
 EXPORT_SYMBOL(devres_add);
 
+void
+devres_free(void *res)
+{
+    if (res) {
+        struct devres *dr = container_of(res, struct devres, data);
+
+        BUG_ON(!list_empty(&dr->node.entry));
+        kfree(dr);
+    }
+}
+EXPORT_SYMBOL(devres_free);
+
 void *
 devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 {
@@ -167,12 +187,106 @@ device_initialize(struct device *dev)
 }
 EXPORT_SYMBOL(device_initialize);
 
+static inline void
+iounmap(void *addr)
+{
+    panic("not this function!");
+}
+
+static inline void *
+ioremap(phys_addr_t addr, size_t size)
+{
+    panic("not this function!");
+}
+
+static inline void *
+ioremap_uc(phys_addr_t addr, size_t size)
+{
+    panic("not this function!");
+}
+
+static inline void *
+ioremap_wc(phys_addr_t addr, size_t size)
+{
+    panic("not this function!");
+}
+
+void
+devm_ioremap_release(struct device *dev, void *res)
+{
+    iounmap(*(void **)res);
+}
+
+static void *
+__devm_ioremap(struct device *dev, resource_size_t offset,
+               resource_size_t size, enum devm_ioremap_type type)
+{
+    void **ptr, *addr = NULL;
+
+    ptr = devres_alloc(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL);
+    if (!ptr)
+        return NULL;
+
+    switch (type) {
+    case DEVM_IOREMAP:
+        addr = ioremap(offset, size);
+        break;
+    case DEVM_IOREMAP_UC:
+        addr = ioremap_uc(offset, size);
+        break;
+    case DEVM_IOREMAP_WC:
+        addr = ioremap_wc(offset, size);
+        break;
+    }
+
+    if (addr) {
+        *ptr = addr;
+        devres_add(dev, ptr);
+    } else
+        devres_free(ptr);
+
+    return addr;
+}
+
 static void *
 __devm_ioremap_resource(struct device *dev,
                         const struct resource *res,
                         enum devm_ioremap_type type)
 {
-    panic("%s: res(%lx) type(%u)!", __func__, res, type);
+    resource_size_t size;
+    void *dest_ptr;
+    char *pretty_name;
+
+    BUG_ON(!dev);
+
+    if (!res || resource_type(res) != IORESOURCE_MEM) {
+        panic("invalid resource");
+        return IOMEM_ERR_PTR(-EINVAL);
+    }
+
+    size = resource_size(res);
+
+    if (res->name)
+        pretty_name = devm_kasprintf(dev, GFP_KERNEL, "%s %s",
+                                     dev_name(dev), res->name);
+    else
+        pretty_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
+    if (!pretty_name)
+        return IOMEM_ERR_PTR(-ENOMEM);
+
+    if (!devm_request_mem_region(dev, res->start, size, pretty_name)) {
+        panic("can't request region for resource %lxR\n", res);
+        return IOMEM_ERR_PTR(-EBUSY);
+    }
+
+    dest_ptr = __devm_ioremap(dev, res->start, size, type);
+    if (!dest_ptr) {
+        panic("ioremap failed for resource %lxR\n", res);
+        devm_release_mem_region(dev, res->start, size);
+        dest_ptr = IOMEM_ERR_PTR(-ENOMEM);
+    }
+
+    return dest_ptr;
 }
 
 void *
@@ -189,3 +303,202 @@ device_register(struct device *dev)
     return device_add(dev);
 }
 EXPORT_SYMBOL(device_register);
+
+char *
+devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt, va_list ap)
+{
+    unsigned int len;
+    char *p;
+    va_list aq;
+
+    va_copy(aq, ap);
+    len = vsnprintf(NULL, 0, fmt, aq);
+    va_end(aq);
+
+    p = devm_kmalloc(dev, len+1, gfp);
+    if (!p)
+        return NULL;
+
+    vsnprintf(p, len+1, fmt, ap);
+
+    return p;
+}
+EXPORT_SYMBOL(devm_kvasprintf);
+
+char *
+devm_kasprintf(struct device *dev, gfp_t gfp, const char *fmt, ...)
+{
+    va_list ap;
+    char *p;
+
+    va_start(ap, fmt);
+    p = devm_kvasprintf(dev, gfp, fmt, ap);
+    va_end(ap);
+
+    return p;
+}
+EXPORT_SYMBOL(devm_kasprintf);
+
+char *
+devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
+{
+    size_t size;
+    char *buf;
+
+    if (!s)
+        return NULL;
+
+    size = strlen(s) + 1;
+    buf = devm_kmalloc(dev, size, gfp);
+    if (buf)
+        memcpy(buf, s, size);
+    return buf;
+}
+EXPORT_SYMBOL(devm_kstrdup);
+
+void
+__release_region(struct resource *parent,
+                 resource_size_t start,
+                 resource_size_t n)
+{
+    panic("%s not work!", __func__);
+}
+
+struct region_devres {
+    struct resource *parent;
+    resource_size_t start;
+    resource_size_t n;
+};
+
+static void
+devm_region_release(struct device *dev, void *res)
+{
+    struct region_devres *this = res;
+
+    __release_region(this->parent, this->start, this->n);
+}
+
+static struct resource *bootmem_resource_free;
+
+static struct resource *
+alloc_resource(gfp_t flags)
+{
+    struct resource *res = NULL;
+
+    if (bootmem_resource_free) {
+        res = bootmem_resource_free;
+        bootmem_resource_free = res->sibling;
+    }
+
+    if (res)
+        memset(res, 0, sizeof(struct resource));
+    else
+        res = kzalloc(sizeof(struct resource), flags);
+
+    return res;
+}
+
+static struct resource *
+__request_resource(struct resource *root, struct resource *new)
+{
+    resource_size_t start = new->start;
+    resource_size_t end = new->end;
+    struct resource *tmp, **p;
+
+    if (end < start)
+        return root;
+    if (start < root->start)
+        return root;
+    if (end > root->end)
+        return root;
+    p = &root->child;
+    for (;;) {
+        tmp = *p;
+        if (!tmp || tmp->start > end) {
+            new->sibling = tmp;
+            *p = new;
+            new->parent = root;
+            return NULL;
+        }
+        p = &tmp->sibling;
+        if (tmp->end < start)
+            continue;
+        return tmp;
+    }
+}
+
+struct resource *
+__request_region(struct resource *parent,
+                 resource_size_t start,
+                 resource_size_t n,
+                 const char *name,
+                 int flags)
+{
+    struct resource *res = alloc_resource(GFP_KERNEL);
+    struct resource *orig_parent = parent;
+
+    if (!res)
+        return NULL;
+
+    res->name = name;
+    res->start = start;
+    res->end = start + n - 1;
+
+    for (;;) {
+        struct resource *conflict;
+
+        res->flags = resource_type(parent) | resource_ext_type(parent);
+        res->flags |= IORESOURCE_BUSY | flags;
+        res->desc = parent->desc;
+
+        conflict = __request_resource(parent, res);
+        if (!conflict)
+            break;
+
+        panic("%s: find conflict!", __func__);
+    }
+
+    return res;
+}
+
+struct resource *
+__devm_request_region(struct device *dev,
+                      struct resource *parent,
+                      resource_size_t start,
+                      resource_size_t n,
+                      const char *name)
+{
+    struct region_devres *dr = NULL;
+    struct resource *res;
+
+    dr = devres_alloc(devm_region_release,
+                      sizeof(struct region_devres),
+                      GFP_KERNEL);
+    if (!dr)
+        return NULL;
+
+    dr->parent = parent;
+    dr->start = start;
+    dr->n = n;
+
+    res = __request_region(parent, start, n, name, 0);
+    if (res)
+        devres_add(dev, dr);
+    else
+        devres_free(dr);
+
+    return res;
+}
+EXPORT_SYMBOL(__devm_request_region);
+
+void *
+devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp)
+{
+    struct devres *dr;
+
+    dr = alloc_dr(release, size, gfp | __GFP_ZERO);
+    if (unlikely(!dr))
+        return NULL;
+    return dr->data;
+}
+EXPORT_SYMBOL(devres_alloc_node);

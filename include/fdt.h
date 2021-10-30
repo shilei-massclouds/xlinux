@@ -22,6 +22,8 @@
 #define OF_OVERLAY          5 /* allocated for an overlay */
 #define OF_OVERLAY_FREE_CSET    6 /* in overlay cset being freed */
 
+#define OF_BAD_ADDR ((u64)-1)
+
 typedef u32 phandle;
 
 struct device_node {

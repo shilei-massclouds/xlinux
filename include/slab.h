@@ -105,6 +105,30 @@ kzalloc(size_t size, gfp_t flags)
     return kmalloc(size, flags | __GFP_ZERO);
 }
 
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+static inline void *
+kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+    return __kmalloc(n * size, flags);
+}
+
+/**
+ * kcalloc - allocate memory for an array. The memory is set to zero.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+static inline void *
+kcalloc(size_t n, size_t size, gfp_t flags)
+{
+    return kmalloc_array(n, size, flags | __GFP_ZERO);
+}
+
 void kfree(const void *objp);
 
 static __always_inline unsigned int

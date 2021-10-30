@@ -74,4 +74,7 @@ of_address_to_resource(struct device_node *dev,
 struct device_node *
 of_get_parent(const struct device_node *node);
 
+void
+platform_device_put(struct platform_device *pdev);
+
 #endif /* OF_PLATFORM_H */

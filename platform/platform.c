@@ -181,8 +181,11 @@ of_device_alloc(struct device_node *np,
                 const char *bus_id,
                 struct device *parent)
 {
+    int i;
+    int rc;
     struct platform_device *dev;
     struct resource temp_res;
+    struct resource *res;
     int num_reg = 0;
 
     dev = platform_device_alloc("", PLATFORM_DEVID_NONE);
@@ -192,6 +195,22 @@ of_device_alloc(struct device_node *np,
     /* count the io and irq resources */
     while (of_address_to_resource(np, num_reg, &temp_res) == 0)
         num_reg++;
+
+    /* Populate the resource table */
+    if (num_reg) {
+        res = kcalloc(num_reg, sizeof(*res), GFP_KERNEL);
+        if (!res) {
+            platform_device_put(dev);
+            return NULL;
+        }
+
+        dev->num_resources = num_reg;
+        dev->resource = res;
+        for (i = 0; i < num_reg; i++, res++) {
+            rc = of_address_to_resource(np, i, res);
+            BUG_ON(rc);
+        }
+    }
 
     dev->dev.of_node = of_node_get(np);
     dev->dev.parent = parent ? : &platform_bus;

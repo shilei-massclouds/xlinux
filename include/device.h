@@ -5,8 +5,8 @@
 #include <gfp.h>
 #include <klist.h>
 #include <ioport.h>
-#include <kobject.h>
 #include <string.h>
+#include <kobject.h>
 
 struct device;
 struct device_driver;
@@ -99,5 +99,23 @@ devm_ioremap_resource(struct device *dev, const struct resource *res);
 
 int
 device_register(struct device *dev);
+
+char *
+devm_kasprintf(struct device *dev, gfp_t gfp, const char *fmt, ...);
+
+char *
+devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt, va_list ap);
+
+char *
+devm_kstrdup(struct device *dev, const char *s, gfp_t gfp);
+
+void *
+devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp);
+
+static inline void *
+devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
+{
+    return devres_alloc_node(release, size, gfp);
+}
 
 #endif /* _DEVICE_H_ */
