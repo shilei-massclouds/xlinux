@@ -502,3 +502,11 @@ devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp)
     return dr->data;
 }
 EXPORT_SYMBOL(devres_alloc_node);
+
+void
+__devm_release_region(struct device *dev, struct resource *parent,
+                      resource_size_t start, resource_size_t n)
+{
+    /* Todo */
+}
+EXPORT_SYMBOL(__devm_release_region);
