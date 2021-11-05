@@ -27,7 +27,10 @@ __rb_rotate_set_parents(struct rb_node *old, struct rb_node *new,
 }
 
 static __always_inline void
-__rb_insert(struct rb_node *node, struct rb_root *root)
+__rb_insert(struct rb_node *node,
+            struct rb_root *root,
+            void (*augment_rotate)(struct rb_node *old,
+                                   struct rb_node *new))
 {
     struct rb_node *tmp;
     struct rb_node *gparent;
@@ -103,6 +106,7 @@ __rb_insert(struct rb_node *node, struct rb_root *root)
                     rb_set_parent_color(tmp, parent, RB_BLACK);
 
                 rb_set_parent_color(parent, node, RB_RED);
+                augment_rotate(parent, node);
                 parent = node;
                 tmp = node->rb_right;
             }
@@ -123,6 +127,7 @@ __rb_insert(struct rb_node *node, struct rb_root *root)
                 rb_set_parent_color(tmp, gparent, RB_BLACK);
 
             __rb_rotate_set_parents(gparent, parent, root, RB_RED);
+            augment_rotate(gparent, parent);
             break;
         } else {    /* parent == gparent->rb_right */
             tmp = gparent->rb_left;
@@ -146,6 +151,7 @@ __rb_insert(struct rb_node *node, struct rb_root *root)
                     rb_set_parent_color(tmp, parent, RB_BLACK);
 
                 rb_set_parent_color(parent, node, RB_RED);
+                augment_rotate(parent, node);
                 parent = node;
                 tmp = node->rb_left;
             }
@@ -157,20 +163,38 @@ __rb_insert(struct rb_node *node, struct rb_root *root)
                 rb_set_parent_color(tmp, gparent, RB_BLACK);
 
             __rb_rotate_set_parents(gparent, parent, root, RB_RED);
+            augment_rotate(gparent, parent);
             break;
         }
     }
 }
 
+static inline void
+dummy_propagate(struct rb_node *node, struct rb_node *stop) {}
+static inline void
+dummy_copy(struct rb_node *old, struct rb_node *new) {}
+static inline void
+dummy_rotate(struct rb_node *old, struct rb_node *new) {}
+
+static const struct rb_augment_callbacks
+dummy_callbacks = {
+    .propagate = dummy_propagate,
+    .copy = dummy_copy,
+    .rotate = dummy_rotate
+};
+
 void
 rb_insert_color(struct rb_node *node, struct rb_root *root)
 {
-    __rb_insert(node, root);
+    __rb_insert(node, root, dummy_rotate);
 }
 EXPORT_SYMBOL(rb_insert_color);
 
 static __always_inline void
-____rb_erase_color(struct rb_node *parent, struct rb_root *root)
+____rb_erase_color(struct rb_node *parent,
+                   struct rb_root *root,
+                   void (*augment_rotate)(struct rb_node *old,
+                                          struct rb_node *new))
 {
     struct rb_node *sibling;
     struct rb_node *tmp1;
@@ -202,6 +226,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
                 WRITE_ONCE(sibling->rb_left, parent);
                 rb_set_parent_color(tmp1, parent, RB_BLACK);
                 __rb_rotate_set_parents(parent, sibling, root, RB_RED);
+                augment_rotate(parent, sibling);
                 sibling = tmp1;
             }
             tmp1 = sibling->rb_right;
@@ -268,6 +293,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
                 if (tmp1)
                     rb_set_parent_color(tmp1, sibling, RB_BLACK);
 
+                augment_rotate(sibling, tmp2);
                 tmp1 = sibling;
                 sibling = tmp2;
             }
@@ -289,8 +315,8 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
             rb_set_parent_color(tmp1, sibling, RB_BLACK);
             if (tmp2)
                 rb_set_parent(tmp2, parent);
-            __rb_rotate_set_parents(parent, sibling, root,
-                        RB_BLACK);
+            __rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
+            augment_rotate(parent, sibling);
             break;
         } else {
             sibling = parent->rb_left;
@@ -301,6 +327,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
                 WRITE_ONCE(sibling->rb_right, parent);
                 rb_set_parent_color(tmp1, parent, RB_BLACK);
                 __rb_rotate_set_parents(parent, sibling, root, RB_RED);
+                augment_rotate(parent, sibling);
                 sibling = tmp1;
             }
             tmp1 = sibling->rb_left;
@@ -327,6 +354,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
                 if (tmp1)
                     rb_set_parent_color(tmp1, sibling, RB_BLACK);
 
+                augment_rotate(sibling, tmp2);
                 tmp1 = sibling;
                 sibling = tmp2;
             }
@@ -338,13 +366,16 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
             if (tmp2)
                 rb_set_parent(tmp2, parent);
             __rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
+            augment_rotate(parent, sibling);
             break;
         }
     }
 }
 
-static __always_inline struct rb_node *
-__rb_erase_augmented(struct rb_node *node, struct rb_root *root)
+struct rb_node *
+__rb_erase_augmented(struct rb_node *node,
+                     struct rb_root *root,
+                     const struct rb_augment_callbacks *augment)
 {
     unsigned long pc;
     struct rb_node *parent;
@@ -392,6 +423,8 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root)
              */
             parent = successor;
             child2 = successor->rb_right;
+
+            augment->copy(node, successor);
         } else {
             /*
              * Case 3: node's successor is leftmost under
@@ -416,6 +449,9 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root)
             WRITE_ONCE(parent->rb_left, child2);
             WRITE_ONCE(successor->rb_right, child);
             rb_set_parent(child, successor);
+
+            augment->copy(node, successor);
+            augment->propagate(parent, successor);
         }
 
         tmp = node->rb_left;
@@ -437,16 +473,37 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root)
 
     return rebalance;
 }
+EXPORT_SYMBOL(__rb_erase_augmented);
 
 void
 rb_erase(struct rb_node *node, struct rb_root *root)
 {
     struct rb_node *rebalance;
-    rebalance = __rb_erase_augmented(node, root);
+    rebalance = __rb_erase_augmented(node, root, &dummy_callbacks);
     if (rebalance)
-        ____rb_erase_color(rebalance, root);
+        ____rb_erase_color(rebalance, root, dummy_rotate);
 }
 EXPORT_SYMBOL(rb_erase);
+
+void
+__rb_insert_augmented(struct rb_node *node,
+                      struct rb_root *root,
+                      void (*augment_rotate)(struct rb_node *old,
+                                             struct rb_node *new))
+{
+    __rb_insert(node, root, augment_rotate);
+}
+EXPORT_SYMBOL(__rb_insert_augmented);
+
+void
+__rb_erase_color(struct rb_node *parent,
+                 struct rb_root *root,
+                 void (*augment_rotate)(struct rb_node *old,
+                                        struct rb_node *new))
+{
+    ____rb_erase_color(parent, root, augment_rotate);
+}
+EXPORT_SYMBOL(__rb_erase_color);
 
 static int
 init_module(void)
