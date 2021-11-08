@@ -40,7 +40,17 @@ struct rb_augment_callbacks {
 
 #define RB_EMPTY_ROOT(root) (READ_ONCE((root)->rb_node) == NULL)
 
+#define RB_EMPTY_NODE(node) \
+    ((node)->__rb_parent_color == (unsigned long)(node))
+#define RB_CLEAR_NODE(node) \
+    ((node)->__rb_parent_color = (unsigned long)(node))
+
 #define rb_entry(ptr, type, member) container_of(ptr, type, member)
+
+#define rb_entry_safe(ptr, type, member) \
+    ({ typeof(ptr) ____ptr = (ptr); \
+        ____ptr ? rb_entry(____ptr, type, member) : NULL; \
+     })
 
 void rb_insert_color(struct rb_node *, struct rb_root *);
 void rb_erase(struct rb_node *, struct rb_root *);

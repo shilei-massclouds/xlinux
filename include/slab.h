@@ -11,6 +11,9 @@
 #include <kernel.h>
 #include <compiler_attributes.h>
 
+/* Panic if kmem_cache_create() fails */
+#define SLAB_PANIC      ((slab_flags_t __force)0x00040000U)
+
 #define KMALLOC_SHIFT_HIGH  (MAX_ORDER + PAGE_SHIFT - 1)
 #define KMALLOC_SHIFT_MAX   KMALLOC_SHIFT_HIGH
 #define KMALLOC_SHIFT_LOW   5
@@ -41,6 +44,22 @@
 #define SLAB_HWCACHE_ALIGN      ((slab_flags_t)0x00002000U)
 #define ARCH_SLAB_MINALIGN      __alignof__(unsigned long long)
 #define ARCH_KMALLOC_MINALIGN   __alignof__(unsigned long long)
+
+/*
+ * Please use this macro to create slab caches. Simply specify the
+ * name of the structure and maybe some flags that are listed above.
+ *
+ * The alignment of the struct determines object alignment. If you
+ * f.e. add ____cacheline_aligned_in_smp to the struct declaration
+ * then the objects will be properly aligned in SMP configurations.
+ */
+#define KMEM_CACHE(__struct, __flags) \
+    kmem_cache_create(#__struct, sizeof(struct __struct), \
+                      __alignof__(struct __struct), (__flags))
+
+struct kmem_cache *
+kmem_cache_create(const char *name, unsigned int size,
+                  unsigned int align, slab_flags_t flags);
 
 enum slab_state {
     DOWN,           /* No slab functionality yet */
@@ -89,15 +108,17 @@ extern const struct kmalloc_info_struct {
     unsigned int size;
 } kmalloc_info[];
 
-void *__kmalloc(size_t size, gfp_t flags);
+extern struct kmem_cache *kmalloc_caches[];
 
 void kmem_cache_init(void);
 
-static __always_inline void *
-kmalloc(size_t size, gfp_t flags)
-{
-    return __kmalloc(size, flags);
-}
+typedef void *
+(*kmalloc_t)(size_t size, gfp_t flags);
+extern kmalloc_t kmalloc;
+
+typedef void
+(*kfree_t)(const void *objp);
+extern kfree_t kfree;
 
 static inline void *
 kzalloc(size_t size, gfp_t flags)
@@ -114,7 +135,7 @@ kzalloc(size_t size, gfp_t flags)
 static inline void *
 kmalloc_array(size_t n, size_t size, gfp_t flags)
 {
-    return __kmalloc(n * size, flags);
+    return kmalloc(n * size, flags);
 }
 
 /**
@@ -128,8 +149,6 @@ kcalloc(size_t n, size_t size, gfp_t flags)
 {
     return kmalloc_array(n, size, flags | __GFP_ZERO);
 }
-
-void kfree(const void *objp);
 
 static __always_inline unsigned int
 kmalloc_index(size_t size)
@@ -175,8 +194,13 @@ kmalloc_index(size_t size)
     return -1;
 }
 
-void *
-kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags);
+typedef void *
+(*kmem_cache_alloc_t)(struct kmem_cache *cachep, gfp_t flags);
+extern kmem_cache_alloc_t kmem_cache_alloc;
+
+typedef void
+(*kmem_cache_free_t)(struct kmem_cache *cachep, void *objp);
+extern kmem_cache_free_t kmem_cache_free;
 
 static inline void *
 kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
@@ -210,16 +234,10 @@ obj_to_index(const struct kmem_cache *cache,
     return (obj - page->s_mem) / cache->size;
 }
 
-static __always_inline void *
-__kmalloc_node(size_t size, gfp_t flags)
+static inline struct kmem_cache *
+cache_from_obj(struct kmem_cache *s, void *x)
 {
-    return __kmalloc(size, flags);
-}
-
-static __always_inline void *
-kmalloc_node(size_t size, gfp_t flags)
-{
-    return __kmalloc_node(size, flags);
+    return s;
 }
 
 #endif /* _LINUX_SLAB_H */

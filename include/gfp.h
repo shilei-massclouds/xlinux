@@ -11,12 +11,19 @@
 #define ___GFP_DMA32            0x04u
 #define ___GFP_MOVABLE          0x08u
 #define ___GFP_RECLAIMABLE      0x10u
+#define ___GFP_HIGH             0x20u
 #define ___GFP_IO               0x40u
 #define ___GFP_FS               0x80u
 #define ___GFP_ZERO             0x100u
+#define ___GFP_ATOMIC           0x200u
 #define ___GFP_DIRECT_RECLAIM   0x400u
 #define ___GFP_KSWAPD_RECLAIM   0x800u
+#define ___GFP_NOWARN           0x2000u
+#define ___GFP_RETRY_MAYFAIL    0x4000u
 #define ___GFP_NOFAIL           0x8000u
+#define ___GFP_NORETRY          0x10000u
+#define ___GFP_MEMALLOC         0x20000u
+#define ___GFP_NOMEMALLOC       0x80000u
 
 /*
  * %__GFP_DIRECT_RECLAIM indicates that the caller may enter direct
@@ -37,9 +44,13 @@
 
 #define __GFP_IO    ((gfp_t)___GFP_IO)
 #define __GFP_FS    ((gfp_t)___GFP_FS)
-#define __GFP_ZERO  ((gfp_t)___GFP_ZERO)
 
-#define __GFP_NOFAIL    ((gfp_t)___GFP_NOFAIL)
+#define __GFP_NOWARN    ((gfp_t)___GFP_NOWARN)
+#define __GFP_ZERO      ((gfp_t)___GFP_ZERO)
+
+#define __GFP_NOFAIL        ((gfp_t)___GFP_NOFAIL)
+#define __GFP_RETRY_MAYFAIL ((gfp_t)___GFP_RETRY_MAYFAIL)
+#define __GFP_NORETRY       ((gfp_t)___GFP_NORETRY)
 
 #define __GFP_RECLAIMABLE ((gfp_t)___GFP_RECLAIMABLE)
 
@@ -47,6 +58,11 @@
 #define __GFP_KSWAPD_RECLAIM    ((gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
 
 #define __GFP_RECLAIM ((gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
+
+#define __GFP_ATOMIC        ((__force gfp_t)___GFP_ATOMIC)
+#define __GFP_HIGH          ((__force gfp_t)___GFP_HIGH)
+#define __GFP_MEMALLOC      ((__force gfp_t)___GFP_MEMALLOC)
+#define __GFP_NOMEMALLOC    ((__force gfp_t)___GFP_NOMEMALLOC)
 
 /*
  * %GFP_KERNEL is typical for kernel-internal allocations.
@@ -73,6 +89,18 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order)
 void __free_pages(struct page *page, unsigned int order);
 
 unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+
+/*
+ * The set of flags that only affect watermark checking and reclaim
+ * behaviour. This is used by the MM to obey the caller constraints
+ * about IO, FS and watermark checking while ignoring placement
+ * hints such as HIGHMEM usage.
+ */
+#define GFP_RECLAIM_MASK                            \
+    (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|    \
+     __GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NOFAIL| \
+     __GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC| \
+     __GFP_ATOMIC)
 
 #define __GFP_DMA       ((__force gfp_t)___GFP_DMA)
 #define __GFP_HIGHMEM   ((__force gfp_t)___GFP_HIGHMEM)

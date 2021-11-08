@@ -5,10 +5,11 @@
 #include <list.h>
 #include <log2.h>
 #include <slab.h>
-#include <export.h>
 #include <kernel.h>
 #include <string.h>
 #include <printk.h>
+
+#include <export.h>
 
 #define BYTES_PER_WORD  sizeof(void *)
 
@@ -47,10 +48,6 @@ struct array_cache {
 
 extern size_t reserved_chunk_size;
 extern void *reserved_chunk_ptr;
-
-struct kmem_cache *
-kmalloc_caches[KMALLOC_SHIFT_HIGH + 1] = {};
-EXPORT_SYMBOL(kmalloc_caches);
 
 LIST_HEAD(slab_caches);
 
@@ -137,6 +134,9 @@ const struct kmalloc_info_struct kmalloc_info[] = {
     INIT_KMALLOC_INFO(33554432, 32M),
     INIT_KMALLOC_INFO(67108864, 64M)
 };
+
+struct kmem_cache *
+kmalloc_caches[KMALLOC_SHIFT_HIGH + 1] = {};
 
 static inline unsigned int
 size_index_elem(unsigned int bytes)
@@ -462,14 +462,18 @@ __do_kmalloc(size_t size, gfp_t flags, unsigned long caller)
 
     return slab_alloc(cachep, flags, caller);
 }
-EXPORT_SYMBOL(__do_kmalloc);
 
 void *
 __kmalloc(size_t size, gfp_t flags)
 {
     return __do_kmalloc(size, flags, _RET_IP_);
 }
-EXPORT_SYMBOL(__kmalloc);
+
+static void *
+_kmalloc(size_t size, gfp_t flags)
+{
+    return __kmalloc(size, flags);
+}
 
 static void
 kmem_cache_node_init(struct kmem_cache_node *node)
@@ -563,7 +567,7 @@ init_cache_node(struct kmem_cache *cachep, gfp_t gfp)
     if (cachep->node)
         return 0;
 
-    n = kmalloc_node(sizeof(struct kmem_cache_node), gfp);
+    n = kmalloc(sizeof(struct kmem_cache_node), gfp);
     if (!n)
         return -ENOMEM;
 
@@ -928,12 +932,11 @@ create_kmalloc_cache(const char *name, unsigned int size, slab_flags_t flags)
     return s;
 }
 
-void *
-kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+static void *
+_kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
     return slab_alloc(cachep, flags, _RET_IP_);
 }
-EXPORT_SYMBOL(kmem_cache_alloc);
 
 void setup_kmalloc_cache_index_table(void)
 {
@@ -1037,7 +1040,6 @@ kmem_cache_init(void)
 
     create_kmalloc_caches(ARCH_KMALLOC_FLAGS);
 }
-EXPORT_SYMBOL(kmem_cache_init);
 
 static void
 cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
@@ -1087,7 +1089,8 @@ __cache_free(struct kmem_cache *cachep, void *objp, unsigned long caller)
  * Don't free memory not originally allocated by kmalloc()
  * or you will run into trouble.
  */
-void kfree(const void *objp)
+static void
+_kfree(const void *objp)
 {
     struct kmem_cache *c;
     unsigned long flags;
@@ -1100,7 +1103,6 @@ void kfree(const void *objp)
     }
     __cache_free(c, (void *)objp, _RET_IP_);
 }
-EXPORT_SYMBOL(kfree);
 
 void
 kmem_cache_init_late(void)
@@ -1116,12 +1118,117 @@ kmem_cache_init_late(void)
     slab_state = FULL;
 }
 
+static struct kmem_cache *
+create_cache(const char *name,
+             unsigned int object_size,
+             unsigned int align,
+             slab_flags_t flags,
+             unsigned int useroffset,
+             unsigned int usersize,
+             struct kmem_cache *root_cache)
+{
+    struct kmem_cache *s;
+    int err;
+
+    BUG_ON(useroffset + usersize > object_size);
+
+    err = -ENOMEM;
+    s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
+    if (!s)
+        goto out;
+
+    s->name = name;
+    s->size = s->object_size = object_size;
+    s->align = align;
+
+    err = __kmem_cache_create(s, flags);
+    if (err)
+        goto out;
+
+    list_add(&s->list, &slab_caches);
+out:
+    if (err)
+        return ERR_PTR(err);
+    return s;
+}
+
+struct kmem_cache *
+kmem_cache_create_usercopy(const char *name,
+                           unsigned int size,
+                           unsigned int align,
+                           slab_flags_t flags,
+                           unsigned int useroffset,
+                           unsigned int usersize)
+{
+    const char *cache_name;
+    int err = 0;
+    struct kmem_cache *s = NULL;
+
+    cache_name = kstrdup_const(name, GFP_KERNEL);
+    if (!cache_name) {
+        err = -ENOMEM;
+        goto out_unlock;
+    }
+
+    s = create_cache(cache_name, size,
+                     calculate_alignment(flags, align, size),
+                     flags, useroffset, usersize, NULL);
+    if (IS_ERR(s)) {
+        err = PTR_ERR(s);
+        kfree_const(cache_name);
+    }
+
+out_unlock:
+
+    if (err) {
+        if (flags & SLAB_PANIC) {
+            panic("kmem_cache_create: Failed to create slab '%s'.(%d)",
+                  name, err);
+        } else {
+            panic("kmem_cache_create(%s) failed with error %d",
+                  name, err);
+        }
+        return NULL;
+    }
+    return s;
+}
+EXPORT_SYMBOL(kmem_cache_create_usercopy);
+
+struct kmem_cache *
+kmem_cache_create(const char *name,
+                  unsigned int size,
+                  unsigned int align,
+                  slab_flags_t flags)
+{
+    return kmem_cache_create_usercopy(name, size, align, flags, 0, 0);
+}
+EXPORT_SYMBOL(kmem_cache_create);
+
+static void
+_kmem_cache_free(struct kmem_cache *cachep, void *objp)
+{
+    unsigned long flags;
+    cachep = cache_from_obj(cachep, objp);
+    if (!cachep)
+        return;
+
+    __cache_free(cachep, objp, _RET_IP_);
+}
+
 static int
 init_module(void)
 {
     printk("module[slab]: init begin ...\n");
+
+    kmalloc = _kmalloc;
+    kfree = _kfree;
+
+    kmem_cache_alloc = _kmem_cache_alloc;
+    kmem_cache_free = _kmem_cache_free;
+
     kmem_cache_init();
     kmem_cache_init_late();
+
     printk("module[slab]: init end!\n");
     return 0;
 }
