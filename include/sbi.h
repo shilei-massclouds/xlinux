@@ -4,6 +4,7 @@
 #define _SBI_H
 
 #include <types.h>
+#include <compiler_attributes.h>
 
 void sbi_putchar(int ch);
 
