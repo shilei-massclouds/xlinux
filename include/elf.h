@@ -65,6 +65,7 @@
 
 /* Relocation types not used by the dynamic linker */
 #define R_RISCV_BRANCH          16
+#define R_RISCV_JAL             17
 #define R_RISCV_CALL            18
 #define R_RISCV_GOT_HI20        20
 #define R_RISCV_TLS_GOT_HI20    21

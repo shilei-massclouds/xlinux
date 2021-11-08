@@ -264,6 +264,17 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
             *location = (*location & 0xfff) | hi20;
             break;
         }
+        case R_RISCV_JAL: {
+            ptrdiff_t offset = (void *)v - (void *)location;
+            u32 imm20 = (offset & 0x100000) << (31 - 20);
+            u32 imm19_12 = (offset & 0xff000);
+            u32 imm11 = (offset & 0x800) << (20 - 11);
+            u32 imm10_1 = (offset & 0x7fe) << (30 - 10);
+
+            *location = (*location & 0xfff) |
+                imm20 | imm19_12 | imm11 | imm10_1;
+            break;
+        }
         case R_RISCV_CALL: {
             ptrdiff_t offset = (void *)v - (void *)location;
             s32 fill_v = offset;
@@ -357,7 +368,9 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
             break;
         }
         default:
-            sbi_puts("bad type!\n");
+            sbi_puts("bad type:\n");
+            early_puts(type);
+            sbi_puts("\n");
             break;
         }
     }
