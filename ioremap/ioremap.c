@@ -120,15 +120,13 @@ int
 ioremap_page_range(unsigned long addr, unsigned long end,
                    phys_addr_t phys_addr, pgprot_t prot)
 {
-    pgd_t *pgd;
-    unsigned long start;
-    unsigned long next;
     int err;
+    pgd_t *pgd;
+    unsigned long next;
     pgtbl_mod_mask mask = 0;
 
     BUG_ON(addr >= end);
 
-    start = addr;
     pgd = pgd_offset_k(addr);
     do {
         next = pgd_addr_end(addr, end);
