@@ -24,6 +24,8 @@
 
 #define ALLOC_WMARK_LOW     WMARK_LOW
 
+extern struct mm_struct init_mm;
+
 struct alloc_context {
     struct zonelist *zonelist;
     struct zoneref *preferred_zoneref;
@@ -39,6 +41,10 @@ struct alloc_context {
      * usable for this allocation request.
      */
     enum zone_type highest_zoneidx;
+};
+
+struct mm_struct {
+    pgd_t *pgd;
 };
 
 extern unsigned long max_mapnr;
@@ -61,18 +67,18 @@ lowmem_page_address(const struct page *page)
     return page_to_virt(page);
 }
 
-extern pge_t early_pgd[];
-extern pme_t early_pmd[];
-extern pme_t fixmap_pmd[];
+extern pgd_t early_pgd[];
+extern pmd_t early_pmd[];
+extern pmd_t fixmap_pmd[];
 extern pte_t fixmap_pt[];
-extern pge_t swapper_pgd[];
+extern pgd_t swapper_pg_dir[];
 
 extern phys_addr_t dtb_early_pa;
 
 typedef phys_addr_t (*phys_alloc_t)(phys_addr_t size, phys_addr_t align);
 
 void
-setup_fixmap_pge(void);
+setup_fixmap_pgd(void);
 
 void
 setup_vm_final(struct memblock_region *regions,
@@ -80,7 +86,7 @@ setup_vm_final(struct memblock_region *regions,
                phys_alloc_t alloc);
 
 void
-clear_flash_pge(void);
+clear_flash_pgd(void);
 
 const char *
 kstrdup_const(const char *s, gfp_t gfp);

@@ -990,6 +990,17 @@ unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
 }
 EXPORT_SYMBOL(__get_free_pages);
 
+void
+free_pages(unsigned long addr, unsigned int order)
+{
+    if (addr != 0) {
+        BUG_ON(!virt_addr_valid((void *)addr));
+        __free_pages(virt_to_page((void *)addr), order);
+    }
+}
+EXPORT_SYMBOL(free_pages);
+
+
 static int
 init_module(void)
 {

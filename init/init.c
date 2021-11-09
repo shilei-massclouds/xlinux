@@ -12,7 +12,7 @@ start_kernel(void)
 {
     printk("start_kernel: init ...\n");
 
-    if (kernel_size >= PME_SIZE)
+    if (kernel_size >= PMD_SIZE)
         panic("kernel size (%lu) is over PME_SIZE!", kernel_size);
 
     printk("start_kernel: init ok!\n");

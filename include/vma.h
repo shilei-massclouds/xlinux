@@ -33,4 +33,7 @@ struct vmap_area {
 struct vm_struct *
 get_vm_area(unsigned long size, unsigned long flags);
 
+void
+free_vm_area(struct vm_struct *area);
+
 #endif /* _VMA_H_ */

@@ -7,7 +7,7 @@ PHONY := all clean
 SUBDIRS		:= startup lib early_dt \
 	rbtree \
 	mm memblock buddy slab kalloc \
-	vma \
+	vma ioremap \
 	of platform kobject virtio init
 
 CLEAN_DIRS := $(addprefix _clean_, $(SUBDIRS))

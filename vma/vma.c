@@ -553,6 +553,13 @@ vmap_init_free_space(void)
                              &free_vmap_area_list);
 }
 
+void
+free_vm_area(struct vm_struct *area)
+{
+    /* Todo: */
+}
+EXPORT_SYMBOL(free_vm_area);
+
 static int
 init_module(void)
 {

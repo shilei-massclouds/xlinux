@@ -24,6 +24,7 @@
 #define ___GFP_NORETRY          0x10000u
 #define ___GFP_MEMALLOC         0x20000u
 #define ___GFP_NOMEMALLOC       0x80000u
+#define ___GFP_ACCOUNT          0x400000u
 
 /*
  * %__GFP_DIRECT_RECLAIM indicates that the caller may enter direct
@@ -52,7 +53,8 @@
 #define __GFP_RETRY_MAYFAIL ((gfp_t)___GFP_RETRY_MAYFAIL)
 #define __GFP_NORETRY       ((gfp_t)___GFP_NORETRY)
 
-#define __GFP_RECLAIMABLE ((gfp_t)___GFP_RECLAIMABLE)
+#define __GFP_RECLAIMABLE   ((gfp_t)___GFP_RECLAIMABLE)
+#define __GFP_ACCOUNT       ((gfp_t)___GFP_ACCOUNT)
 
 #define __GFP_DIRECT_RECLAIM    ((gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
 #define __GFP_KSWAPD_RECLAIM    ((gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
@@ -88,7 +90,13 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order)
 
 void __free_pages(struct page *page, unsigned int order);
 
+void free_pages(unsigned long addr, unsigned int order);
+
+#define free_page(addr) free_pages((addr), 0)
+
 unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+
+#define __get_free_page(gfp_mask) __get_free_pages((gfp_mask), 0)
 
 /*
  * The set of flags that only affect watermark checking and reclaim

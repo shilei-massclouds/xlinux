@@ -89,7 +89,7 @@ clear_bss_done:
 
     # Init early pgd
     mv a0, s1
-    call setup_early_pge
+    call setup_early_pgd
 
     # Enable paging
     call relocate
