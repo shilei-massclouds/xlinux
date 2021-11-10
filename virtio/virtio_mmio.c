@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <errno.h>
+#include <devres.h>
 #include <export.h>
 #include <virtio.h>
 #include <platform.h>

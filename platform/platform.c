@@ -3,6 +3,7 @@
 #include <fdt.h>
 #include <slab.h>
 #include <device.h>
+#include <devres.h>
 #include <errno.h>
 #include <string.h>
 #include <export.h>
