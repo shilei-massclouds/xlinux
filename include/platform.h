@@ -45,6 +45,8 @@ struct platform_driver {
 #define to_platform_driver(drv) \
     (container_of((drv), struct platform_driver, driver))
 
+extern struct bus_type platform_bus_type;
+
 int
 platform_bus_init(void);
 
