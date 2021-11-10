@@ -33,6 +33,17 @@ test_platform(void)
             printk("    resources (%lx, %lx):\n",
                    pdev->resource[i].start, pdev->resource[i].end);
         }
+
+        if (!strcmp(of_node->full_name, "virtio_mmio@10001000")) {
+            struct resource *r;
+            r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+            if (r == NULL)
+                return -1;
+
+            printk("For example: device virtio_mmio@10001000.\n");
+            printk("    resource0 flags(%lx) (%lx, %lx):\n",
+                   r->flags, r->start, r->end);
+        }
     }
     klist_iter_exit(&iter);
 
