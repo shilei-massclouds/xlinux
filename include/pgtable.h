@@ -123,7 +123,6 @@ static inline void
 pgd_populate(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmd)
 {
     unsigned long pfn = virt_to_pfn(pmd);
-
     set_pgd(pgd, __pgd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
 }
 
@@ -143,7 +142,6 @@ static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 {
     unsigned long pfn = virt_to_pfn(pte);
-
     set_pmd(pmd, __pmd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
 }
 

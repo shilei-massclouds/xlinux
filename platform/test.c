@@ -4,8 +4,10 @@
 #include <printk.h>
 #include <platform.h>
 
+struct platform_device *example = NULL;
+
 static int
-test_platform(void)
+test_traverse(void)
 {
     struct klist_iter iter;
     struct klist_node *n;
@@ -35,14 +37,7 @@ test_platform(void)
         }
 
         if (!strcmp(of_node->full_name, "virtio_mmio@10001000")) {
-            struct resource *r;
-            r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-            if (r == NULL)
-                return -1;
-
-            printk("For example: device virtio_mmio@10001000.\n");
-            printk("    resource0 flags(%lx) (%lx, %lx):\n",
-                   r->flags, r->start, r->end);
+            example = pdev;
         }
     }
     klist_iter_exit(&iter);
@@ -51,12 +46,41 @@ test_platform(void)
 }
 
 static int
+test_ioremap(void)
+{
+    void *base;
+    struct resource *r;
+
+    if (example == NULL) {
+        printk("%s: example not init yet!\n", __func__);
+        return -1;
+    }
+
+    r = platform_get_resource(example, IORESOURCE_MEM, 0);
+    if (r == NULL)
+        return -1;
+
+    printk("\nFor example: device virtio_mmio@10001000.\n");
+    printk("    resource0 flags(%lx) (%lx, %lx):\n",
+           r->flags, r->start, r->end);
+
+    base = devm_platform_ioremap_resource(example, 0);
+    printk("    ioremap vaddr(%lx)\n\n", base);
+    return 0;
+}
+
+static int
 init_module(void)
 {
     printk("module[test_platform]: init begin ...\n");
 
-    if(test_platform()) {
-        printk(_RED("test platform failed!\n"));
+    if(test_traverse()) {
+        printk(_RED("test traverse failed!\n"));
+        return -1;
+    }
+
+    if(test_ioremap()) {
+        printk(_RED("test ioremap failed!\n"));
         return -1;
     }
 

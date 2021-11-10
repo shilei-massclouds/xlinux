@@ -236,7 +236,6 @@ __request_region(struct resource *parent,
                  int flags)
 {
     struct resource *res = alloc_resource(GFP_KERNEL);
-    struct resource *orig_parent = parent;
 
     if (!res)
         return NULL;
@@ -414,8 +413,6 @@ void
 devres_add(struct device *dev, void *res)
 {
     struct devres *dr = container_of(res, struct devres, data);
-    unsigned long flags;
-
     add_dr(dev, &dr->node);
 }
 EXPORT_SYMBOL(devres_add);
