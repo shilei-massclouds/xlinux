@@ -8,6 +8,7 @@
 #include <platform.h>
 #include <virtio_mmio.h>
 #include <virtio_config.h>
+#include <virtio_ring.h>
 
 #define to_virtio_mmio_device(_plat_dev) \
     container_of(_plat_dev, struct virtio_mmio_device, vdev)
@@ -58,20 +59,62 @@ vm_reset(struct virtio_device *vdev)
     writel(0, vm_dev->base + VIRTIO_MMIO_STATUS);
 }
 
+static u64
+vm_get_features(struct virtio_device *vdev)
+{
+    u64 features;
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+    writel(1, vm_dev->base + VIRTIO_MMIO_DEVICE_FEATURES_SEL);
+    features = readl(vm_dev->base + VIRTIO_MMIO_DEVICE_FEATURES);
+    features <<= 32;
+
+    writel(0, vm_dev->base + VIRTIO_MMIO_DEVICE_FEATURES_SEL);
+    features |= readl(vm_dev->base + VIRTIO_MMIO_DEVICE_FEATURES);
+
+    return features;
+}
+
+static int
+vm_finalize_features(struct virtio_device *vdev)
+{
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+    /* Give virtio_ring a chance to accept features. */
+    vring_transport_features(vdev);
+
+    /* Make sure there is are no mixed devices */
+    if (vm_dev->version == 2 &&
+            !__virtio_test_bit(vdev, VIRTIO_F_VERSION_1)) {
+        panic("New virtio-mmio devices (version 2) must provide VIRTIO_F_VERSION_1 feature!\n");
+        return -EINVAL;
+    }
+
+    writel(1, vm_dev->base + VIRTIO_MMIO_DRIVER_FEATURES_SEL);
+    writel((u32)(vdev->features >> 32),
+           vm_dev->base + VIRTIO_MMIO_DRIVER_FEATURES);
+
+    writel(0, vm_dev->base + VIRTIO_MMIO_DRIVER_FEATURES_SEL);
+    writel((u32)vdev->features,
+           vm_dev->base + VIRTIO_MMIO_DRIVER_FEATURES);
+
+    return 0;
+}
+
 static const struct virtio_config_ops virtio_mmio_config_ops = {
     /*
     .get        = vm_get,
     .set        = vm_set,
     .generation = vm_generation,
     */
-    .get_status = vm_get_status,
-    .set_status = vm_set_status,
-    .reset      = vm_reset,
+    .reset          = vm_reset,
+    .get_status     = vm_get_status,
+    .set_status     = vm_set_status,
+    .get_features   = vm_get_features,
+    .finalize_features = vm_finalize_features,
     /*
     .find_vqs   = vm_find_vqs,
     .del_vqs    = vm_del_vqs,
-    .get_features   = vm_get_features,
-    .finalize_features = vm_finalize_features,
     .bus_name   = vm_bus_name,
     */
 };

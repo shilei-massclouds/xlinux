@@ -8,9 +8,20 @@
 /* Status byte for guest to report progress, and synchronize features. */
 /* We have seen device and processed generic fields (VIRTIO_CONFIG_F_VIRTIO) */
 #define VIRTIO_CONFIG_S_ACKNOWLEDGE 1
+/* We have found a driver for the device. */
+#define VIRTIO_CONFIG_S_DRIVER      2
+/* Driver has used its parts of the config, and is happy */
+#define VIRTIO_CONFIG_S_DRIVER_OK   4
+/* Driver has finished configuring features */
+#define VIRTIO_CONFIG_S_FEATURES_OK 8
 
 /* We've given up on this device. */
 #define VIRTIO_CONFIG_S_FAILED      0x80
+
+#define VIRTIO_TRANSPORT_F_START    28
+#define VIRTIO_TRANSPORT_F_END      38
+
+#define VIRTIO_F_VERSION_1      32
 
 struct virtqueue;
 struct virtio_device;

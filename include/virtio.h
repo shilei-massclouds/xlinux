@@ -7,6 +7,8 @@
 #include <driver.h>
 #include <virtio_config.h>
 
+#define VIRTIO_ID_BLOCK     2 /* virtio block */
+
 struct virtio_device_id {
     u32 device;
     u32 vendor;
@@ -52,7 +54,6 @@ struct virtqueue {
 struct virtio_driver {
     struct device_driver driver;
     const struct virtio_device_id *id_table;
-    /*
     const unsigned int *feature_table;
     unsigned int feature_table_size;
     const unsigned int *feature_table_legacy;
@@ -60,6 +61,7 @@ struct virtio_driver {
     int (*validate)(struct virtio_device *dev);
     int (*probe)(struct virtio_device *dev);
     void (*scan)(struct virtio_device *dev);
+    /*
     void (*remove)(struct virtio_device *dev);
     void (*config_changed)(struct virtio_device *dev);
     */
@@ -67,6 +69,9 @@ struct virtio_driver {
 
 int
 register_virtio_device(struct virtio_device *dev);
+
+int
+register_virtio_driver(struct virtio_driver *driver);
 
 static inline struct virtio_device *dev_to_virtio(struct device *_dev)
 {
@@ -76,6 +81,97 @@ static inline struct virtio_device *dev_to_virtio(struct device *_dev)
 static inline struct virtio_driver *drv_to_virtio(struct device_driver *drv)
 {
     return container_of(drv, struct virtio_driver, driver);
+}
+
+void
+virtio_add_status(struct virtio_device *dev, unsigned int status);
+
+/**
+ * __virtio_set_bit - helper to set feature bits. For use by transports.
+ * @vdev: the device
+ * @fbit: the feature bit
+ */
+static inline void
+__virtio_set_bit(struct virtio_device *vdev, unsigned int fbit)
+{
+    /* Did you forget to fix assumptions on max features? */
+    if (__builtin_constant_p(fbit))
+        BUG_ON(fbit >= 64);
+    else
+        BUG_ON(fbit >= 64);
+
+    vdev->features |= BIT_ULL(fbit);
+}
+
+/**
+ * __virtio_clear_bit - helper to clear feature bits. For use by transports.
+ * @vdev: the device
+ * @fbit: the feature bit
+ */
+static inline void __virtio_clear_bit(struct virtio_device *vdev,
+                      unsigned int fbit)
+{
+    /* Did you forget to fix assumptions on max features? */
+    if (__builtin_constant_p(fbit))
+        BUG_ON(fbit >= 64);
+    else
+        BUG_ON(fbit >= 64);
+
+    vdev->features &= ~BIT_ULL(fbit);
+}
+
+void
+virtio_check_driver_offered_feature(const struct virtio_device *vdev,
+                                    unsigned int fbit);
+
+/**
+ * __virtio_test_bit - helper to test feature bits. For use by transports.
+ *                     Devices should normally use virtio_has_feature,
+ *                     which includes more checks.
+ * @vdev: the device
+ * @fbit: the feature bit
+ */
+static inline bool
+__virtio_test_bit(const struct virtio_device *vdev, unsigned int fbit)
+{
+    /* Did you forget to fix assumptions on max features? */
+    if (__builtin_constant_p(fbit))
+        BUG_ON(fbit >= 64);
+    else
+        BUG_ON(fbit >= 64);
+
+    return vdev->features & BIT_ULL(fbit);
+}
+
+/**
+ * virtio_has_feature - helper to determine if this device has this feature.
+ * @vdev: the device
+ * @fbit: the feature bit
+ */
+static inline bool
+virtio_has_feature(const struct virtio_device *vdev, unsigned int fbit)
+{
+    if (fbit < VIRTIO_TRANSPORT_F_START)
+        virtio_check_driver_offered_feature(vdev, fbit);
+
+    return __virtio_test_bit(vdev, fbit);
+}
+
+/**
+ * virtio_device_ready - enable vq use in probe function
+ * @vdev: the device
+ *
+ * Driver must call this to use vqs in the probe function.
+ *
+ * Note: vqs are enabled automatically after probe returns.
+ */
+static inline void
+virtio_device_ready(struct virtio_device *dev)
+{
+    unsigned status = dev->config->get_status(dev);
+
+    BUG_ON(status & VIRTIO_CONFIG_S_DRIVER_OK);
+    dev->config->set_status(dev, status | VIRTIO_CONFIG_S_DRIVER_OK);
 }
 
 #endif /* _LINUX_VIRTIO_H */

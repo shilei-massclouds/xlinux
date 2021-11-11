@@ -2,5 +2,4 @@
 
 target_y := ko
 
-obj_y := virtio.o
-obj_y += virtio_ring.o
+obj_y := virtio_blk.o
