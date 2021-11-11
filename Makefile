@@ -8,7 +8,9 @@ SUBDIRS		:= startup lib early_dt \
 	rbtree \
 	mm memblock buddy slab kalloc \
 	vma ioremap devres \
-	of platform kobject virtio init
+	of platform kobject \
+	virtio virtio_mmio \
+	init
 
 CLEAN_DIRS := $(addprefix _clean_, $(SUBDIRS))
 

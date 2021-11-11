@@ -49,9 +49,9 @@ of_bus_default_map(u32 *addr, const u32 *range,
     s  = of_read_number(range + na + pna, ns);
     da = of_read_number(addr, na);
 
-    printk("default map, cp=%lx, s=%lx, da=%lx\n",
-           (unsigned long long)cp, (unsigned long long)s,
-           (unsigned long long)da);
+    pr_debug("default map, cp=%lx, s=%lx, da=%lx\n",
+             (unsigned long long)cp, (unsigned long long)s,
+             (unsigned long long)da);
 
     if (da < cp || da >= (cp + s))
         return OF_BAD_ADDR;
@@ -134,8 +134,6 @@ of_get_address(struct device_node *dev,
             if (flags)
                 *flags = bus->get_flags(prop);
 
-            printk("!!!%s: prop(%x) na(%x)\n", dev->name, *prop, na);
-
             return prop;
         }
     }
@@ -171,7 +169,7 @@ of_translate_one(struct device_node *parent, struct of_bus *bus,
         goto finish;
     }
 
-    printk("walking ranges...\n");
+    pr_debug("walking ranges...\n");
 
     /* Now walk through the ranges */
     rlen /= 4;
@@ -188,7 +186,7 @@ of_translate_one(struct device_node *parent, struct of_bus *bus,
     memcpy(addr, ranges + na, 4 * pna);
 
  finish:
-    printk("with offset: %lx\n", (unsigned long long)offset);
+    pr_debug("with offset: %lx\n", (unsigned long long)offset);
 
     /* Translate it into parent bus space */
     return pbus->translate(addr, offset, pna);
@@ -239,7 +237,7 @@ __of_translate_address(struct device_node *dev,
         /* If root, we have finished */
         if (parent == NULL) {
             result = of_read_number(addr, na);
-            printk("reached root node (%lx)\n", result);
+            pr_debug("reached root node (%lx)\n", result);
             break;
         }
 
@@ -251,8 +249,8 @@ __of_translate_address(struct device_node *dev,
             break;
         }
 
-        printk("parent bus is %s (na=%d, ns=%d) on %lxOF\n",
-               pbus->name, pna, pns, parent);
+        pr_debug("parent bus is %s (na=%d, ns=%d) on %lxOF\n",
+                 pbus->name, pna, pns, parent);
 
         /* Apply bus translation */
         if (of_translate_one(dev, bus, pbus, addr, na, ns, pna, rprop))
@@ -263,7 +261,7 @@ __of_translate_address(struct device_node *dev,
         ns = pns;
         bus = pbus;
 
-        printk("one level translation: (%lx, %x)\n", addr, na);
+        pr_debug("one level translation: (%lx, %x)\n", addr, na);
     }
 
  bail:

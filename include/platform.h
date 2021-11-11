@@ -84,4 +84,10 @@ platform_get_resource(struct platform_device *dev,
                       unsigned int type,
                       unsigned int num);
 
+static inline void
+platform_set_drvdata(struct platform_device *pdev, void *data)
+{
+    dev_set_drvdata(&pdev->dev, data);
+}
+
 #endif /* OF_PLATFORM_H */

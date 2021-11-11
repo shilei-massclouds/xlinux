@@ -125,9 +125,6 @@ really_probe(struct device *dev, struct device_driver *drv)
 int
 driver_probe_device(struct device_driver *drv, struct device *dev)
 {
-    printk("bus: '%s': %s: matched device %s with driver %s\n",
-           drv->bus->name, __func__, dev_name(dev), drv->name);
-
     return really_probe(dev, drv);
 }
 

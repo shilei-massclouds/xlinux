@@ -54,11 +54,15 @@ struct device {
     struct bus_type *bus;
 
     void *platform_data;
+
     struct device_node *of_node; /* associated device tree node */
 
     struct list_head devres_head;
 
     struct device_driver *driver;
+
+    /* Driver data, set and get with dev_set_drvdata/dev_get_drvdata */
+    void *driver_data;
 };
 
 extern int device_add(struct device *dev);
@@ -86,5 +90,11 @@ device_initialize(struct device *dev);
 
 int
 device_register(struct device *dev);
+
+static inline void
+dev_set_drvdata(struct device *dev, void *data)
+{
+    dev->driver_data = data;
+}
 
 #endif /* _DEVICE_H_ */

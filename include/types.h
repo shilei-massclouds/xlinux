@@ -10,6 +10,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <bits.h>
+
 extern const unsigned char _ctype[];
 
 #define _U  0x01    /* upper */
@@ -157,6 +159,13 @@ static inline u32 __swab32p(const u32 *p)
 {
     return swab32(*p);
 }
+
+#define DECLARE_BITMAP(name,bits) unsigned long name[BITS_TO_LONGS(bits)]
+
+#define NR_CPUS 1
+
+/* Don't assign or return these: may not be this big! */
+typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 
 #endif /*  __ASSEMBLY__ */
 

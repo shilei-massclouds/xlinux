@@ -4,6 +4,9 @@
 
 #include <compiler_attributes.h>
 
+#define __KERNEL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+#define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
+
 #define BITS_PER_LONG       64
 #define BITS_PER_LONG_LONG  64
 
@@ -14,6 +17,9 @@
 #define BIT_ULL_MASK(nr)    (1ULL << ((nr) % BITS_PER_LONG_LONG))
 #define BIT_ULL_WORD(nr)    ((nr) / BITS_PER_LONG_LONG)
 #define BITS_PER_BYTE       8
+
+#define BITS_PER_TYPE(type) (sizeof(type) * BITS_PER_BYTE)
+#define BITS_TO_LONGS(nr)   DIV_ROUND_UP(nr, BITS_PER_TYPE(long))
 
 #define __AMO(op)   "amo" #op ".d"
 
