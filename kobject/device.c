@@ -5,6 +5,7 @@
 #include <printk.h>
 #include <export.h>
 #include <device.h>
+#include <driver.h>
 
 static int
 device_private_init(struct device *dev)
@@ -20,7 +21,7 @@ int device_add(struct device *dev)
 {
     int error = -EINVAL;
 
-    pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+    printk("device: '%s': %s\n", dev_name(dev), __func__);
 
     if (!dev->p) {
         error = device_private_init(dev);
@@ -31,6 +32,8 @@ int device_add(struct device *dev)
     error = bus_add_device(dev);
     if (error)
         return error;
+
+    bus_probe_device(dev);
 
     return 0;
 }
@@ -79,3 +82,37 @@ device_register(struct device *dev)
     return device_add(dev);
 }
 EXPORT_SYMBOL(device_register);
+
+static int
+__device_attach_driver(struct device_driver *drv, void *_data)
+{
+    int ret;
+    struct device *dev = _data;
+
+    ret = driver_match_device(drv, dev);
+    if (ret == 0) {
+        /* no match */
+        return 0;
+    } else if (ret == -EPROBE_DEFER) {
+        panic("Device match requests probe deferral");
+    } else if (ret < 0) {
+        panic("Bus failed to match device: %d", ret);
+        return ret;
+    } /* ret > 0 means positive match */
+
+    panic("%s", __func__);
+    return driver_probe_device(drv, dev);
+}
+
+static int
+__device_attach(struct device *dev)
+{
+    BUG_ON(dev->driver);
+    return bus_for_each_drv(dev->bus, NULL, dev, __device_attach_driver);
+}
+
+void
+device_initial_probe(struct device *dev)
+{
+    __device_attach(dev);
+}

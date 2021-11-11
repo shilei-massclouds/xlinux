@@ -97,3 +97,93 @@ bus_add_driver(struct device_driver *drv)
     return 0;
 }
 EXPORT_SYMBOL(bus_add_driver);
+
+/**
+ * bus_probe_device - probe drivers for a new device
+ * @dev: device to probe
+ *
+ * - Automatically probe for a driver if the bus allows it.
+ */
+void
+bus_probe_device(struct device *dev)
+{
+    struct bus_type *bus = dev->bus;
+
+    if (!bus)
+        return;
+
+    if (bus->p->drivers_autoprobe)
+        device_initial_probe(dev);
+}
+
+static struct device *
+next_device(struct klist_iter *i)
+{
+    struct device_private *dev_prv;
+    struct device *dev = NULL;
+    struct klist_node *n = klist_next(i);
+
+    if (n) {
+        dev_prv = to_device_private_bus(n);
+        dev = dev_prv->device;
+    }
+    return dev;
+}
+
+int
+bus_for_each_dev(struct bus_type *bus,
+                 struct device *start,
+                 void *data,
+                 int (*fn)(struct device *, void *))
+{
+    struct klist_iter i;
+    struct device *dev;
+    int error = 0;
+
+    if (!bus || !bus->p)
+        return -EINVAL;
+
+    klist_iter_init_node(&bus->p->klist_devices,
+                         &i,
+                         (start ? &start->p->knode_bus : NULL));
+    while (!error && (dev = next_device(&i)))
+        error = fn(dev, data);
+    klist_iter_exit(&i);
+    return error;
+}
+EXPORT_SYMBOL(bus_for_each_dev);
+
+static struct device_driver *
+next_driver(struct klist_iter *i)
+{
+    struct klist_node *n = klist_next(i);
+    struct driver_private *drv_priv;
+
+    if (n) {
+        drv_priv = container_of(n, struct driver_private, knode_bus);
+        return drv_priv->driver;
+    }
+    return NULL;
+}
+
+int
+bus_for_each_drv(struct bus_type *bus,
+                 struct device_driver *start,
+                 void *data,
+                 int (*fn)(struct device_driver *, void *))
+{
+    struct klist_iter i;
+    struct device_driver *drv;
+    int error = 0;
+
+    if (!bus)
+        return -EINVAL;
+
+    klist_iter_init_node(&bus->p->klist_drivers, &i,
+                         start ? &start->p->knode_bus : NULL);
+    while ((drv = next_driver(&i)) && !error)
+        error = fn(drv, data);
+    klist_iter_exit(&i);
+    return error;
+}
+EXPORT_SYMBOL(bus_for_each_drv);

@@ -9,6 +9,9 @@
 #include <virtio_mmio.h>
 #include <virtio_config.h>
 
+#define to_virtio_mmio_device(_plat_dev) \
+    container_of(_plat_dev, struct virtio_mmio_device, vdev)
+
 struct virtio_mmio_device {
     struct virtio_device vdev;
     struct platform_device *pdev;
@@ -27,14 +30,44 @@ static const struct of_device_id virtio_mmio_match[] = {
     {},
 };
 
+static u8
+vm_get_status(struct virtio_device *vdev)
+{
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+    return readl(vm_dev->base + VIRTIO_MMIO_STATUS) & 0xff;
+}
+
+static void
+vm_set_status(struct virtio_device *vdev, u8 status)
+{
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+    /* We should never be setting status to 0. */
+    BUG_ON(status == 0);
+
+    writel(status, vm_dev->base + VIRTIO_MMIO_STATUS);
+}
+
+static void
+vm_reset(struct virtio_device *vdev)
+{
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+    /* 0 status means a reset. */
+    writel(0, vm_dev->base + VIRTIO_MMIO_STATUS);
+}
+
 static const struct virtio_config_ops virtio_mmio_config_ops = {
     /*
     .get        = vm_get,
     .set        = vm_set,
     .generation = vm_generation,
+    */
     .get_status = vm_get_status,
     .set_status = vm_set_status,
     .reset      = vm_reset,
+    /*
     .find_vqs   = vm_find_vqs,
     .del_vqs    = vm_del_vqs,
     .get_features   = vm_get_features,
@@ -46,6 +79,7 @@ static const struct virtio_config_ops virtio_mmio_config_ops = {
 static int
 virtio_mmio_probe(struct platform_device *pdev)
 {
+    int rc;
     unsigned long magic;
     struct virtio_mmio_device *vm_dev;
 
@@ -91,8 +125,12 @@ virtio_mmio_probe(struct platform_device *pdev)
 
     platform_set_drvdata(pdev, vm_dev);
 
+    rc = register_virtio_device(&vm_dev->vdev);
+    if (rc)
+        put_device(&vm_dev->vdev.dev);
+
     printk("%s: %s ok!\n", __func__, pdev->name);
-    return -ENODEV;
+    return rc;
 }
 
 static struct platform_driver virtio_mmio_driver = {

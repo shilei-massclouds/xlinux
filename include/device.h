@@ -97,4 +97,22 @@ dev_set_drvdata(struct device *dev, void *data)
     dev->driver_data = data;
 }
 
+void
+bus_probe_device(struct device *dev);
+
+void
+device_initial_probe(struct device *dev);
+
+int
+bus_for_each_dev(struct bus_type *bus,
+                 struct device *start,
+                 void *data,
+                 int (*fn)(struct device *, void *));
+
+int
+bus_for_each_drv(struct bus_type *bus,
+                 struct device_driver *start,
+                 void *data,
+                 int (*fn)(struct device_driver *, void *));
+
 #endif /* _DEVICE_H_ */

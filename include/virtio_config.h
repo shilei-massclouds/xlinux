@@ -3,8 +3,17 @@
 #ifndef _LINUX_VIRTIO_CONFIG_H
 #define _LINUX_VIRTIO_CONFIG_H
 
-#include <virtio.h>
 #include <interrupt.h>
+
+/* Status byte for guest to report progress, and synchronize features. */
+/* We have seen device and processed generic fields (VIRTIO_CONFIG_F_VIRTIO) */
+#define VIRTIO_CONFIG_S_ACKNOWLEDGE 1
+
+/* We've given up on this device. */
+#define VIRTIO_CONFIG_S_FAILED      0x80
+
+struct virtqueue;
+struct virtio_device;
 
 typedef void vq_callback_t(struct virtqueue *);
 struct virtio_config_ops {

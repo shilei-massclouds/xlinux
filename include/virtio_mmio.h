@@ -17,6 +17,9 @@
 /* Guest's memory page size in bytes - Write Only */
 #define VIRTIO_MMIO_GUEST_PAGE_SIZE 0x028
 
+/* Device status register - Read Write */
+#define VIRTIO_MMIO_STATUS          0x070
+
 
 int virtio_mmio_init(void);
 
