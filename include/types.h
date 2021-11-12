@@ -125,6 +125,11 @@ typedef u16 uint16_t;
 typedef u32 uint32_t;
 typedef u64 uint64_t;
 
+typedef u8  __u8;
+typedef u16 __u16;
+typedef u32 __u32;
+typedef u64 __u64;
+
 typedef u64 phys_addr_t;
 
 typedef long                __kernel_long_t;

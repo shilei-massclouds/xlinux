@@ -101,9 +101,51 @@ vm_finalize_features(struct virtio_device *vdev)
     return 0;
 }
 
+static void
+vm_get(struct virtio_device *vdev, unsigned offset, void *buf, unsigned len)
+{
+    u8 b;
+    u16 w;
+    u32 l;
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+    void *base = vm_dev->base + VIRTIO_MMIO_CONFIG;
+
+    if (vm_dev->version == 1) {
+        u8 *ptr = buf;
+        int i;
+
+        for (i = 0; i < len; i++)
+            ptr[i] = readb(base + offset + i);
+        return;
+    }
+
+    switch (len) {
+    case 1:
+        b = readb(base + offset);
+        memcpy(buf, &b, sizeof b);
+        break;
+    case 2:
+        w = readw(base + offset);
+        memcpy(buf, &w, sizeof w);
+        break;
+    case 4:
+        l = readl(base + offset);
+        memcpy(buf, &l, sizeof l);
+        break;
+    case 8:
+        l = readl(base + offset);
+        memcpy(buf, &l, sizeof l);
+        l = readl(base + offset + sizeof l);
+        memcpy(buf + sizeof l, &l, sizeof l);
+        break;
+    default:
+        BUG();
+    }
+}
+
 static const struct virtio_config_ops virtio_mmio_config_ops = {
-    /*
     .get        = vm_get,
+    /*
     .set        = vm_set,
     .generation = vm_generation,
     */

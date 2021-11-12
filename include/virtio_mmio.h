@@ -34,6 +34,10 @@
 /* Device status register - Read Write */
 #define VIRTIO_MMIO_STATUS              0x070
 
+/* The config space is defined by each driver as
+ * the per-driver configuration space - Read Write */
+#define VIRTIO_MMIO_CONFIG              0x100
+
 
 int virtio_mmio_init(void);
 

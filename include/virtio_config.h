@@ -50,4 +50,39 @@ struct virtio_config_ops {
                                              int index);
 };
 
+/* Config space accessors. */
+#define virtio_cread(vdev, structname, member, ptr)         \
+    do {                                \
+        typeof(((structname*)0)->member) virtio_cread_v;    \
+        switch (sizeof(virtio_cread_v)) {           \
+        case 1:                         \
+        case 2:                         \
+        case 4:                         \
+            vdev->config->get((vdev),   \
+                              offsetof(structname, member), \
+                              &virtio_cread_v, \
+                              sizeof(virtio_cread_v)); \
+            break;                      \
+        default:                        \
+            __virtio_cread_many((vdev),                       \
+                                offsetof(structname, member), \
+                                &virtio_cread_v,              \
+                                1,                            \
+                                sizeof(virtio_cread_v));      \
+            break;                      \
+        }                               \
+        *(ptr) = virtio_cread_v;        \
+    } while(0)
+
+/* Conditional config space accessors. */
+#define virtio_cread_feature(vdev, fbit, structname, member, ptr)   \
+    ({                              \
+        int _r = 0;                     \
+        if (!virtio_has_feature(vdev, fbit))            \
+            _r = -ENOENT;                   \
+        else                            \
+            virtio_cread((vdev), structname, member, ptr);  \
+        _r;                         \
+    })
+
 #endif /* _LINUX_VIRTIO_CONFIG_H */

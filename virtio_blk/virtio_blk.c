@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <bug.h>
+#include <errno.h>
 #include <printk.h>
 #include <virtio.h>
 #include <virtio_blk.h>
@@ -30,6 +31,23 @@ static unsigned int features[] = {
 static int
 virtblk_probe(struct virtio_device *vdev)
 {
+    int err;
+    int index;
+    u32 sg_elems;
+
+    if (!vdev->config->get) {
+        panic("%s failure: config access disabled", __func__);
+        return -EINVAL;
+    }
+
+    index = _virtio_index++;
+
+    /* We need to know how many segments before we allocate. */
+    err = virtio_cread_feature(vdev, VIRTIO_BLK_F_SEG_MAX,
+                               struct virtio_blk_config, seg_max,
+                               &sg_elems);
+
+    printk("%s: sg_elems(%u)\n", __func__, sg_elems);
     panic("%s:", __func__);
 }
 

@@ -7,6 +7,12 @@
 #include <driver.h>
 #include <virtio_config.h>
 
+typedef __u16 __virtio16;
+typedef __u32 __virtio32;
+typedef __u64 __virtio64;
+
+extern int _virtio_index;
+
 #define VIRTIO_ID_BLOCK     2 /* virtio block */
 
 struct virtio_device_id {
@@ -172,6 +178,17 @@ virtio_device_ready(struct virtio_device *dev)
 
     BUG_ON(status & VIRTIO_CONFIG_S_DRIVER_OK);
     dev->config->set_status(dev, status | VIRTIO_CONFIG_S_DRIVER_OK);
+}
+
+/* Read @count fields, @bytes each. */
+static inline void
+__virtio_cread_many(struct virtio_device *vdev, unsigned int offset,
+                    void *buf, size_t count, size_t bytes)
+{
+    int i;
+
+    for (i = 0; i < count; i++)
+        vdev->config->get(vdev, offset + bytes * i, buf + i * bytes, bytes);
 }
 
 #endif /* _LINUX_VIRTIO_H */

@@ -5,6 +5,9 @@
 #include <printk.h>
 #include <virtio.h>
 
+int _virtio_index = 0;
+EXPORT_SYMBOL(_virtio_index);
+
 int
 virtio_finalize_features(struct virtio_device *dev)
 {
@@ -157,8 +160,6 @@ static struct bus_type virtio_bus = {
     .match = virtio_dev_match,
     .probe = virtio_dev_probe,
 };
-
-static int _virtio_index;
 
 void
 virtio_add_status(struct virtio_device *dev, unsigned int status)
