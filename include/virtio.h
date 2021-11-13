@@ -191,4 +191,15 @@ __virtio_cread_many(struct virtio_device *vdev, unsigned int offset,
         vdev->config->get(vdev, offset + bytes * i, buf + i * bytes, bytes);
 }
 
+static inline int
+virtio_find_vqs(struct virtio_device *vdev,
+                unsigned nvqs, struct virtqueue *vqs[],
+                vq_callback_t *callbacks[],
+                const char * const names[],
+                struct irq_affinity *desc)
+{
+    return vdev->config->find_vqs(vdev, nvqs, vqs,
+                                  callbacks, names, NULL, desc);
+}
+
 #endif /* _LINUX_VIRTIO_H */

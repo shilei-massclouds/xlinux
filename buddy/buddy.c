@@ -3,6 +3,7 @@
 #include <mm.h>
 #include <bug.h>
 #include <gfp.h>
+#include <log2.h>
 #include <page.h>
 #include <sizes.h>
 #include <export.h>
@@ -1000,6 +1001,54 @@ free_pages(unsigned long addr, unsigned int order)
 }
 EXPORT_SYMBOL(free_pages);
 
+static void *
+make_alloc_exact(unsigned long addr, unsigned int order, size_t size)
+{
+    if (addr) {
+        unsigned long alloc_end = addr + (PAGE_SIZE << order);
+        unsigned long used = addr + PAGE_ALIGN(size);
+
+        //split_page(virt_to_page((void *)addr), order);
+        while (used < alloc_end) {
+            free_page(used);
+            used += PAGE_SIZE;
+        }
+    }
+    return (void *)addr;
+}
+
+void *
+alloc_pages_exact(size_t size, gfp_t gfp_mask)
+{
+    unsigned long addr;
+    unsigned int order = get_order(size);
+
+    BUG_ON(gfp_mask & __GFP_COMP);
+
+    addr = __get_free_pages(gfp_mask, order);
+    return make_alloc_exact(addr, order, size);
+}
+EXPORT_SYMBOL(alloc_pages_exact);
+
+/**
+ * free_pages_exact - release memory allocated via alloc_pages_exact()
+ * @virt: the value returned by alloc_pages_exact.
+ * @size: size of allocation, same value as passed to alloc_pages_exact().
+ *
+ * Release the memory allocated by a previous call to alloc_pages_exact.
+ */
+void
+free_pages_exact(void *virt, size_t size)
+{
+    unsigned long addr = (unsigned long)virt;
+    unsigned long end = addr + PAGE_ALIGN(size);
+
+    while (addr < end) {
+        free_page(addr);
+        addr += PAGE_SIZE;
+    }
+}
+EXPORT_SYMBOL(free_pages_exact);
 
 static int
 init_module(void)

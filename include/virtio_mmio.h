@@ -31,6 +31,24 @@
 /* Guest's memory page size in bytes - Write Only */
 #define VIRTIO_MMIO_GUEST_PAGE_SIZE     0x028
 
+/* Queue selector - Write Only */
+#define VIRTIO_MMIO_QUEUE_SEL           0x030
+
+/* Maximum size of the currently selected queue - Read Only */
+#define VIRTIO_MMIO_QUEUE_NUM_MAX       0x034
+
+/* Queue size for the currently selected queue - Write Only */
+#define VIRTIO_MMIO_QUEUE_NUM           0x038
+
+/* Used Ring alignment for the currently selected queue - Write Only */
+#define VIRTIO_MMIO_QUEUE_ALIGN         0x03c
+
+/* Guest's PFN for the currently selected queue - Read Write */
+#define VIRTIO_MMIO_QUEUE_PFN           0x040
+
+/* Queue notifier - Write Only */
+#define VIRTIO_MMIO_QUEUE_NOTIFY        0x050
+
 /* Device status register - Read Write */
 #define VIRTIO_MMIO_STATUS              0x070
 

@@ -150,6 +150,8 @@ typedef unsigned int    __kernel_gid32_t;
 typedef __kernel_uid32_t    uid_t;
 typedef __kernel_gid32_t    gid_t;
 
+typedef u64 dma_addr_t;
+
 typedef phys_addr_t resource_size_t;
 
 typedef unsigned int gfp_t;

@@ -240,4 +240,6 @@ cache_from_obj(struct kmem_cache *s, void *x)
     return s;
 }
 
+bool slab_is_available(void);
+
 #endif /* _LINUX_SLAB_H */

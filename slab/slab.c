@@ -512,10 +512,12 @@ calculate_alignment(slab_flags_t flags,
     return ALIGN(align, sizeof(void *));
 }
 
-bool slab_is_available(void)
+bool
+slab_is_available(void)
 {
     return slab_state >= UP;
 }
+EXPORT_SYMBOL(slab_is_available);
 
 static void
 init_arraycache(struct array_cache *ac, int limit, int batch)

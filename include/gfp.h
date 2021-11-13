@@ -23,6 +23,7 @@
 #define ___GFP_NOFAIL           0x8000u
 #define ___GFP_NORETRY          0x10000u
 #define ___GFP_MEMALLOC         0x20000u
+#define ___GFP_COMP             0x40000u
 #define ___GFP_NOMEMALLOC       0x80000u
 #define ___GFP_ACCOUNT          0x400000u
 
@@ -47,6 +48,7 @@
 #define __GFP_FS    ((gfp_t)___GFP_FS)
 
 #define __GFP_NOWARN    ((gfp_t)___GFP_NOWARN)
+#define __GFP_COMP      ((gfp_t)___GFP_COMP)
 #define __GFP_ZERO      ((gfp_t)___GFP_ZERO)
 
 #define __GFP_NOFAIL        ((gfp_t)___GFP_NOFAIL)
@@ -97,6 +99,10 @@ void free_pages(unsigned long addr, unsigned int order);
 unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
 
 #define __get_free_page(gfp_mask) __get_free_pages((gfp_mask), 0)
+
+void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
+
+void free_pages_exact(void *virt, size_t size);
 
 /*
  * The set of flags that only affect watermark checking and reclaim

@@ -241,6 +241,10 @@ static int
 init_module(void)
 {
     printk("module[kobject]: init begin ...\n");
+
+    if (!slab_is_available())
+        panic("NO slab!");
+
     printk("module[kobject]: init end!\n");
     return 0;
 }

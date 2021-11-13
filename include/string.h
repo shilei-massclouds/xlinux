@@ -61,4 +61,10 @@ char *kvasprintf(gfp_t gfp, const char *fmt, va_list ap);
 const char *
 kvasprintf_const(gfp_t gfp, const char *fmt, va_list ap);
 
+int
+vsnprintf(char *buf, size_t size, const char *fmt, va_list args);
+
+int
+snprintf(char *buf, size_t size, const char *fmt, ...);
+
 #endif /* _LINUX_STRING_H */

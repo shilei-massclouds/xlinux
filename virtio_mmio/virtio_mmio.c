@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <mmio.h>
+#include <slab.h>
 #include <errno.h>
 #include <devres.h>
 #include <export.h>
@@ -9,6 +10,10 @@
 #include <virtio_mmio.h>
 #include <virtio_config.h>
 #include <virtio_ring.h>
+
+/* The alignment to use between consumer and producer parts of vring.
+ * Currently hardcoded to the page size. */
+#define VIRTIO_MMIO_VRING_ALIGN     PAGE_SIZE
 
 #define to_virtio_mmio_device(_plat_dev) \
     container_of(_plat_dev, struct virtio_mmio_device, vdev)
@@ -22,6 +27,14 @@ struct virtio_mmio_device {
 
     /* a list of queues so we can dispatch IRQs */
     struct list_head virtqueues;
+};
+
+struct virtio_mmio_vq_info {
+    /* the actual virtqueue */
+    struct virtqueue *vq;
+
+    /* the list node for the virtqueues list */
+    struct list_head node;
 };
 
 /* Platform driver */
@@ -143,6 +156,155 @@ vm_get(struct virtio_device *vdev, unsigned offset, void *buf, unsigned len)
     }
 }
 
+/* the notify function used when creating a virt queue */
+static bool
+vm_notify(struct virtqueue *vq)
+{
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
+
+    /* We write the queue's selector into the notification register to
+     * signal the other end */
+    writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+    return true;
+}
+
+static struct virtqueue *
+vm_setup_vq(struct virtio_device *vdev, unsigned index,
+            void (*callback)(struct virtqueue *vq),
+            const char *name, bool ctx)
+{
+    int err;
+    u64 q_pfn;
+    unsigned int num;
+    struct virtqueue *vq;
+    struct virtio_mmio_vq_info *info;
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+    if (!name)
+        return NULL;
+
+    /* Select the queue we're interested in */
+    writel(index, vm_dev->base + VIRTIO_MMIO_QUEUE_SEL);
+
+    if (vm_dev->version != 1)
+        panic("version is NOT 1!");
+    printk("### virtio mmio version (%u)\n", vm_dev->version);
+
+    /* Queue shouldn't already be set up. */
+    if (readl(vm_dev->base + VIRTIO_MMIO_QUEUE_PFN)) {
+        err = -ENOENT;
+        panic("Queue shouldn't already be set up.");
+    }
+
+    /* Allocate and fill out our active queue description */
+    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    if (!info) {
+        err = -ENOMEM;
+        panic("No memory!");
+    }
+
+    num = readl(vm_dev->base + VIRTIO_MMIO_QUEUE_NUM_MAX);
+    if (num == 0) {
+        err = -ENOENT;
+        panic("No argument!");
+    }
+
+
+    /* Create the vring */
+    vq = vring_create_virtqueue(index, num, VIRTIO_MMIO_VRING_ALIGN,
+                                vdev, true, true, ctx, vm_notify,
+                                callback, name);
+    if (!vq) {
+        err = -ENOMEM;
+        panic("No memory!");
+    }
+
+    /* Activate the queue */
+    writel(virtqueue_get_vring_size(vq), vm_dev->base + VIRTIO_MMIO_QUEUE_NUM);
+    BUG_ON(vm_dev->version != 1);
+
+    q_pfn = virtqueue_get_desc_addr(vq) >> PAGE_SHIFT;
+
+    printk("%s: queue num(%u) new(%u) q_pfn(%lx)\n",
+           __func__, num, virtqueue_get_vring_size(vq), q_pfn);
+
+    /*
+     * virtio-mmio v1 uses a 32bit QUEUE PFN. If we have something
+     * that doesn't fit in 32bit, fail the setup rather than
+     * pretending to be successful.
+     */
+    if (q_pfn >> 32) {
+        panic("platform bug: legacy virtio-mmio must not be used with RAM above 0x%lxGB",
+              0x1ULL << (32 + PAGE_SHIFT - 30));
+    }
+
+    writel(PAGE_SIZE, vm_dev->base + VIRTIO_MMIO_QUEUE_ALIGN);
+    writel(q_pfn, vm_dev->base + VIRTIO_MMIO_QUEUE_PFN);
+
+    vq->priv = info;
+    info->vq = vq;
+
+    list_add(&info->node, &vm_dev->virtqueues);
+    return vq;
+}
+
+static void
+vm_del_vq(struct virtqueue *vq)
+{
+    unsigned int index = vq->index;
+    struct virtio_mmio_vq_info *info = vq->priv;
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
+
+    list_del(&info->node);
+
+    /* Select and deactivate the queue */
+    writel(index, vm_dev->base + VIRTIO_MMIO_QUEUE_SEL);
+    writel(0, vm_dev->base + VIRTIO_MMIO_QUEUE_PFN);
+
+    // Todo:
+    //vring_del_virtqueue(vq);
+
+    kfree(info);
+}
+
+static void
+vm_del_vqs(struct virtio_device *vdev)
+{
+    struct virtqueue *vq, *n;
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+    list_for_each_entry_safe(vq, n, &vdev->vqs, list)
+        vm_del_vq(vq);
+}
+
+static int
+vm_find_vqs(struct virtio_device *vdev,
+            unsigned nvqs, struct virtqueue *vqs[],
+            vq_callback_t *callbacks[],
+            const char * const names[],
+            const bool *ctx,
+            struct irq_affinity *desc)
+{
+    int i;
+    int queue_idx = 0;
+
+    for (i = 0; i < nvqs; ++i) {
+        if (!names[i]) {
+            vqs[i] = NULL;
+            continue;
+        }
+
+        vqs[i] = vm_setup_vq(vdev, queue_idx++, callbacks[i], names[i],
+                             ctx ? ctx[i] : false);
+        if (IS_ERR(vqs[i])) {
+            vm_del_vqs(vdev);
+            return PTR_ERR(vqs[i]);
+        }
+    }
+
+    return 0;
+}
+
 static const struct virtio_config_ops virtio_mmio_config_ops = {
     .get        = vm_get,
     /*
@@ -154,9 +316,9 @@ static const struct virtio_config_ops virtio_mmio_config_ops = {
     .set_status     = vm_set_status,
     .get_features   = vm_get_features,
     .finalize_features = vm_finalize_features,
-    /*
     .find_vqs   = vm_find_vqs,
     .del_vqs    = vm_del_vqs,
+    /*
     .bus_name   = vm_bus_name,
     */
 };

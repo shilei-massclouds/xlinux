@@ -218,7 +218,7 @@ int
 register_virtio_driver(struct virtio_driver *driver)
 {
     /* Catch this early. */
-    //BUG_ON(driver->feature_table_size && !driver->feature_table);
+    BUG_ON(driver->feature_table_size && !driver->feature_table);
     driver->driver.bus = &virtio_bus;
     return driver_register(&driver->driver);
 }

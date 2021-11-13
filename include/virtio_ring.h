@@ -30,6 +30,97 @@
  */
 #define VIRTIO_F_ORDER_PLATFORM     36
 
+#define VRING_AVAIL_ALIGN_SIZE 2
+#define VRING_USED_ALIGN_SIZE 4
+#define VRING_DESC_ALIGN_SIZE 16
+
+/* The Guest uses this in avail->flags to advise the Host: don't interrupt me
+ * when you consume a buffer.  It's unreliable, so it's simply an
+ * optimization.  */
+#define VRING_AVAIL_F_NO_INTERRUPT  1
+
+/* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
+struct vring_desc {
+    /* Address (guest-physical). */
+    __virtio64 addr;
+    /* Length. */
+    __virtio32 len;
+    /* The flags as indicated above. */
+    __virtio16 flags;
+    /* We chain unused descriptors via this, too */
+    __virtio16 next;
+};
+
+struct vring_avail {
+    __virtio16 flags;
+    __virtio16 idx;
+    __virtio16 ring[];
+};
+
+/* u32 is used here for ids for padding reasons. */
+struct vring_used_elem {
+    /* Index of start of used descriptor chain. */
+    __virtio32 id;
+    /* Total length of the descriptor chain which was used (written to) */
+    __virtio32 len;
+};
+
+typedef struct vring_desc
+__attribute__((aligned(VRING_DESC_ALIGN_SIZE))) vring_desc_t;
+typedef struct vring_avail
+__attribute__((aligned(VRING_AVAIL_ALIGN_SIZE))) vring_avail_t;
+typedef struct vring_used
+__attribute__((aligned(VRING_USED_ALIGN_SIZE))) vring_used_t;
+
+struct vring {
+    unsigned int num;
+
+    vring_desc_t *desc;
+
+    vring_avail_t *avail;
+
+    vring_used_t *used;
+};
+
 void vring_transport_features(struct virtio_device *vdev);
+
+struct virtqueue *
+vring_create_virtqueue(unsigned int index,
+                       unsigned int num,
+                       unsigned int vring_align,
+                       struct virtio_device *vdev,
+                       bool weak_barriers,
+                       bool may_reduce_num,
+                       bool context,
+                       bool (*notify)(struct virtqueue *),
+                       void (*callback)(struct virtqueue *),
+                       const char *name);
+
+static inline unsigned
+vring_size(unsigned int num, unsigned long align)
+{
+    unsigned ret;
+    ret = sizeof(struct vring_desc) * num + sizeof(__virtio16) * (3 + num);
+    ret = ALIGN(ret, align);
+    ret += sizeof(__virtio16) * 3;
+    ret += sizeof(struct vring_used_elem) * num;
+    return ret;
+}
+
+static inline void
+vring_init(struct vring *vr, unsigned int num, void *p, unsigned long align)
+{
+    vr->num = num;
+    vr->desc = p;
+    vr->avail = (struct vring_avail *)((char *)p + num * sizeof(struct vring_desc));
+    vr->used = (void *)(ALIGN((uintptr_t)&vr->avail->ring[num] +
+                              sizeof(__virtio16), align));
+}
+
+unsigned int
+virtqueue_get_vring_size(struct virtqueue *_vq);
+
+dma_addr_t
+virtqueue_get_desc_addr(struct virtqueue *_vq);
 
 #endif /* _UAPI_LINUX_VIRTIO_RING_H */
