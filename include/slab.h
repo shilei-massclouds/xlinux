@@ -126,6 +126,24 @@ kzalloc(size_t size, gfp_t flags)
     return kmalloc(size, flags | __GFP_ZERO);
 }
 
+static __always_inline void *
+__kmalloc_node(size_t size, gfp_t flags)
+{
+    return kmalloc(size, flags);
+}
+
+static __always_inline void *
+kmalloc_node(size_t size, gfp_t flags)
+{
+    return __kmalloc_node(size, flags);
+}
+
+static inline void *
+kzalloc_node(size_t size, gfp_t flags)
+{
+    return kmalloc_node(size, flags | __GFP_ZERO);
+}
+
 /**
  * kmalloc_array - allocate memory for an array.
  * @n: number of elements.

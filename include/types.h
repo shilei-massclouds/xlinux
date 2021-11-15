@@ -135,13 +135,22 @@ typedef u64 phys_addr_t;
 typedef long                __kernel_long_t;
 typedef unsigned long       __kernel_ulong_t;
 typedef __kernel_ulong_t    __kernel_size_t;
+typedef __kernel_long_t     __kernel_ssize_t;
 
 typedef __kernel_long_t     __kernel_ptrdiff_t;
 typedef __kernel_ptrdiff_t  ptrdiff_t;
 
+typedef long long           __kernel_loff_t;
+typedef __kernel_loff_t     loff_t;
+
 #ifndef _SIZE_T
 #define _SIZE_T
 typedef __kernel_size_t     size_t;
+#endif
+
+#ifndef _SSIZE_T
+#define _SSIZE_T
+typedef __kernel_ssize_t    ssize_t;
 #endif
 
 typedef unsigned int    __kernel_uid32_t;
@@ -151,6 +160,11 @@ typedef __kernel_uid32_t    uid_t;
 typedef __kernel_gid32_t    gid_t;
 
 typedef u64 dma_addr_t;
+
+typedef u64 sector_t;
+
+typedef unsigned short  umode_t;
+typedef unsigned int    fmode_t;
 
 typedef phys_addr_t resource_size_t;
 

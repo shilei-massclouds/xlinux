@@ -17,6 +17,7 @@ extern size_t strcspn(const char *s, const char *reject);
 extern char *strchr(const char *s, int c);
 extern char *strrchr(const char *s,int c);
 extern char *strchrnul(const char *s, int c);
+size_t strlcpy(char *dest, const char *src, size_t size);
 
 extern int strncmp(const char *cs, const char *ct, size_t count);
 

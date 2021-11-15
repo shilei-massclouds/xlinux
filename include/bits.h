@@ -4,8 +4,22 @@
 
 #include <compiler_attributes.h>
 
+# define do_div(n,base) ({                  \
+    uint32_t __base = (base);               \
+    uint32_t __rem;                     \
+    __rem = ((uint64_t)(n)) % __base;           \
+    (n) = ((uint64_t)(n)) / __base;             \
+    __rem;                          \
+ })
+
 #define __KERNEL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
+
+#define DIV_ROUND_DOWN_ULL(ll, d) \
+    ({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
+
+#define DIV_ROUND_UP_ULL(ll, d) \
+    DIV_ROUND_DOWN_ULL((unsigned long long)(ll) + (d) - 1, (d))
 
 #define BITS_PER_LONG       64
 #define BITS_PER_LONG_LONG  64

@@ -3,11 +3,21 @@
 #include <bug.h>
 #include <slab.h>
 #include <errno.h>
+#include <genhd.h>
+#include <sysfs.h>
+#include <blkdev.h>
+#include <blk-mq.h>
+#include <export.h>
 #include <printk.h>
 #include <virtio.h>
 #include <virtio_blk.h>
+#include <virtio_ring.h>
 
+#define PART_BITS 4
 #define VQ_NAME_LEN 16
+
+static int major;
+static u32 _vd_index_ida;
 
 struct virtio_blk_vq {
     struct virtqueue *vq;
@@ -17,8 +27,17 @@ struct virtio_blk_vq {
 struct virtio_blk {
     struct virtio_device *vdev;
 
+    /* The disk structure for the kernel. */
+    struct gendisk *disk;
+
+    /* Block layer tags. */
+    struct blk_mq_tag_set tag_set;
+
     /* What host tells us, plus 2 for header & tailer. */
     unsigned int sg_elems;
+
+    /* Ida index - used to track minor number allocations. */
+    int index;
 
     /* num of vqs */
     int num_vqs;
@@ -105,6 +124,188 @@ out:
     return err;
 }
 
+/*
+ * Legacy naming scheme used for virtio devices.
+ * We are stuck with it for virtio blk but don't ever use it
+ * for any new driver.
+ */
+static int
+virtblk_name_format(char *prefix, int index, char *buf, int buflen)
+{
+    char *p;
+    int unit;
+    const int base = 'z' - 'a' + 1;
+    char *end = buf + buflen;
+    char *begin = buf + strlen(prefix);
+
+    p = end - 1;
+    *p = '\0';
+    unit = base;
+    do {
+        if (p == begin)
+            return -EINVAL;
+        *--p = 'a' + (index % unit);
+        index = (index / unit) - 1;
+    } while (index >= 0);
+
+    memmove(begin, p, end - p);
+    memcpy(buf, prefix, strlen(prefix));
+    return 0;
+}
+
+static void
+virtblk_get(struct virtio_blk *vblk)
+{
+}
+
+static int
+virtblk_open(struct block_device *bd, fmode_t mode)
+{
+    int ret = 0;
+    struct virtio_blk *vblk = bd->bd_disk->private_data;
+
+    if (vblk->vdev)
+        virtblk_get(vblk);
+    else
+        ret = -ENXIO;
+
+    return ret;
+}
+
+static const struct block_device_operations virtblk_fops = {
+    .open = virtblk_open,
+    //.getgeo = virtblk_getgeo,
+};
+
+static int
+index_to_minor(int index)
+{
+    return index << PART_BITS;
+}
+
+static int
+virtblk_get_cache_mode(struct virtio_device *vdev)
+{
+    int err;
+    u8 writeback;
+
+    err = virtio_cread_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE,
+                               struct virtio_blk_config, wce,
+                               &writeback);
+
+    /*
+     * If WCE is not configurable and flush is not available,
+     * assume no writeback cache is in use.
+     */
+    if (err)
+        writeback = virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH);
+
+    return writeback;
+}
+
+void
+blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
+{
+    /* Todo: */
+}
+EXPORT_SYMBOL(blk_queue_write_cache);
+
+static void
+virtblk_update_cache_mode(struct virtio_device *vdev)
+{
+    struct virtio_blk *vblk = vdev->priv;
+    u8 writeback = virtblk_get_cache_mode(vdev);
+
+    blk_queue_write_cache(vblk->disk->queue, writeback, false);
+    //revalidate_disk(vblk->disk);
+}
+
+void
+set_capacity_revalidate_and_notify(struct gendisk *disk,
+                                   sector_t size,
+                                   bool revalidate)
+{
+    sector_t capacity = get_capacity(disk);
+    set_capacity(disk, size);
+}
+EXPORT_SYMBOL(set_capacity_revalidate_and_notify);
+
+static void
+virtblk_update_capacity(struct virtio_blk *vblk, bool resize)
+{
+    struct virtio_device *vdev = vblk->vdev;
+    struct request_queue *q = vblk->disk->queue;
+    char cap_str_2[10], cap_str_10[10];
+    unsigned long long nblocks;
+    u64 capacity;
+
+    /* Host must always specify the capacity. */
+    virtio_cread(vdev, struct virtio_blk_config, capacity, &capacity);
+
+    /* If capacity is too big, truncate with warning. */
+    if ((sector_t)capacity != capacity) {
+        panic("Capacity %lu too large: truncating\n",
+              (unsigned long long)capacity);
+        capacity = (sector_t)-1;
+    }
+
+    /*
+    nblocks = DIV_ROUND_UP_ULL(capacity, queue_logical_block_size(q) >> 9);
+
+    string_get_size(nblocks, queue_logical_block_size(q),
+            STRING_UNITS_2, cap_str_2, sizeof(cap_str_2));
+    string_get_size(nblocks, queue_logical_block_size(q),
+            STRING_UNITS_10, cap_str_10, sizeof(cap_str_10));
+
+    printk("[%s] %s%lu %d-byte logical blocks (%s/%s)\n",
+           vblk->disk->disk_name,
+           resize ? "new size: " : "",
+           nblocks,
+           queue_logical_block_size(q),
+           cap_str_10,
+           cap_str_2);
+           */
+
+    set_capacity_revalidate_and_notify(vblk->disk, capacity, true);
+}
+
+static struct attribute *virtblk_attrs[] = {
+    NULL,   /* &dev_attr_serial.attr, */
+    NULL,   /* &dev_attr_cache_type.attr, */
+    NULL,
+};
+
+static umode_t
+virtblk_attrs_are_visible(struct kobject *kobj,
+                          struct attribute *a,
+                          int n)
+{
+    /*
+    struct device *dev = container_of(kobj, struct device, kobj);
+    struct gendisk *disk = dev_to_disk(dev);
+    struct virtio_blk *vblk = disk->private_data;
+    struct virtio_device *vdev = vblk->vdev;
+
+    if (a == &dev_attr_cache_type.attr &&
+        !virtio_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE))
+        return S_IRUGO;
+
+    return a->mode;
+    */
+}
+
+static const struct attribute_group virtblk_attr_group = {
+    .attrs = virtblk_attrs,
+    .is_visible = virtblk_attrs_are_visible,
+};
+
+static const struct attribute_group *virtblk_attr_groups[] = {
+    &virtblk_attr_group,
+    NULL,
+};
+
+static unsigned int virtblk_queue_depth;
+
 static int
 virtblk_probe(struct virtio_device *vdev)
 {
@@ -118,14 +319,12 @@ virtblk_probe(struct virtio_device *vdev)
         return -EINVAL;
     }
 
-    index = _virtio_index++;
+    index = _vd_index_ida++;
 
     /* We need to know how many segments before we allocate. */
     err = virtio_cread_feature(vdev, VIRTIO_BLK_F_SEG_MAX,
                                struct virtio_blk_config, seg_max,
                                &sg_elems);
-
-    printk("%s: sg_elems(%u)\n", __func__, sg_elems);
 
     /* We need at least one SG element, whatever they say. */
     if (err || !sg_elems)
@@ -144,7 +343,45 @@ virtblk_probe(struct virtio_device *vdev)
     if (err)
         panic("bad vq!");
 
-    panic("%s:", __func__);
+    /* FIXME: How many partitions?  How long is a piece of string? */
+    vblk->disk = alloc_disk(1 << PART_BITS);
+    if (!vblk->disk)
+        panic("NO memory!");
+
+    BUG_ON(!virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC));
+
+    /* Default queue sizing is to fill the ring. */
+    if (!virtblk_queue_depth) {
+        virtblk_queue_depth = vblk->vqs[0].vq->num_free;
+        /* ... but without indirect descs, we use 2 descs per req */
+        if (!virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC))
+            virtblk_queue_depth /= 2;
+    }
+
+    memset(&vblk->tag_set, 0, sizeof(vblk->tag_set));
+
+    virtblk_name_format("vd", index, vblk->disk->disk_name, DISK_NAME_LEN);
+
+    vblk->disk->major = major;
+    vblk->disk->first_minor = index_to_minor(index);
+    vblk->disk->private_data = vblk;
+    vblk->disk->fops = &virtblk_fops;
+    vblk->disk->flags |= GENHD_FL_EXT_DEVT;
+    vblk->index = index;
+
+    /* configure queue flush support */
+    virtblk_update_cache_mode(vdev);
+
+    printk("%s: %s sg_elems(%u)\n",
+           __func__, vblk->disk->disk_name,
+           vblk->sg_elems);
+
+    virtblk_update_capacity(vblk, false);
+
+    virtio_device_ready(vdev);
+
+    device_add_disk(&vdev->dev, vblk->disk, virtblk_attr_groups);
+    return 0;
 }
 
 static struct virtio_driver virtio_blk = {
@@ -163,8 +400,12 @@ init_module(void)
 {
     printk("module[virtio_blk]: init begin ...\n");
 
+    major = register_blkdev(0, "virtblk");
+    if (major < 0)
+        panic("cannot register blk device!");
+
     if (register_virtio_driver(&virtio_blk))
-        panic("cannot register!");
+        panic("cannot register virtio driver!");
 
     printk("module[virtio_blk]: init end!\n");
     return 0;
