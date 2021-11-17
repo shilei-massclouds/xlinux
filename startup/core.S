@@ -94,6 +94,9 @@ clear_bss_done:
     # Enable paging
     call relocate
 
+    # Setup init_task
+    la tp, init_task
+
     # Restore stack for C function
     la sp, init_stack_top
 

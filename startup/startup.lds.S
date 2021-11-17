@@ -54,6 +54,7 @@ SECTIONS
         . = init_stack + THREAD_SIZE;
         init_stack_top = .;
         *(.data);
+        *(.sdata);
         __global_pointer$ = . + 0x800;
     }
     _data_end = .;

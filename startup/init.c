@@ -3,8 +3,19 @@
 #include <bug.h>
 #include <sbi.h>
 #include <slab.h>
+#include <sched.h>
 #include <export.h>
 #include <kernel.h>
+
+/* to be mentioned only in INIT_TASK */
+struct fs_struct init_fs = {
+    .users      = 1,
+    .umask      = 0022,
+};
+
+struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
+    .fs = &init_fs,
+};
 
 /*
  * Slab
