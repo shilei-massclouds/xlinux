@@ -12,7 +12,11 @@
 #include <compiler_attributes.h>
 
 /* Panic if kmem_cache_create() fails */
-#define SLAB_PANIC      ((slab_flags_t __force)0x00040000U)
+# define SLAB_ACCOUNT   0
+
+#define SLAB_RECLAIM_ACCOUNT    ((slab_flags_t __force)0x00020000U)
+#define SLAB_PANIC              ((slab_flags_t __force)0x00040000U)
+#define SLAB_MEM_SPREAD         ((slab_flags_t __force)0x00100000U)
 
 #define KMALLOC_SHIFT_HIGH  (MAX_ORDER + PAGE_SHIFT - 1)
 #define KMALLOC_SHIFT_MAX   KMALLOC_SHIFT_HIGH
@@ -55,11 +59,34 @@
  */
 #define KMEM_CACHE(__struct, __flags) \
     kmem_cache_create(#__struct, sizeof(struct __struct), \
-                      __alignof__(struct __struct), (__flags))
+                      __alignof__(struct __struct), (__flags), NULL)
+
+struct kmem_cache *
+kmem_cache_create_usercopy(const char *name,
+                           unsigned int size,
+                           unsigned int align,
+                           slab_flags_t flags,
+                           unsigned int useroffset,
+                           unsigned int usersize,
+                           void (*ctor)(void *));
+
+/*
+ * To whitelist a single field for copying to/from usercopy, use this
+ * macro instead for KMEM_CACHE() above.
+ */
+#define KMEM_CACHE_USERCOPY(__struct, __flags, __field) \
+    kmem_cache_create_usercopy(#__struct, \
+                               sizeof(struct __struct), \
+                               __alignof__(struct __struct), \
+                               (__flags), \
+                               offsetof(struct __struct, __field), \
+                               sizeof_field(struct __struct, __field), \
+                               NULL)
 
 struct kmem_cache *
 kmem_cache_create(const char *name, unsigned int size,
-                  unsigned int align, slab_flags_t flags);
+                  unsigned int align, slab_flags_t flags,
+                  void (*ctor)(void *));
 
 enum slab_state {
     DOWN,           /* No slab functionality yet */
@@ -93,6 +120,8 @@ struct kmem_cache {
     /* order of pgs per slab (2^n) */
     unsigned int gfporder;
     unsigned int freelist_size;
+
+    void (*ctor)(void *obj);
 
 /* 4) cache creation/removal */
     const char *name;

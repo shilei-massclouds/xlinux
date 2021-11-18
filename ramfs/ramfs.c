@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <slab.h>
+#include <stat.h>
+#include <dcache.h>
 #include <errno.h>
 #include <ramfs.h>
 #include <types.h>
@@ -19,38 +21,41 @@ struct ramfs_fs_info {
 
 static struct file_system_type *file_systems;
 
+struct inode *
+ramfs_get_inode(struct super_block *sb, const struct inode *dir,
+                umode_t mode, dev_t dev)
+{
+    struct inode *inode = new_inode(sb);
+    return inode;
+}
+
+static const struct super_operations ramfs_ops = {
+};
+
 static int
 ramfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-    /*
     struct inode *inode;
     struct ramfs_fs_info *fsi = sb->s_fs_info;
 
-    sb->s_maxbytes          = MAX_LFS_FILESIZE;
-    sb->s_blocksize         = PAGE_SIZE;
-    sb->s_blocksize_bits    = PAGE_SHIFT;
-    sb->s_magic             = RAMFS_MAGIC;
-    sb->s_op                = &ramfs_ops;
-    sb->s_time_gran         = 1;
+    sb->s_op = &ramfs_ops;
 
     inode = ramfs_get_inode(sb, NULL, S_IFDIR | fsi->mount_opts.mode, 0);
     sb->s_root = d_make_root(inode);
     if (!sb->s_root)
         return -ENOMEM;
 
-        */
     return 0;
 }
 
 static int
 ramfs_get_tree(struct fs_context *fc)
 {
-    panic("%s:", __func__);
-    //return get_tree_nodev(fc, ramfs_fill_super);
+    return get_tree_nodev(fc, ramfs_fill_super);
 }
 
 static const struct fs_context_operations ramfs_context_ops = {
-    .get_tree   = ramfs_get_tree,
+    .get_tree = ramfs_get_tree,
 };
 
 int

@@ -25,6 +25,7 @@
 #define ___GFP_MEMALLOC         0x20000u
 #define ___GFP_COMP             0x40000u
 #define ___GFP_NOMEMALLOC       0x80000u
+#define ___GFP_HARDWALL         0x100000u
 #define ___GFP_ACCOUNT          0x400000u
 
 /*
@@ -56,6 +57,7 @@
 #define __GFP_NORETRY       ((gfp_t)___GFP_NORETRY)
 
 #define __GFP_RECLAIMABLE   ((gfp_t)___GFP_RECLAIMABLE)
+#define __GFP_HARDWALL      ((gfp_t)___GFP_HARDWALL)
 #define __GFP_ACCOUNT       ((gfp_t)___GFP_ACCOUNT)
 
 #define __GFP_DIRECT_RECLAIM    ((gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
@@ -120,6 +122,10 @@ void free_pages_exact(void *virt, size_t size);
 #define __GFP_HIGHMEM   ((__force gfp_t)___GFP_HIGHMEM)
 #define __GFP_DMA32     ((__force gfp_t)___GFP_DMA32)
 #define __GFP_MOVABLE   ((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+
+#define GFP_USER \
+    (__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+
 #define GFP_ZONEMASK \
     (__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
 

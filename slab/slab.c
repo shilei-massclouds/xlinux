@@ -1127,6 +1127,7 @@ create_cache(const char *name,
              slab_flags_t flags,
              unsigned int useroffset,
              unsigned int usersize,
+             void (*ctor)(void *),
              struct kmem_cache *root_cache)
 {
     struct kmem_cache *s;
@@ -1142,6 +1143,7 @@ create_cache(const char *name,
     s->name = name;
     s->size = s->object_size = object_size;
     s->align = align;
+    s->ctor = ctor;
 
     err = __kmem_cache_create(s, flags);
     if (err)
@@ -1160,7 +1162,8 @@ kmem_cache_create_usercopy(const char *name,
                            unsigned int align,
                            slab_flags_t flags,
                            unsigned int useroffset,
-                           unsigned int usersize)
+                           unsigned int usersize,
+                           void (*ctor)(void *))
 {
     const char *cache_name;
     int err = 0;
@@ -1174,7 +1177,7 @@ kmem_cache_create_usercopy(const char *name,
 
     s = create_cache(cache_name, size,
                      calculate_alignment(flags, align, size),
-                     flags, useroffset, usersize, NULL);
+                     flags, useroffset, usersize, ctor, NULL);
     if (IS_ERR(s)) {
         err = PTR_ERR(s);
         kfree_const(cache_name);
@@ -1200,9 +1203,10 @@ struct kmem_cache *
 kmem_cache_create(const char *name,
                   unsigned int size,
                   unsigned int align,
-                  slab_flags_t flags)
+                  slab_flags_t flags,
+                  void (*ctor)(void *))
 {
-    return kmem_cache_create_usercopy(name, size, align, flags, 0, 0);
+    return kmem_cache_create_usercopy(name, size, align, flags, 0, 0, ctor);
 }
 EXPORT_SYMBOL(kmem_cache_create);
 

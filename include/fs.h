@@ -2,7 +2,11 @@
 #ifndef _LINUX_FS_H
 #define _LINUX_FS_H
 
+#include <list.h>
 #include <path.h>
+#include <types.h>
+
+#define SB_ACTIVE   (1<<30)
 
 struct fs_context;
 
@@ -19,13 +23,32 @@ enum fs_context_purpose {
 struct fs_context {
     const struct fs_context_operations *ops;
     struct file_system_type *fs_type;
+    struct dentry *root; /* The root and superblock */
     void *s_fs_info; /* Proposed s_fs_info */
     unsigned int sb_flags;      /* Proposed superblock flags (SB_*) */
     unsigned int sb_flags_mask; /* Superblock flags that were changed */
     enum fs_context_purpose purpose:8;
 };
 
+struct super_block;
+
+struct super_operations {
+    struct inode *(*alloc_inode)(struct super_block *sb);
+};
+
 struct super_block {
+    dev_t s_dev;    /* search index; _not_ kdev_t */
+    struct dentry *s_root;
+    unsigned long s_flags;
+    void *s_fs_info; /* Proposed s_fs_info */
+    const struct super_operations *s_op;
+    struct list_head    s_inodes;   /* all inodes */
+};
+
+struct inode {
+    struct super_block *i_sb;
+    unsigned long       i_state;
+    struct list_head    i_sb_list;
 };
 
 struct file_system_type {
@@ -65,6 +88,19 @@ static inline struct file_system_type *
 get_filesystem(struct file_system_type *fs)
 {
     return fs;
+}
+
+int
+get_tree_nodev(struct fs_context *fc,
+               int (*fill_super)(struct super_block *sb,
+                                 struct fs_context *fc));
+
+struct inode *
+new_inode(struct super_block *sb);
+
+static inline void
+iput(struct inode *inode)
+{
 }
 
 #endif /* _LINUX_FS_H */

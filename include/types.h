@@ -12,6 +12,9 @@
 
 #include <bits.h>
 
+#define offsetof(TYPE, MEMBER)  ((size_t)&((TYPE *)0)->MEMBER)
+#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
+
 extern const unsigned char _ctype[];
 
 #define _U  0x01    /* upper */
@@ -163,6 +166,9 @@ typedef u64 dma_addr_t;
 
 typedef u64 sector_t;
 
+typedef u32 __kernel_dev_t;
+typedef __kernel_dev_t dev_t;
+
 typedef unsigned short  umode_t;
 typedef unsigned int    fmode_t;
 
@@ -201,5 +207,12 @@ typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 #define PTR_ALIGN_DOWN(p, a)    ((typeof(p))_ALIGN_DOWN((unsigned long)(p), (a)))
 
 #define IS_ALIGNED(x, a)    (((x) & ((typeof(x))(a) - 1)) == 0)
+
+#define MINORBITS 20
+#define MINORMASK ((1U << MINORBITS) - 1)
+
+#define MAJOR(dev)   ((unsigned int) ((dev) >> MINORBITS))
+#define MINOR(dev)   ((unsigned int) ((dev) & MINORMASK))
+#define MKDEV(ma,mi) (((ma) << MINORBITS) | (mi))
 
 #endif /* _LINUX_TYPES_H */

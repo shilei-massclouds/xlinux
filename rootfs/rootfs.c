@@ -30,7 +30,7 @@ init_mount_tree(void)
 
     mnt = vfs_kern_mount(&rootfs_fs_type, 0, "rootfs", NULL);
     if (IS_ERR(mnt))
-        panic("Can't create rootfs");
+        panic("Can't create rootfs!");
 
     root.mnt = mnt;
     root.dentry = mnt->mnt_root;
@@ -44,9 +44,7 @@ static int
 init_module(void)
 {
     printk("module[rootfs]: init begin ...\n");
-
     init_mount_tree();
-
     printk("module[rootfs]: init end!\n");
     return 0;
 }
