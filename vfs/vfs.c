@@ -47,7 +47,8 @@ vfs_create_mount(struct fs_context *fc)
     if (!mnt)
         return ERR_PTR(-ENOMEM);
 
-    mnt->mnt.mnt_root   = dget(fc->root);
+    mnt->mnt.mnt_sb   = fc->root->d_sb;
+    mnt->mnt.mnt_root = dget(fc->root);
 
     return &mnt->mnt;
 }

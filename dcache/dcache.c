@@ -16,6 +16,9 @@ __d_alloc(struct super_block *sb, const struct qstr *name)
     if (!dentry)
         return NULL;
 
+    dentry->d_parent = dentry;
+    dentry->d_sb = sb;
+
     return dentry;
 }
 

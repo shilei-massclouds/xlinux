@@ -20,7 +20,9 @@ struct qstr {
 };
 
 struct dentry {
+    struct dentry *d_parent;    /* parent directory */
     unsigned char d_iname[DNAME_INLINE_LEN];    /* small names */
+    struct super_block *d_sb;   /* The root of the dentry tree */
 };
 
 static inline struct dentry *
