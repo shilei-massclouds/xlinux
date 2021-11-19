@@ -46,7 +46,7 @@ __d_alloc(struct super_block *sb, const struct qstr *name)
         }
         atomic_set(&p->count, 1);
         dname = p->name;
-    } else  {
+    } else {
         dname = dentry->d_iname;
     }
 
@@ -59,6 +59,8 @@ __d_alloc(struct super_block *sb, const struct qstr *name)
 
     dentry->d_parent = dentry;
     dentry->d_sb = sb;
+    INIT_LIST_HEAD(&dentry->d_child);
+    INIT_LIST_HEAD(&dentry->d_subdirs);
 
     return dentry;
 }
@@ -100,6 +102,27 @@ d_make_root(struct inode *root_inode)
     return res;
 }
 EXPORT_SYMBOL(d_make_root);
+
+struct dentry *
+d_lookup(const struct dentry *parent, const struct qstr *name)
+{
+    /* Todo */
+    return NULL;
+}
+EXPORT_SYMBOL(d_lookup);
+
+struct dentry *
+d_alloc(struct dentry *parent, const struct qstr *name)
+{
+    struct dentry *dentry = __d_alloc(parent->d_sb, name);
+    if (!dentry)
+        return NULL;
+
+    dentry->d_parent = parent;
+    list_add(&dentry->d_child, &parent->d_subdirs);
+    return dentry;
+}
+EXPORT_SYMBOL(d_alloc);
 
 static void
 dcache_init(void)

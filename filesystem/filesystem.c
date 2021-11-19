@@ -215,6 +215,22 @@ new_inode(struct super_block *sb)
 }
 EXPORT_SYMBOL(new_inode);
 
+/*
+struct dentry *
+simple_lookup(struct inode *dir,
+              struct dentry *dentry,
+              unsigned int flags)
+{
+    if (dentry->d_name.len > NAME_MAX)
+        return ERR_PTR(-ENAMETOOLONG);
+    if (!dentry->d_sb->s_d_op)
+        d_set_d_op(dentry, &simple_dentry_operations);
+    d_add(dentry, NULL);
+    return NULL;
+}
+EXPORT_SYMBOL(simple_lookup);
+*/
+
 static void
 init_once(void *foo)
 {

@@ -21,11 +21,26 @@ struct ramfs_fs_info {
 
 static struct file_system_type *file_systems;
 
+static const struct inode_operations
+ramfs_dir_inode_operations = {
+    //.lookup = simple_lookup,
+};
+
 struct inode *
 ramfs_get_inode(struct super_block *sb, const struct inode *dir,
                 umode_t mode, dev_t dev)
 {
     struct inode *inode = new_inode(sb);
+    if (inode) {
+        switch (mode & S_IFMT) {
+        default:
+            panic("%s: bad mode(%x)", mode);
+            break;
+        case S_IFDIR:
+            //inode->i_op = &ramfs_dir_inode_operations;
+            break;
+        }
+    }
     return inode;
 }
 

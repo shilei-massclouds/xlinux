@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <fs.h>
 #include <bug.h>
-#include <namei.h>
+#include <stat.h>
 #include <printk.h>
 
 static int
 test_create_dir(void)
 {
-    struct path path;
-    struct dentry *dentry;
-
-    dentry = kern_path_create(AT_FDCWD, "dev", &path, LOOKUP_DIRECTORY);
-    if (!dentry)
-        return -1;
-    return 0;
+    umode_t mode;
+    mode = S_IFDIR;
+    mode |= S_IRWXU;
+    mode |= (S_IRGRP | S_IXGRP);
+    mode |= (S_IROTH | S_IXOTH);
+    return init_mkdir("dev", mode);
 }
 
 static int

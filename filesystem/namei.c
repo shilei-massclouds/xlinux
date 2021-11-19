@@ -3,6 +3,7 @@
 #include <slab.h>
 #include <errno.h>
 #include <namei.h>
+#include <dcache.h>
 #include <export.h>
 #include <limits.h>
 #include <string.h>
@@ -15,6 +16,7 @@ struct nameidata {
     struct qstr last;
     struct path root;
     struct inode *inode; /* path.dentry.d_inode */
+    unsigned int flags;
     int last_type;
     struct filename *name;
     int dfd;
@@ -82,6 +84,30 @@ path_init(struct nameidata *nd, unsigned flags)
     } else {
         panic("no AT_FDCMD!");
     }
+
+    return s;
+}
+
+static int
+link_path_walk(const char *name, struct nameidata *nd)
+{
+    int err;
+    int depth = 0; // depth <= nd->depth
+
+    nd->last_type = LAST_ROOT;
+    nd->flags |= LOOKUP_PARENT;
+    if (IS_ERR(name))
+        return PTR_ERR(name);
+    while (*name=='/')
+        name++;
+    if (!*name)
+        return 0;
+
+    nd->last.name = name;
+    nd->last.len = strlen(name);
+    nd->last_type = LAST_NORM;
+    nd->flags &= ~LOOKUP_PARENT;
+    return 0;
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
@@ -89,18 +115,13 @@ static int
 path_parentat(struct nameidata *nd, unsigned flags, struct path *parent)
 {
     const char *s = path_init(nd, flags);
-    /*
     int err = link_path_walk(s, nd);
-    if (!err)
-        err = complete_walk(nd);
     if (!err) {
         *parent = nd->path;
         nd->path.mnt = NULL;
         nd->path.dentry = NULL;
     }
-    terminate_walk(nd);
     return err;
-    */
 }
 
 static void
@@ -134,11 +155,37 @@ filename_parentat(int dfd, struct filename *name,
 }
 
 static struct dentry *
+lookup_dcache(const struct qstr *name,
+              struct dentry *dir,
+              unsigned int flags)
+{
+    struct dentry *dentry = d_lookup(dir, name);
+    return dentry;
+}
+
+static struct dentry *
+__lookup_hash(const struct qstr *name,
+              struct dentry *base,
+              unsigned int flags)
+{
+    struct dentry *dentry;
+
+    dentry = d_alloc(base, name);
+    if (unlikely(!dentry))
+        return ERR_PTR(-ENOMEM);
+
+    printk("%s: name(%s) base(%s) flags(%x)\n",
+           __func__, name->name, base->d_iname, flags);
+    return dentry;
+}
+
+static struct dentry *
 filename_create(int dfd, struct filename *name,
                 struct path *path, unsigned int lookup_flags)
 {
     int type;
     struct qstr last;
+    struct dentry *dentry;
     bool is_dir = (lookup_flags & LOOKUP_DIRECTORY);
 
     /*
@@ -151,6 +198,11 @@ filename_create(int dfd, struct filename *name,
     if (IS_ERR(name))
         return ERR_CAST(name);
 
+    dentry = __lookup_hash(&last, path->dentry, lookup_flags);
+    if (IS_ERR(dentry))
+        panic("cannot lookup hash!");
+
+    return dentry;
 }
 
 struct dentry *

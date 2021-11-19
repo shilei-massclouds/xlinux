@@ -28,6 +28,8 @@ struct dentry {
 
     unsigned char d_iname[DNAME_INLINE_LEN];    /* small names */
     struct super_block *d_sb;   /* The root of the dentry tree */
+    struct list_head d_child;   /* child of parent list */
+    struct list_head d_subdirs; /* our children */
 };
 
 static inline struct dentry *
@@ -38,5 +40,11 @@ dget(struct dentry *dentry)
 
 struct dentry *
 d_make_root(struct inode *root_inode);
+
+struct dentry *
+d_lookup(const struct dentry *parent, const struct qstr *name);
+
+struct dentry *
+d_alloc(struct dentry * parent, const struct qstr *name);
 
 #endif /* _LINUX_DCACHE_H */

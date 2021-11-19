@@ -3,8 +3,9 @@
 #include <bug.h>
 #include <vfs.h>
 #include <path.h>
-#include <mount.h>
 #include <errno.h>
+#include <mount.h>
+#include <namei.h>
 #include <ramfs.h>
 #include <export.h>
 #include <kernel.h>
@@ -42,6 +43,22 @@ init_mount_tree(void)
     set_fs_pwd(current->fs, &root);
     set_fs_root(current->fs, &root);
 }
+
+int
+init_mkdir(const char *pathname, umode_t mode)
+{
+    struct path path;
+    struct dentry *dentry;
+
+    dentry = kern_path_create(AT_FDCWD, pathname, &path,
+                              LOOKUP_DIRECTORY);
+    if (IS_ERR(dentry))
+        return PTR_ERR(dentry);
+
+    //return vfs_mkdir(path.dentry->d_inode, dentry, mode);
+    return 0;
+}
+EXPORT_SYMBOL(init_mkdir);
 
 static int
 init_module(void)

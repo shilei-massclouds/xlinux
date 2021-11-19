@@ -54,7 +54,12 @@ struct super_block {
     struct list_head    s_inodes;   /* all inodes */
 };
 
+struct inode_operations {
+    struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
+};
+
 struct inode {
+    const struct inode_operations *i_op;
     struct super_block *i_sb;
     unsigned long       i_state;
     struct list_head    i_sb_list;
@@ -113,5 +118,13 @@ static inline void
 iput(struct inode *inode)
 {
 }
+
+struct dentry *
+simple_lookup(struct inode *dir,
+              struct dentry *dentry,
+              unsigned int flags);
+
+int
+init_mkdir(const char *pathname, umode_t mode);
 
 #endif /* _LINUX_FS_H */
