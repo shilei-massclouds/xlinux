@@ -11,6 +11,9 @@
 #include <printk.h>
 #include <current.h>
 
+bool rootfs_initialized = false;
+EXPORT_SYMBOL(rootfs_initialized);
+
 static int
 rootfs_init_fs_context(struct fs_context *fc)
 {
@@ -45,6 +48,7 @@ init_module(void)
 {
     printk("module[rootfs]: init begin ...\n");
     init_mount_tree();
+    rootfs_initialized = true;
     printk("module[rootfs]: init end!\n");
     return 0;
 }

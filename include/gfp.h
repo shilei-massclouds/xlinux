@@ -79,6 +79,8 @@
 #define GFP_KERNEL  (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
 #define GFP_NOWAIT  (__GFP_KSWAPD_RECLAIM)
 
+#define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
+
 struct page *
 __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order);
 

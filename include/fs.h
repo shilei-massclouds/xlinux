@@ -8,6 +8,15 @@
 
 #define SB_ACTIVE   (1<<30)
 
+struct filename {
+    const char *name;   /* pointer to actual string */
+    const char iname[];
+};
+
+extern struct kmem_cache *names_cachep;
+
+#define __getname() kmem_cache_alloc(names_cachep, GFP_KERNEL)
+
 struct fs_context;
 
 struct fs_context_operations {
@@ -70,6 +79,8 @@ struct fs_struct {
     int in_exec;
     struct path root, pwd;
 };
+
+extern bool rootfs_initialized;
 
 struct fs_context *
 fs_context_for_mount(struct file_system_type *fs_type,
