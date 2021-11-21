@@ -9,10 +9,7 @@ static int
 test_create_dir(void)
 {
     umode_t mode;
-    mode = S_IFDIR;
-    mode |= S_IRWXU;
-    mode |= (S_IRGRP | S_IXGRP);
-    mode |= (S_IROTH | S_IXOTH);
+    mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
     return init_mkdir("dev", mode);
 }
 

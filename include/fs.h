@@ -56,6 +56,7 @@ struct super_block {
 
 struct inode_operations {
     struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
+    int (*mkdir) (struct inode *,struct dentry *,umode_t);
 };
 
 struct inode {
@@ -75,7 +76,7 @@ struct file_system_type {
 #define FS_DISALLOW_NOTIFY_PERM 16  /* Disable fanotify permission events */
 #define FS_RENAME_DOES_D_MOVE   32768 /* FS will handle d_move() during rename() internally. */
     int (*init_fs_context)(struct fs_context *);
-    struct file_system_type * next;
+    struct file_system_type *next;
 };
 
 struct fs_struct {
@@ -126,5 +127,8 @@ simple_lookup(struct inode *dir,
 
 int
 init_mkdir(const char *pathname, umode_t mode);
+
+int
+vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 
 #endif /* _LINUX_FS_H */

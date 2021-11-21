@@ -47,4 +47,7 @@ d_lookup(const struct dentry *parent, const struct qstr *name);
 struct dentry *
 d_alloc(struct dentry * parent, const struct qstr *name);
 
+void
+d_instantiate(struct dentry *entry, struct inode * inode);
+
 #endif /* _LINUX_DCACHE_H */

@@ -31,7 +31,6 @@ alloc_vfsmnt(const char *name)
 {
     struct mount *mnt;
     mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
-
     return mnt;
 }
 
@@ -49,7 +48,6 @@ vfs_create_mount(struct fs_context *fc)
 
     mnt->mnt.mnt_sb   = fc->root->d_sb;
     mnt->mnt.mnt_root = dget(fc->root);
-
     return &mnt->mnt;
 }
 

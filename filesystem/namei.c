@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <slab.h>
+#include <stat.h>
 #include <errno.h>
 #include <namei.h>
 #include <dcache.h>
@@ -68,7 +69,6 @@ path_init(struct nameidata *nd, unsigned flags)
     nd->path.dentry = NULL;
 
     BUG_ON(*s == '/');
-    printk("%s: name(%s) flags(%x)\n", __func__, s, flags);
 
     /* Relative pathname -- get the starting-point it is relative to. */
     if (nd->dfd == AT_FDCWD) {
@@ -76,8 +76,6 @@ path_init(struct nameidata *nd, unsigned flags)
             struct fs_struct *fs = current->fs;
             nd->path = fs->pwd;
             nd->inode = nd->path.dentry->d_inode;
-            printk("%s: name(%s)\n",
-                   __func__, nd->path.dentry->d_iname);
         } else {
             panic("no LOOKUP_RCU!");
         }
@@ -174,8 +172,6 @@ __lookup_hash(const struct qstr *name,
     if (unlikely(!dentry))
         return ERR_PTR(-ENOMEM);
 
-    printk("%s: name(%s) base(%s) flags(%x)\n",
-           __func__, name->name, base->d_iname, flags);
     return dentry;
 }
 
@@ -213,3 +209,14 @@ kern_path_create(int dfd, const char *pathname,
                            path, lookup_flags);
 }
 EXPORT_SYMBOL(kern_path_create);
+
+int
+vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+    if (!dir->i_op->mkdir)
+        return -EPERM;
+
+    mode &= (S_IRWXUGO|S_ISVTX);
+    return dir->i_op->mkdir(dir, dentry, mode);
+}
+EXPORT_SYMBOL(vfs_mkdir);

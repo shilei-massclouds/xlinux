@@ -72,18 +72,24 @@ d_alloc_anon(struct super_block *sb)
 }
 EXPORT_SYMBOL(d_alloc_anon);
 
+static inline void
+__d_set_inode_and_type(struct dentry *dentry,
+                       struct inode *inode)
+{
+    dentry->d_inode = inode;
+}
+
 static void
 __d_instantiate(struct dentry *dentry, struct inode *inode)
 {
-    /* Todo */
+    __d_set_inode_and_type(dentry, inode);
 }
 
 void
-d_instantiate(struct dentry *entry, struct inode * inode)
+d_instantiate(struct dentry *entry, struct inode *inode)
 {
-    if (inode) {
+    if (inode)
         __d_instantiate(entry, inode);
-    }
 }
 EXPORT_SYMBOL(d_instantiate);
 

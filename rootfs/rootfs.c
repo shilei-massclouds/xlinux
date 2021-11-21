@@ -55,8 +55,7 @@ init_mkdir(const char *pathname, umode_t mode)
     if (IS_ERR(dentry))
         return PTR_ERR(dentry);
 
-    //return vfs_mkdir(path.dentry->d_inode, dentry, mode);
-    return 0;
+    return vfs_mkdir(path.dentry->d_inode, dentry, mode);
 }
 EXPORT_SYMBOL(init_mkdir);
 

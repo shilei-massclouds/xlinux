@@ -10,7 +10,7 @@
  */
 enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 
-/* Special value used to indicate 
+/* Special value used to indicate
  * openat should use the current working directory. */
 #define AT_FDCWD    -100
 

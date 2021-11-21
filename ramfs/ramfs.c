@@ -21,9 +21,30 @@ struct ramfs_fs_info {
 
 static struct file_system_type *file_systems;
 
+static int
+ramfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+{
+    int error = -ENOSPC;
+    struct inode *inode = ramfs_get_inode(dir->i_sb, dir, mode, dev);
+
+    if (inode) {
+        d_instantiate(dentry, inode);
+        dget(dentry);   /* Extra count - pin the dentry in core */
+        error = 0;
+    }
+    return error;
+}
+
+static int
+ramfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+    return ramfs_mknod(dir, dentry, mode | S_IFDIR, 0);
+}
+
 static const struct inode_operations
 ramfs_dir_inode_operations = {
     //.lookup = simple_lookup,
+    .mkdir = ramfs_mkdir,
 };
 
 struct inode *
@@ -37,7 +58,7 @@ ramfs_get_inode(struct super_block *sb, const struct inode *dir,
             panic("%s: bad mode(%x)", mode);
             break;
         case S_IFDIR:
-            //inode->i_op = &ramfs_dir_inode_operations;
+            inode->i_op = &ramfs_dir_inode_operations;
             break;
         }
     }
