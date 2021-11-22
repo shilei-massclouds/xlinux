@@ -61,7 +61,6 @@ __d_alloc(struct super_block *sb, const struct qstr *name)
     dentry->d_sb = sb;
     INIT_LIST_HEAD(&dentry->d_child);
     INIT_LIST_HEAD(&dentry->d_subdirs);
-
     return dentry;
 }
 

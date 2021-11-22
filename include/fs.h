@@ -94,10 +94,8 @@ struct file_system_type {
 };
 
 struct fs_struct {
-    int users;
-    int umask;
-    int in_exec;
-    struct path root, pwd;
+    struct path root;
+    struct path pwd;
 };
 
 extern bool rootfs_initialized;
