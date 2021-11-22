@@ -57,13 +57,27 @@ struct super_block {
 struct inode_operations {
     struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
     int (*mkdir) (struct inode *,struct dentry *,umode_t);
+    int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 };
 
 struct inode {
+    umode_t             i_mode;
+
+    /* Stat data, not accessed from path walking */
+    unsigned long       i_ino;
+
+    dev_t               i_rdev;
+
     const struct inode_operations *i_op;
+    const struct file_operations  *i_fop;
+
     struct super_block *i_sb;
+
     unsigned long       i_state;
     struct list_head    i_sb_list;
+};
+
+struct file_operations {
 };
 
 struct file_system_type {
@@ -101,6 +115,12 @@ set_fs_root(struct fs_struct *fs, const struct path *path);
 void
 set_fs_pwd(struct fs_struct *fs, const struct path *path);
 
+static inline void
+get_fs_root(struct fs_struct *fs, struct path *root)
+{
+    *root = fs->root;
+}
+
 static inline struct file_system_type *
 get_filesystem(struct file_system_type *fs)
 {
@@ -127,8 +147,5 @@ simple_lookup(struct inode *dir,
 
 int
 init_mkdir(const char *pathname, umode_t mode);
-
-int
-vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 
 #endif /* _LINUX_FS_H */

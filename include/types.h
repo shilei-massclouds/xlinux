@@ -208,11 +208,4 @@ typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 
 #define IS_ALIGNED(x, a)    (((x) & ((typeof(x))(a) - 1)) == 0)
 
-#define MINORBITS 20
-#define MINORMASK ((1U << MINORBITS) - 1)
-
-#define MAJOR(dev)   ((unsigned int) ((dev) >> MINORBITS))
-#define MINOR(dev)   ((unsigned int) ((dev) & MINORMASK))
-#define MKDEV(ma,mi) (((ma) << MINORBITS) | (mi))
-
 #endif /* _LINUX_TYPES_H */

@@ -3,7 +3,9 @@
 #define _LINUX_MOUNT_H
 
 #include <fs.h>
+#include <stat.h>
 #include <dcache.h>
+#include <kdev_t.h>
 
 #define MNT_LOCKED      0x800000
 
@@ -19,5 +21,14 @@ struct mount {
 
 void
 mnt_init(void);
+
+int
+init_mknod(const char *filename, umode_t mode, unsigned int dev);
+
+static inline int
+create_dev(char *name, dev_t dev)
+{
+    return init_mknod(name, S_IFBLK|0600, new_encode_dev(dev));
+}
 
 #endif /* _LINUX_MOUNT_H */

@@ -53,6 +53,34 @@ getname_kernel(const char *filename)
     return result;
 }
 
+static int
+set_root(struct nameidata *nd)
+{
+    struct fs_struct *fs = current->fs;
+
+    if (nd->flags & LOOKUP_RCU) {
+        nd->root = fs->root;
+    } else {
+        get_fs_root(fs, &nd->root);
+        nd->flags |= LOOKUP_ROOT_GRABBED;
+    }
+    return 0;
+}
+
+static int
+nd_jump_root(struct nameidata *nd)
+{
+    if (!nd->root.mnt) {
+        int error = set_root(nd);
+        if (error)
+            return error;
+    }
+    nd->path = nd->root;
+    nd->inode = nd->path.dentry->d_inode;
+    nd->flags |= LOOKUP_JUMPED;
+    return 0;
+}
+
 static const char *
 path_init(struct nameidata *nd, unsigned flags)
 {
@@ -68,7 +96,12 @@ path_init(struct nameidata *nd, unsigned flags)
     nd->path.mnt = NULL;
     nd->path.dentry = NULL;
 
-    BUG_ON(*s == '/');
+    if (*s == '/' && !(flags & LOOKUP_IN_ROOT)) {
+        int error = nd_jump_root(nd);
+        if (unlikely(error))
+            return ERR_PTR(error);
+        return s;
+    }
 
     /* Relative pathname -- get the starting-point it is relative to. */
     if (nd->dfd == AT_FDCWD) {
@@ -86,6 +119,60 @@ path_init(struct nameidata *nd, unsigned flags)
     return s;
 }
 
+static struct dentry *
+lookup_fast(struct nameidata *nd, struct inode **inode)
+{
+    struct dentry *dentry;
+    struct dentry *parent = nd->path.dentry;
+
+    list_for_each_entry(dentry, &(parent->d_subdirs), d_child) {
+        const unsigned char *p = strchr(nd->last.name, '/');
+        BUG_ON(p == NULL);
+
+        if (!strncmp(nd->last.name, dentry->d_name.name,
+                     (p - nd->last.name)))
+            break;
+    }
+    BUG_ON(dentry == NULL);
+
+    *inode = d_backing_inode(dentry);
+    return dentry;
+}
+
+static inline int
+handle_mounts(struct nameidata *nd, struct dentry *dentry,
+              struct path *path, struct inode **inode)
+{
+    path->mnt = nd->path.mnt;
+    path->dentry = dentry;
+    *inode = d_backing_inode(path->dentry);
+    return 0;
+}
+
+static const char *
+step_into(struct nameidata *nd, struct dentry *dentry, struct inode *inode)
+{
+    struct path path;
+    handle_mounts(nd, dentry, &path, &inode);
+
+    nd->path = path;
+    nd->inode = inode;
+    return NULL;
+}
+
+static const char *
+walk_component(struct nameidata *nd)
+{
+    struct inode *inode;
+    struct dentry *dentry;
+
+    dentry = lookup_fast(nd, &inode);
+    if (IS_ERR(dentry))
+        return ERR_CAST(dentry);
+
+    return step_into(nd, dentry, inode);
+}
+
 static int
 link_path_walk(const char *name, struct nameidata *nd)
 {
@@ -101,10 +188,34 @@ link_path_walk(const char *name, struct nameidata *nd)
     if (!*name)
         return 0;
 
-    nd->last.name = name;
-    nd->last.len = strlen(name);
-    nd->last_type = LAST_NORM;
-    nd->flags &= ~LOOKUP_PARENT;
+    for (;;) {
+        int len;
+        char *p = strchr(name, '/');
+        if (p)
+            len = p - name;
+        else
+            len = strlen(name);
+
+        nd->last.name = name;
+        nd->last.len = len;
+        nd->last_type = LAST_NORM;
+
+        name += len;
+        if (!*name) {
+            nd->flags &= ~LOOKUP_PARENT;
+            return 0;
+        }
+
+        do {
+            name++;
+        } while (unlikely(*name == '/'));
+
+        if (unlikely(!*name))
+            panic("bad name!");
+
+        walk_component(nd);
+    }
+
     return 0;
 }
 
@@ -220,3 +331,13 @@ vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
     return dir->i_op->mkdir(dir, dentry, mode);
 }
 EXPORT_SYMBOL(vfs_mkdir);
+
+int
+vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+{
+    if (!dir->i_op->mknod)
+        return -EPERM;
+
+    return dir->i_op->mknod(dir, dentry, mode, dev);
+}
+EXPORT_SYMBOL(vfs_mknod);

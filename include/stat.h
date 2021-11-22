@@ -3,7 +3,11 @@
 #define _UAPI_LINUX_STAT_H
 
 #define S_IFMT     00170000
+#define S_IFSOCK    0140000
+#define S_IFBLK     0060000
 #define S_IFDIR     0040000
+#define S_IFCHR     0020000
+#define S_IFIFO     0010000
 #define S_ISVTX     0001000
 
 #define S_IRWXU 00700
@@ -26,5 +30,11 @@
 #define S_IRUGO     (S_IRUSR|S_IRGRP|S_IROTH)
 #define S_IWUGO     (S_IWUSR|S_IWGRP|S_IWOTH)
 #define S_IXUGO     (S_IXUSR|S_IXGRP|S_IXOTH)
+
+#define S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m)  (((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+
 
 #endif /* _UAPI_LINUX_STAT_H */

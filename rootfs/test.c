@@ -3,6 +3,7 @@
 #include <fs.h>
 #include <bug.h>
 #include <stat.h>
+#include <mount.h>
 #include <printk.h>
 
 static int
@@ -14,6 +15,12 @@ test_create_dir(void)
 }
 
 static int
+test_create_dev(void)
+{
+    return create_dev("/dev/root", 0xFE00001);
+}
+
+static int
 init_module(void)
 {
     printk("module[test_rootfs]: init begin ...\n");
@@ -22,6 +29,11 @@ init_module(void)
 
     if (test_create_dir()) {
         printk(_RED("test dir create failed!\n"));
+        return -1;
+    }
+
+    if (test_create_dev()) {
+        printk(_RED("test dev create failed!\n"));
         return -1;
     }
 

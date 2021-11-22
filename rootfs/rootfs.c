@@ -59,6 +59,23 @@ init_mkdir(const char *pathname, umode_t mode)
 }
 EXPORT_SYMBOL(init_mkdir);
 
+int
+init_mknod(const char *filename, umode_t mode, unsigned int dev)
+{
+    struct path path;
+    struct dentry *dentry;
+
+    if (!(S_ISBLK(mode) || S_ISCHR(mode)))
+        return -EINVAL;
+
+    dentry = kern_path_create(AT_FDCWD, filename, &path, 0);
+    if (IS_ERR(dentry))
+        return PTR_ERR(dentry);
+
+    return vfs_mknod(path.dentry->d_inode, dentry, mode, new_decode_dev(dev));
+}
+EXPORT_SYMBOL(init_mknod);
+
 static int
 init_module(void)
 {

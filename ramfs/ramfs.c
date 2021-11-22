@@ -45,7 +45,42 @@ static const struct inode_operations
 ramfs_dir_inode_operations = {
     //.lookup = simple_lookup,
     .mkdir = ramfs_mkdir,
+    .mknod = ramfs_mknod,
 };
+
+const struct file_operations def_blk_fops = {
+};
+
+void
+init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
+{
+    inode->i_mode = mode;
+    if (S_ISCHR(mode)) {
+        panic("no chr dev!");
+        /*
+        inode->i_fop = &def_chr_fops;
+        inode->i_rdev = rdev;
+        */
+    } else if (S_ISBLK(mode)) {
+        inode->i_fop = &def_blk_fops;
+        inode->i_rdev = rdev;
+    } else if (S_ISFIFO(mode))
+        panic("no fifo dev!");
+        //inode->i_fop = &pipefifo_fops;
+    else if (S_ISSOCK(mode))
+        ;   /* leave it no_open_fops */
+    else
+        panic("init_special_inode: bogus i_mode (%x) for inode %lu",
+              mode, inode->i_ino);
+}
+EXPORT_SYMBOL(init_special_inode);
+
+void
+inode_init_owner(struct inode *inode, const struct inode *dir, umode_t mode)
+{
+    inode->i_mode = mode;
+}
+EXPORT_SYMBOL(inode_init_owner);
 
 struct inode *
 ramfs_get_inode(struct super_block *sb, const struct inode *dir,
@@ -53,9 +88,10 @@ ramfs_get_inode(struct super_block *sb, const struct inode *dir,
 {
     struct inode *inode = new_inode(sb);
     if (inode) {
+        inode_init_owner(inode, dir, mode);
         switch (mode & S_IFMT) {
         default:
-            panic("%s: bad mode(%x)", mode);
+            init_special_inode(inode, mode, dev);
             break;
         case S_IFDIR:
             inode->i_op = &ramfs_dir_inode_operations;

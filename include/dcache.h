@@ -50,4 +50,10 @@ d_alloc(struct dentry * parent, const struct qstr *name);
 void
 d_instantiate(struct dentry *entry, struct inode * inode);
 
+static inline struct inode *
+d_backing_inode(const struct dentry *upper)
+{
+    return upper->d_inode;
+}
+
 #endif /* _LINUX_DCACHE_H */
