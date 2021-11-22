@@ -92,12 +92,3 @@ mnt_init(void)
     mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct mount),0,
                                   SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 }
-
-static int
-init_module(void)
-{
-    printk("module[vfs]: init begin ...\n");
-    mnt_init();
-    printk("module[vfs]: init end!\n");
-    return 0;
-}

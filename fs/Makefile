@@ -2,5 +2,6 @@
 
 target_y := ko
 
-obj_y := filesystem.o
+obj_y := fs.o
+obj_y += mount.o
 obj_y += namei.o

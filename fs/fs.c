@@ -254,6 +254,7 @@ init_module(void)
     printk("module[filesystem]: init begin ...\n");
     BUG_ON(!slab_is_available());
     inode_init();
+    mnt_init();
     BUG_ON(!names_cachep);
     printk("module[filesystem]: init end!\n");
     return 0;

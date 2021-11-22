@@ -17,4 +17,7 @@ struct mount {
     struct vfsmount mnt;
 };
 
+void
+mnt_init(void);
+
 #endif /* _LINUX_MOUNT_H */

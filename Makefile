@@ -9,7 +9,7 @@ SUBDIRS		:= startup lib early_dt \
 	mm memblock buddy slab kalloc \
 	vma ioremap devres \
 	of platform kobject \
-	dcache fs vfs ramfs rootfs \
+	dcache fs ramfs rootfs \
 	block genhd \
 	virtio virtio_mmio virtio_blk \
 	init
