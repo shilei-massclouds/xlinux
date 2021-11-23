@@ -9,4 +9,6 @@
 #define CONFIG_PAGE_OFFSET  0xffffffe000000000
 #define CONFIG_NR_CPUS      1
 
+#define COMMAND_LINE_SIZE   512
+
 #endif  /* _CONFIG_H */

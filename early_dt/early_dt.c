@@ -15,6 +15,10 @@ extern void *dtb_early_va;
 void *initial_boot_params;
 EXPORT_SYMBOL(initial_boot_params);
 
+/* Untouched command line saved by arch-specific code. */
+char boot_command_line[COMMAND_LINE_SIZE];
+EXPORT_SYMBOL(boot_command_line);
+
 int dt_root_addr_cells;
 int dt_root_size_cells;
 
@@ -455,9 +459,34 @@ early_init_dt_scan_memory(unsigned long node,
     return 0;
 }
 
+static int
+early_init_dt_scan_chosen(unsigned long node, const char *uname,
+                          int depth, void *data)
+{
+    int l;
+    const char *p;
+
+    if (depth != 1 || !data ||
+        (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
+        return 0;
+
+    /* Retrieve command line */
+    p = of_get_flat_dt_prop(node, "bootargs", &l);
+    if (p != NULL && l > 0)
+        strlcpy(data, p, min(l, COMMAND_LINE_SIZE));
+
+    printk("Command line is: %s\n", (char *)data);
+
+    /* break now */
+    return 1;
+}
+
 void
 early_init_dt_scan_nodes(void)
 {
+    if (!of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line))
+        panic("No chosen node found!");
+
     of_scan_flat_dt(early_init_dt_scan_root, NULL);
 
     of_scan_flat_dt(early_init_dt_scan_memory, NULL);
