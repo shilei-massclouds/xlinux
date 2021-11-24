@@ -67,7 +67,6 @@ register_disk(struct device *parent,
         return;
 
     /* Todo: */
-    panic("%s: reach here!", __func__);
 }
 
 int

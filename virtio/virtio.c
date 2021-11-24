@@ -122,9 +122,6 @@ virtio_dev_probe(struct device *_d)
 
     virtio_config_enable(dev);
 
-    panic("%s: device_features(%lx) version(%lx)\n",
-          __func__, device_features, VIRTIO_F_VERSION_1);
-
     return 0;
  err:
     virtio_add_status(dev, VIRTIO_CONFIG_S_FAILED);
