@@ -372,9 +372,9 @@ virtblk_probe(struct virtio_device *vdev)
     /* configure queue flush support */
     virtblk_update_cache_mode(vdev);
 
-    printk("%s: %s sg_elems(%u)\n",
+    printk("%s: %s sg_elems(%u) major(%x)\n",
            __func__, vblk->disk->disk_name,
-           vblk->sg_elems);
+           vblk->sg_elems, major);
 
     virtblk_update_capacity(vblk, false);
 

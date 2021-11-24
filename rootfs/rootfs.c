@@ -9,11 +9,18 @@
 #include <ramfs.h>
 #include <export.h>
 #include <kernel.h>
+#include <params.h>
 #include <printk.h>
+#include <string.h>
 #include <current.h>
+
+extern char boot_command_line[];
 
 bool rootfs_initialized = false;
 EXPORT_SYMBOL(rootfs_initialized);
+
+char saved_root_name[64];
+EXPORT_SYMBOL(saved_root_name);
 
 static int
 rootfs_init_fs_context(struct fs_context *fc)
@@ -76,9 +83,25 @@ init_mknod(const char *filename, umode_t mode, unsigned int dev)
 EXPORT_SYMBOL(init_mknod);
 
 static int
+root_dev_setup(char *param, char *value)
+{
+    strlcpy(saved_root_name, value, sizeof(saved_root_name));
+    printk("%s: saved_root_name(%s)\n", __func__, saved_root_name);
+    return 0;
+}
+
+static struct kernel_param kernel_params[] = {
+    { .name = "root", .setup_func = root_dev_setup, },
+};
+
+static unsigned int
+num_kernel_params = sizeof(kernel_params) / sizeof(struct kernel_param);
+
+static int
 init_module(void)
 {
     printk("module[rootfs]: init begin ...\n");
+    BUG_ON(parse_args(boot_command_line, kernel_params, num_kernel_params));
     init_mount_tree();
     rootfs_initialized = true;
     printk("module[rootfs]: init end!\n");

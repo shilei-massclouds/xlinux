@@ -6,3 +6,4 @@ obj_y := lib.o
 obj_y += string.o
 obj_y += vsprintf.o
 obj_y += printk.o
+obj_y += params.o

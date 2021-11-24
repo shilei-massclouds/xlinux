@@ -253,3 +253,18 @@ strlcpy(char *dest, const char *src, size_t size)
     return ret;
 }
 EXPORT_SYMBOL(strlcpy);
+
+/**
+ * skip_spaces - Removes leading whitespace from @str.
+ * @str: The string to be stripped.
+ *
+ * Returns a pointer to the first non-whitespace character in @str.
+ */
+char *
+skip_spaces(const char *str)
+{
+    while (isspace(*str))
+        ++str;
+    return (char *)str;
+}
+EXPORT_SYMBOL(skip_spaces);

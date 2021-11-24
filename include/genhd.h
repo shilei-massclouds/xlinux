@@ -5,10 +5,19 @@
 #include <sysfs.h>
 #include <device.h>
 
+#define dev_to_disk(device) container_of((device), struct gendisk, part0.__dev)
+#define disk_to_dev(disk)   (&(disk)->part0.__dev)
+#define part_to_dev(part)   (&((part)->__dev))
+
 #define DISK_MAX_PARTS          256
 #define DISK_NAME_LEN           32
 
 #define GENHD_FL_EXT_DEVT           0x0040
+
+struct hd_struct {
+    struct device __dev;
+    int partno;
+};
 
 struct gendisk {
     /* major, first_minor and minors are input parameters only,
@@ -19,6 +28,8 @@ struct gendisk {
     int minors;         /* maximum number of minors, =1 for
                          * disks that can't be partitioned. */
     char disk_name[DISK_NAME_LEN];  /* name of major driver */
+
+    struct hd_struct part0;
 
     const struct block_device_operations *fops;
     struct request_queue *queue;
@@ -62,5 +73,17 @@ void
 device_add_disk(struct device *parent,
                 struct gendisk *disk,
                 const struct attribute_group **groups);
+
+static inline struct gendisk *
+part_to_disk(struct hd_struct *part)
+{
+    if (likely(part)) {
+        if (part->partno)
+            return dev_to_disk(part_to_dev(part)->parent);
+        else
+            return dev_to_disk(part_to_dev(part));
+    }
+    return NULL;
+}
 
 #endif /* _LINUX_GENHD_H */

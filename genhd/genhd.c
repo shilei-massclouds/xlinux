@@ -2,9 +2,11 @@
 
 #include <bug.h>
 #include <slab.h>
+#include <class.h>
 #include <genhd.h>
 #include <blkdev.h>
 #include <export.h>
+#include <kdev_t.h>
 #include <string.h>
 
 #define BLKDEV_MAJOR_HASH_SIZE 255
@@ -13,6 +15,14 @@ static struct blk_major_name {
     int major;
     char name[16];
 } *major_names[BLKDEV_MAJOR_HASH_SIZE];
+
+struct class block_class = {
+    .name = "block",
+};
+
+const struct device_type disk_type = {
+    .name = "disk",
+};
 
 struct gendisk *
 __alloc_disk_node(int minors)
@@ -26,7 +36,10 @@ __alloc_disk_node(int minors)
 
     disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL);
     if (disk) {
-        /* Todo: */
+        disk->minors = minors;
+        disk_to_dev(disk)->class = &block_class;
+        disk_to_dev(disk)->type = &disk_type;
+        device_initialize(disk_to_dev(disk));
     }
 
     return disk;
@@ -44,8 +57,30 @@ register_disk(struct device *parent,
               struct gendisk *disk,
               const struct attribute_group **groups)
 {
+    struct device *ddev = disk_to_dev(disk);
+
+    ddev->parent = parent;
+
+    dev_set_name(ddev, "%s", disk->disk_name);
+
+    if (device_add(ddev))
+        return;
+
     /* Todo: */
     panic("%s: reach here!", __func__);
+}
+
+int
+blk_alloc_devt(struct hd_struct *part, dev_t *devt)
+{
+    struct gendisk *disk = part_to_disk(part);
+
+    if (part->partno < disk->minors) {
+        *devt = MKDEV(disk->major, disk->first_minor + part->partno);
+        return 0;
+    }
+
+    panic("bad partno (%d)", part->partno);
 }
 
 static void
@@ -54,6 +89,18 @@ __device_add_disk(struct device *parent,
                   const struct attribute_group **groups,
                   bool register_queue)
 {
+    dev_t devt;
+    int retval;
+
+    retval = blk_alloc_devt(&disk->part0, &devt);
+    BUG_ON(retval);
+
+    disk->major = MAJOR(devt);
+    disk->first_minor = MINOR(devt);
+
+    printk("%s: (%x) ma(%x) mi(%x)\n",
+           __func__, devt, disk->major, disk->first_minor);
+
     register_disk(parent, disk, groups);
 }
 
@@ -122,6 +169,8 @@ static int
 init_module(void)
 {
     printk("module[genhd]: init begin ...\n");
+    BUG_ON(!slab_is_available());
+    BUG_ON(class_register(&block_class));
     printk("module[genhd]: init end!\n");
     return 0;
 }

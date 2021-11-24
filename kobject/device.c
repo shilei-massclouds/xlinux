@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <slab.h>
 #include <acgcc.h>
+#include <class.h>
 #include <errno.h>
 #include <printk.h>
 #include <export.h>
@@ -34,6 +35,12 @@ int device_add(struct device *dev)
         return error;
 
     bus_probe_device(dev);
+
+    if (dev->class) {
+        /* tie the class to the device */
+        klist_add_tail(&dev->p->knode_class,
+                       &dev->class->p->klist_devices);
+    }
 
     return 0;
 }

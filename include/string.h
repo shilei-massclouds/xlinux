@@ -68,4 +68,7 @@ vsnprintf(char *buf, size_t size, const char *fmt, va_list args);
 int
 snprintf(char *buf, size_t size, const char *fmt, ...);
 
+char *
+skip_spaces(const char *str);
+
 #endif /* _LINUX_STRING_H */

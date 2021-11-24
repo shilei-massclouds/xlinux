@@ -9,6 +9,7 @@
 #include <string.h>
 #include <kobject.h>
 
+struct class;
 struct device;
 struct device_driver;
 
@@ -29,11 +30,13 @@ struct subsys_private {
     struct klist klist_drivers;
     unsigned int drivers_autoprobe:1;
     struct bus_type *bus;
+    struct class *class;
 };
 
 struct device_private {
     struct klist_node knode_driver;
     struct klist_node knode_bus;
+    struct klist_node knode_class;
     struct device *device;
 };
 
@@ -41,6 +44,10 @@ struct device_private {
     container_of(obj, struct device_private, knode_driver)
 #define to_device_private_bus(obj)  \
     container_of(obj, struct device_private, knode_bus)
+
+struct device_type {
+    const char *name;
+};
 
 struct device {
     struct kobject kobj;
@@ -51,6 +58,8 @@ struct device {
 
     const char *init_name; /* initial name of the device */
 
+    const struct device_type *type;
+
     struct bus_type *bus;
 
     void *platform_data;
@@ -58,6 +67,8 @@ struct device {
     struct device_node *of_node; /* associated device tree node */
 
     struct list_head devres_head;
+
+    struct class *class;
 
     struct device_driver *driver;
 
