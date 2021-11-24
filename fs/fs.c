@@ -251,11 +251,11 @@ inode_init(void)
 static int
 init_module(void)
 {
-    printk("module[filesystem]: init begin ...\n");
+    printk("module[fs]: init begin ...\n");
     BUG_ON(!slab_is_available());
     inode_init();
     mnt_init();
     BUG_ON(!names_cachep);
-    printk("module[filesystem]: init end!\n");
+    printk("module[fs]: init end!\n");
     return 0;
 }

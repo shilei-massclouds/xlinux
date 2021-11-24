@@ -7,6 +7,9 @@
 #include <dcache.h>
 #include <kdev_t.h>
 
+#define MS_RDONLY   1       /* Mount read-only */
+#define MS_SILENT   32768
+
 #define MNT_LOCKED      0x800000
 
 struct vfsmount {

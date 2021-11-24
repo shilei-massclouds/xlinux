@@ -40,10 +40,12 @@ struct device_private {
     struct device *device;
 };
 
-#define to_device_private_driver(obj) \
+#define to_device_private_driver(obj)   \
     container_of(obj, struct device_private, knode_driver)
-#define to_device_private_bus(obj)  \
+#define to_device_private_bus(obj)      \
     container_of(obj, struct device_private, knode_bus)
+#define to_device_private_class(obj)    \
+    container_of(obj, struct device_private, knode_class)
 
 struct device_type {
     const char *name;
@@ -74,6 +76,8 @@ struct device {
 
     /* Driver data, set and get with dev_set_drvdata/dev_get_drvdata */
     void *driver_data;
+
+    dev_t devt; /* dev_t, creates the sysfs "dev" */
 };
 
 extern int device_add(struct device *dev);

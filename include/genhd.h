@@ -86,4 +86,7 @@ part_to_disk(struct hd_struct *part)
     return NULL;
 }
 
+dev_t
+blk_lookup_devt(const char *name, int partno);
+
 #endif /* _LINUX_GENHD_H */

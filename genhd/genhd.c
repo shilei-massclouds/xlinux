@@ -89,16 +89,16 @@ __device_add_disk(struct device *parent,
                   bool register_queue)
 {
     dev_t devt;
-    int retval;
+    struct device *dev = disk_to_dev(disk);
 
-    retval = blk_alloc_devt(&disk->part0, &devt);
-    BUG_ON(retval);
+    BUG_ON(blk_alloc_devt(&disk->part0, &devt));
 
     disk->major = MAJOR(devt);
     disk->first_minor = MINOR(devt);
+    dev->devt = devt;
 
     printk("%s: (%x) ma(%x) mi(%x)\n",
-           __func__, devt, disk->major, disk->first_minor);
+           __func__, dev->devt, disk->major, disk->first_minor);
 
     register_disk(parent, disk, groups);
 }
@@ -163,6 +163,36 @@ register_blkdev(unsigned int major, const char *name)
     return ret;
 }
 EXPORT_SYMBOL(register_blkdev);
+
+dev_t
+blk_lookup_devt(const char *name, int partno)
+{
+    dev_t devt = MKDEV(0, 0);
+    struct class_dev_iter iter;
+    struct device *dev;
+
+    class_dev_iter_init(&iter, &block_class, NULL, &disk_type);
+    while ((dev = class_dev_iter_next(&iter))) {
+        struct gendisk *disk = dev_to_disk(dev);
+        struct hd_struct *part;
+
+        if (strcmp(dev_name(dev), name))
+            continue;
+
+        if (partno < disk->minors) {
+            /* We need to return the right devno, even
+             * if the partition doesn't exist yet.
+             */
+            printk("%s: %s devt(%x)\n", __func__, dev_name(dev), dev->devt);
+            devt = MKDEV(MAJOR(dev->devt), MINOR(dev->devt) + partno);
+            break;
+        }
+        panic("%s: bad partno(%d)", __func__, partno);
+    }
+    class_dev_iter_exit(&iter);
+    return devt;
+}
+EXPORT_SYMBOL(blk_lookup_devt);
 
 static int
 init_module(void)
