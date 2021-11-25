@@ -149,6 +149,10 @@ typedef void
 (*kfree_t)(const void *objp);
 extern kfree_t kfree;
 
+typedef char *
+(*kmemdup_nul_t)(const char *s, size_t len, gfp_t gfp);
+extern kmemdup_nul_t kmemdup_nul;
+
 static inline void *
 kzalloc(size_t size, gfp_t flags)
 {

@@ -14,6 +14,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
  * openat should use the current working directory. */
 #define AT_FDCWD    -100
 
+#define LOOKUP_FOLLOW       0x0001  /* follow links at the end */
 #define LOOKUP_DIRECTORY    0x0002  /* require a directory */
 #define LOOKUP_ROOT_GRABBED 0x0008
 #define LOOKUP_PARENT       0x0010  /* internal use only */

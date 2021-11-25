@@ -8,6 +8,26 @@
 
 #define SB_ACTIVE   (1<<30)
 
+/*
+ * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
+ * represented in both.
+ */
+#define SB_RDONLY    1  /* Mount read-only */
+#define SB_NOSUID    2  /* Ignore suid and sgid bits */
+#define SB_NODEV     4  /* Disallow access to device special files */
+#define SB_NOEXEC    8  /* Disallow program execution */
+#define SB_SYNCHRONOUS  16  /* Writes are synced at once */
+#define SB_MANDLOCK 64  /* Allow mandatory locks on an FS */
+#define SB_DIRSYNC  128 /* Directory modifications are synchronous */
+#define SB_NOATIME  1024    /* Do not update access times. */
+#define SB_NODIRATIME   2048    /* Do not update directory access times */
+#define SB_SILENT   32768
+#define SB_POSIXACL (1<<16) /* VFS does not apply the umask */
+#define SB_INLINECRYPT  (1<<17) /* Use blk-crypto for encrypted files */
+#define SB_KERNMOUNT    (1<<22) /* this is a kern_mount call */
+#define SB_I_VERSION    (1<<23) /* Update inode I_version field */
+#define SB_LAZYTIME (1<<25) /* Update the on-disk [acm]times lazily */
+
 struct filename {
     const char *name;   /* pointer to actual string */
     const char iname[];
@@ -32,10 +52,11 @@ enum fs_context_purpose {
 struct fs_context {
     const struct fs_context_operations *ops;
     struct file_system_type *fs_type;
-    struct dentry *root; /* The root and superblock */
-    void *s_fs_info; /* Proposed s_fs_info */
+    struct dentry *root;        /* The root and superblock */
+    void *s_fs_info;            /* Proposed s_fs_info */
     unsigned int sb_flags;      /* Proposed superblock flags (SB_*) */
     unsigned int sb_flags_mask; /* Superblock flags that were changed */
+    const char *source;         /* The source name (eg. dev path) */
     enum fs_context_purpose purpose:8;
 };
 
@@ -82,6 +103,7 @@ struct file_operations {
 
 struct file_system_type {
     const char *name;
+
     int fs_flags;
 #define FS_REQUIRES_DEV     1
 #define FS_BINARY_MOUNTDATA 2
@@ -89,7 +111,12 @@ struct file_system_type {
 #define FS_USERNS_MOUNT     8   /* Can be mounted by userns root */
 #define FS_DISALLOW_NOTIFY_PERM 16  /* Disable fanotify permission events */
 #define FS_RENAME_DOES_D_MOVE   32768 /* FS will handle d_move() during rename() internally. */
+
     int (*init_fs_context)(struct fs_context *);
+
+    struct dentry *(*mount)(struct file_system_type *,
+                            int, const char *);
+
     struct file_system_type *next;
 };
 
@@ -151,5 +178,8 @@ get_filesystem_list(char *buf);
 
 int
 register_filesystem(struct file_system_type * fs);
+
+struct file_system_type *
+get_fs_type(const char *name);
 
 #endif /* _LINUX_FS_H */

@@ -475,6 +475,22 @@ _kmalloc(size_t size, gfp_t flags)
     return __kmalloc(size, flags);
 }
 
+char *
+_kmemdup_nul(const char *s, size_t len, gfp_t gfp)
+{
+    char *buf;
+
+    if (!s)
+        return NULL;
+
+    buf = _kmalloc(len + 1, gfp);
+    if (buf) {
+        memcpy(buf, s, len);
+        buf[len] = '\0';
+    }
+    return buf;
+}
+
 static void
 kmem_cache_node_init(struct kmem_cache_node *node)
 {
@@ -1228,6 +1244,8 @@ init_module(void)
 
     kmalloc = _kmalloc;
     kfree = _kfree;
+
+    kmemdup_nul = _kmemdup_nul;
 
     kmem_cache_alloc = _kmem_cache_alloc;
     kmem_cache_free = _kmem_cache_free;

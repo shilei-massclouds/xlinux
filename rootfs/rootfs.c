@@ -17,6 +17,7 @@
 #include <current.h>
 
 extern char boot_command_line[];
+extern bool ext4_initialized;
 
 dev_t ROOT_DEV;
 
@@ -141,11 +142,10 @@ do_mount_root(const char *name, const char *fs, const int flags)
 {
     int ret;
 
-    /*
     ret = init_mount(name, "/root", fs, flags);
     if (ret)
-        panic("%s: bad init mount /root");
-        */
+        panic("bad init mount /root");
+
     panic("%s: Todo:", __func__);
 }
 
@@ -184,7 +184,6 @@ mount_root(void)
 {
     int err;
     err = create_dev("/dev/root", ROOT_DEV);
-
     if (err < 0)
         panic("Failed to create /dev/root: %d", err);
 
@@ -227,6 +226,7 @@ static int
 init_module(void)
 {
     printk("module[rootfs]: init begin ...\n");
+    BUG_ON(!ext4_initialized);
     BUG_ON(parse_args(boot_command_line, kernel_params, num_kernel_params));
     init_mount_tree();
     rootfs_initialized = true;

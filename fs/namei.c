@@ -124,13 +124,11 @@ lookup_fast(struct nameidata *nd, struct inode **inode)
 {
     struct dentry *dentry;
     struct dentry *parent = nd->path.dentry;
+    const unsigned char *p = strchrnul(nd->last.name, '/');
+    int len = p - nd->last.name;
 
     list_for_each_entry(dentry, &(parent->d_subdirs), d_child) {
-        const unsigned char *p = strchr(nd->last.name, '/');
-        BUG_ON(p == NULL);
-
-        if (!strncmp(nd->last.name, dentry->d_name.name,
-                     (p - nd->last.name)))
+        if (!strncmp(nd->last.name, dentry->d_name.name, len))
             break;
     }
     BUG_ON(dentry == NULL);
@@ -341,3 +339,56 @@ vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
     return dir->i_op->mknod(dir, dentry, mode, dev);
 }
 EXPORT_SYMBOL(vfs_mknod);
+
+static inline const char *
+lookup_last(struct nameidata *nd)
+{
+    if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
+        nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+
+    return walk_component(nd);
+}
+
+static int
+path_lookupat(struct nameidata *nd, unsigned flags, struct path *path)
+{
+    int err;
+    const char *s = path_init(nd, flags);
+
+    while (!(err = link_path_walk(s, nd)) &&
+           (s = lookup_last(nd)) != NULL)
+        ;
+
+    if (!err) {
+        *path = nd->path;
+        nd->path.mnt = NULL;
+        nd->path.dentry = NULL;
+    }
+    return err;
+}
+
+int
+filename_lookup(int dfd, struct filename *name, unsigned flags,
+                struct path *path, struct path *root)
+{
+    int retval;
+    struct nameidata nd;
+    if (IS_ERR(name))
+        return PTR_ERR(name);
+    if (unlikely(root)) {
+        nd.root = *root;
+        flags |= LOOKUP_ROOT;
+    }
+    set_nameidata(&nd, dfd, name);
+    retval = path_lookupat(&nd, flags | LOOKUP_RCU, path);
+    BUG_ON(retval);
+    return retval;
+}
+
+int
+kern_path(const char *name, unsigned int flags, struct path *path)
+{
+    return filename_lookup(AT_FDCWD, getname_kernel(name),
+                           flags, path, NULL);
+}
+EXPORT_SYMBOL(kern_path);

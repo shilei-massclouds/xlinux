@@ -26,6 +26,9 @@ EXPORT_SYMBOL(kmalloc);
 kfree_t kfree;
 EXPORT_SYMBOL(kfree);
 
+kmemdup_nul_t kmemdup_nul;
+EXPORT_SYMBOL(kmemdup_nul);
+
 /* For specific cache allocation */
 kmem_cache_alloc_t kmem_cache_alloc;
 EXPORT_SYMBOL(kmem_cache_alloc);

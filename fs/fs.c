@@ -14,6 +14,18 @@ struct file_system_type *file_systems;
 static struct kmem_cache *inode_cachep;
 static u32 unnamed_dev_ida;
 
+enum legacy_fs_param {
+    LEGACY_FS_UNSET_PARAMS,
+    LEGACY_FS_MONOLITHIC_PARAMS,
+    LEGACY_FS_INDIVIDUAL_PARAMS,
+};
+
+struct legacy_fs_context {
+    char *legacy_data;  /* Data page for legacy filesystems */
+    size_t data_size;
+    enum legacy_fs_param param_type;
+};
+
 void
 set_fs_root(struct fs_struct *fs, const struct path *path)
 {
@@ -38,6 +50,41 @@ set_fs_pwd(struct fs_struct *fs, const struct path *path)
 }
 EXPORT_SYMBOL(set_fs_pwd);
 
+/*
+ * Get a mountable root with the legacy mount command.
+ */
+static int
+legacy_get_tree(struct fs_context *fc)
+{
+    struct super_block *sb;
+    struct dentry *root;
+
+    root = fc->fs_type->mount(fc->fs_type, fc->sb_flags, fc->source);
+    if (IS_ERR(root))
+        return PTR_ERR(root);
+
+    sb = root->d_sb;
+    BUG_ON(!sb);
+
+    fc->root = root;
+    return 0;
+}
+
+const struct fs_context_operations legacy_fs_context_ops = {
+    .get_tree = legacy_get_tree,
+};
+
+/*
+ * Initialise a legacy context for a filesystem that doesn't support
+ * fs_context.
+ */
+static int
+legacy_init_fs_context(struct fs_context *fc)
+{
+    fc->ops = &legacy_fs_context_ops;
+    return 0;
+}
+
 static struct fs_context *
 alloc_fs_context(struct file_system_type *fs_type,
                  struct dentry *reference,
@@ -59,7 +106,7 @@ alloc_fs_context(struct file_system_type *fs_type,
 
     init_fs_context = fc->fs_type->init_fs_context;
     if (!init_fs_context)
-        panic("no init_fs_context!");
+        init_fs_context = legacy_init_fs_context;
 
     if (init_fs_context(fc) < 0)
         panic("cannot init_fs_context!");
@@ -278,6 +325,25 @@ get_filesystem_list(char *buf)
     return len;
 }
 EXPORT_SYMBOL(get_filesystem_list);
+
+static struct file_system_type *
+__get_fs_type(const char *name, int len)
+{
+    return *(find_filesystem(name, len));
+}
+
+struct file_system_type *
+get_fs_type(const char *name)
+{
+    struct file_system_type *fs;
+    const char *dot = strchr(name, '.');
+    int len = dot ? dot - name : strlen(name);
+
+    fs = __get_fs_type(name, len);
+    BUG_ON(!fs);
+    return fs;
+}
+EXPORT_SYMBOL(get_fs_type);
 
 static void
 init_once(void *foo)
