@@ -146,4 +146,10 @@ simple_lookup(struct inode *dir,
 int
 init_mkdir(const char *pathname, umode_t mode);
 
+int
+get_filesystem_list(char *buf);
+
+int
+register_filesystem(struct file_system_type * fs);
+
 #endif /* _LINUX_FS_H */

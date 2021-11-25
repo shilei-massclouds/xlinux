@@ -19,8 +19,6 @@ struct ramfs_fs_info {
     struct ramfs_mount_opts mount_opts;
 };
 
-static struct file_system_type *file_systems;
-
 static int
 ramfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
@@ -151,34 +149,6 @@ static struct file_system_type ramfs_fs_type = {
     .init_fs_context = ramfs_init_fs_context,
     .fs_flags = FS_USERNS_MOUNT,
 };
-
-static struct file_system_type **
-find_filesystem(const char *name, unsigned len)
-{
-    struct file_system_type **p;
-    for (p = &file_systems; *p; p = &(*p)->next)
-        if (strncmp((*p)->name, name, len) == 0 && !(*p)->name[len])
-            break;
-    return p;
-}
-
-int
-register_filesystem(struct file_system_type * fs)
-{
-    struct file_system_type ** p;
-
-    BUG_ON(strchr(fs->name, '.'));
-    if (fs->next)
-        return -EBUSY;
-
-    p = find_filesystem(fs->name, strlen(fs->name));
-    if (*p)
-        return -EBUSY;
-
-    *p = fs;
-    return 0;
-}
-EXPORT_SYMBOL(register_filesystem);
 
 static int
 init_module(void)

@@ -109,19 +109,14 @@ number(char *buf, char *end, unsigned long long num, struct printf_spec spec)
     int i = 0;
     char tmp[3 * sizeof(num)] __aligned(2);
 
-    if (spec.base == 16) {
+    if (spec.base == 16 || spec.base == 8) {
+        int mask = spec.base - 1;
+        int shift = (spec.base == 16) ? 4 : 3;
+
         do {
-            tmp[i++] = hex_asc_upper[((unsigned char)num) & 0xF];
-            num >>= 4;
+            tmp[i++] = hex_asc_upper[((unsigned char)num) & mask];
+            num >>= shift;
         } while (num);
-
-        if (buf < end)
-            *buf = '0';
-        ++buf;
-
-        if (buf < end)
-            *buf = 'x';
-        ++buf;
     } else if (spec.base == 10) {
         if (spec.flags & SIGN) {
             if ((signed long long)num < 0) {
@@ -188,6 +183,9 @@ format_decode(const char *fmt, struct printf_spec *spec)
     case 's':
         spec->type = FORMAT_TYPE_STR;
         return ++fmt - start;
+    case 'o':
+        spec->base = 8;
+        break;
     case 'X':
     case 'x':
         spec->base = 16;
@@ -296,3 +294,29 @@ snprintf(char *buf, size_t size, const char *fmt, ...)
     return i;
 }
 EXPORT_SYMBOL(snprintf);
+
+/**
+ * sprintf - Format a string and place it in a buffer
+ * @buf: The buffer to place the result into
+ * @fmt: The format string to use
+ * @...: Arguments for the format string
+ *
+ * The function returns the number of characters written
+ * into @buf. Use snprintf() or scnprintf() in order to avoid
+ * buffer overflows.
+ *
+ * See the vsnprintf() documentation for format string extensions over C99.
+ */
+int
+sprintf(char *buf, const char *fmt, ...)
+{
+    va_list args;
+    int i;
+
+    va_start(args, fmt);
+    i = vsnprintf(buf, INT_MAX, fmt, args);
+    va_end(args);
+
+    return i;
+}
+EXPORT_SYMBOL(sprintf);

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <mm.h>
 #include <bug.h>
 #include <vfs.h>
 #include <path.h>
@@ -62,6 +63,7 @@ init_mkdir(const char *pathname, umode_t mode)
     struct path path;
     struct dentry *dentry;
 
+    printk("### %s: mode(%o)\n", __func__, mode);
     dentry = kern_path_create(AT_FDCWD, pathname, &path,
                               LOOKUP_DIRECTORY);
     if (IS_ERR(dentry))
@@ -115,10 +117,66 @@ name_to_dev_t(const char *name)
     return blk_lookup_devt(s, 0);
 }
 
+static void
+get_fs_names(char *page)
+{
+    char *p, *next;
+    char *s = page;
+    int len = get_filesystem_list(page);
+
+    page[len] = '\0';
+    for (p = page-1; p; p = next) {
+        next = strchr(++p, '\n');
+        if (*p++ != '\t')
+            continue;
+        while ((*s++ = *p++) != '\n')
+            ;
+        s[-1] = '\0';
+    }
+    *s = '\0';
+}
+
+static int
+do_mount_root(const char *name, const char *fs, const int flags)
+{
+    int ret;
+
+    /*
+    ret = init_mount(name, "/root", fs, flags);
+    if (ret)
+        panic("%s: bad init mount /root");
+        */
+    panic("%s: Todo:", __func__);
+}
+
 void
 mount_block_root(char *name, int flags)
 {
-    panic("%s: Todo", __func__);
+    char *p;
+    struct page *page = alloc_page(GFP_KERNEL);
+    char *fs_names = page_address(page);
+
+    get_fs_names(fs_names);
+    for (p = fs_names; *p; p += strlen(p)+1) {
+        int err = do_mount_root(name, p, flags);
+        switch (err) {
+            case 0:
+                return;
+            case -EACCES:
+            case -EINVAL:
+                continue;
+        }
+        /*
+         * Allow the user to distinguish between failed sys_open
+         * and bad superblock on root device.
+         * and give them a list of the available devices
+         */
+        printk("VFS: Cannot open root device \"%s\" or error %d\n",
+               root_device_name, err);
+
+        panic("VFS: Unable to mount root fs");
+    }
+    panic("%s: Todo: [%s]", __func__, fs_names);
 }
 
 void
@@ -129,7 +187,7 @@ mount_root(void)
 
     if (err < 0)
         panic("Failed to create /dev/root: %d", err);
-    
+
     mount_block_root("/dev/root", root_mountflags);
 }
 
@@ -158,6 +216,13 @@ static struct kernel_param kernel_params[] = {
 static unsigned int
 num_kernel_params = sizeof(kernel_params) / sizeof(struct kernel_param);
 
+static void
+init_dirs(void)
+{
+    init_mkdir("dev", S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
+    init_mkdir("root", S_IFDIR | S_IRWXU);
+}
+
 static int
 init_module(void)
 {
@@ -165,7 +230,7 @@ init_module(void)
     BUG_ON(parse_args(boot_command_line, kernel_params, num_kernel_params));
     init_mount_tree();
     rootfs_initialized = true;
-    init_mkdir("dev", S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
+    init_dirs();
     prepare_namespace();
     printk("module[rootfs]: init end!\n");
     return 0;

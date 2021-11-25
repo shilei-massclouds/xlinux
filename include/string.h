@@ -74,4 +74,7 @@ skip_spaces(const char *str);
 char *
 strcpy(char *dest, const char *src);
 
+int
+sprintf(char *buf, const char *fmt, ...);
+
 #endif /* _LINUX_STRING_H */

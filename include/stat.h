@@ -36,5 +36,4 @@
 #define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 
-
 #endif /* _UAPI_LINUX_STAT_H */

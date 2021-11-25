@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <fs.h>
+#include <bug.h>
 #include <slab.h>
 #include <errno.h>
 #include <mount.h>
 #include <export.h>
 #include <printk.h>
+#include <string.h>
 
-static u32 unnamed_dev_ida;
+struct file_system_type *file_systems;
 
 static struct kmem_cache *inode_cachep;
+static u32 unnamed_dev_ida;
 
 void
 set_fs_root(struct fs_struct *fs, const struct path *path)
@@ -230,6 +233,51 @@ simple_lookup(struct inode *dir,
 }
 EXPORT_SYMBOL(simple_lookup);
 */
+
+static struct file_system_type **
+find_filesystem(const char *name, unsigned len)
+{
+    struct file_system_type **p;
+    for (p = &file_systems; *p; p = &(*p)->next)
+        if (strncmp((*p)->name, name, len) == 0 && !(*p)->name[len])
+            break;
+    return p;
+}
+
+int
+register_filesystem(struct file_system_type *fs)
+{
+    struct file_system_type ** p;
+
+    BUG_ON(strchr(fs->name, '.'));
+    if (fs->next)
+        return -EBUSY;
+
+    p = find_filesystem(fs->name, strlen(fs->name));
+    if (*p)
+        return -EBUSY;
+
+    *p = fs;
+    return 0;
+}
+EXPORT_SYMBOL(register_filesystem);
+
+int
+get_filesystem_list(char *buf)
+{
+    int len = 0;
+    struct file_system_type * tmp;
+
+    tmp = file_systems;
+    while (tmp && len < PAGE_SIZE - 80) {
+        len += sprintf(buf+len, "%s\t%s\n",
+                       (tmp->fs_flags & FS_REQUIRES_DEV) ? "" : "nodev",
+                       tmp->name);
+        tmp = tmp->next;
+    }
+    return len;
+}
+EXPORT_SYMBOL(get_filesystem_list);
 
 static void
 init_once(void *foo)
