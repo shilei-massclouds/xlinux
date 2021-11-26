@@ -65,6 +65,7 @@ enum fs_context_purpose {
 struct fs_context {
     const struct fs_context_operations *ops;
     struct file_system_type *fs_type;
+    void *fs_private;           /* The filesystem's context */
     struct dentry *root;        /* The root and superblock */
     void *s_fs_info;            /* Proposed s_fs_info */
     unsigned int sb_flags;      /* Proposed superblock flags (SB_*) */

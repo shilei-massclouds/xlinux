@@ -26,10 +26,8 @@ iget5_locked(struct super_block *sb, unsigned long hashval,
              int (*test)(struct inode *, void *),
              int (*set)(struct inode *, void *), void *data)
 {
-    panic("%s: ", __func__);
     /*
     struct inode *inode = ilookup5(sb, hashval, test, data);
-
     if (!inode) {
         struct inode *new = alloc_inode(sb);
 
@@ -42,5 +40,6 @@ iget5_locked(struct super_block *sb, unsigned long hashval,
     }
     return inode;
     */
+    panic("%s: ", __func__);
 }
 EXPORT_SYMBOL(iget5_locked);

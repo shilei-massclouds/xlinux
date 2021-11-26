@@ -175,8 +175,6 @@ vfs_kern_mount(struct file_system_type *type,
         return ERR_CAST(fc);
 
     mnt = fc_mount(fc);
-    if (ret)
-        mnt = ERR_PTR(ret);
 
     put_fs_context(fc);
     return mnt;

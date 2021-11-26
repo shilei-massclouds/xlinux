@@ -74,6 +74,7 @@ bd_acquire(struct inode *inode)
     if (bdev)
         return bdev;
 
+    printk("%s: i_rdev(%x)\n", __func__, inode->i_rdev);
     bdev = bdget(inode->i_rdev);
     if (bdev) {
         if (!inode->i_bdev)

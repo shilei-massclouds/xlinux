@@ -356,6 +356,7 @@ mount_bdev(struct file_system_type *fs_type,
     if (!(flags & SB_RDONLY))
         mode |= FMODE_WRITE;
 
+    printk("%s: %s %x\n", __func__, dev_name, flags);
     bdev = blkdev_get_by_path(dev_name, mode, fs_type);
     if (IS_ERR(bdev))
         return ERR_CAST(bdev);
@@ -364,10 +365,21 @@ mount_bdev(struct file_system_type *fs_type,
 }
 EXPORT_SYMBOL(mount_bdev);
 
+static const struct super_operations simple_super_operations = {
+};
+
 static int
 pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 {
-    panic("%s: ", __func__);
+    struct inode *root;
+    struct pseudo_fs_context *ctx = fc->fs_private;
+
+    s->s_op = ctx->ops ?: &simple_super_operations;
+    root = new_inode(s);
+    s->s_root = d_make_root(root);
+    if (!s->s_root)
+        return -ENOMEM;
+    return 0;
 }
 
 static int
@@ -388,6 +400,7 @@ init_pseudo(struct fs_context *fc, unsigned long magic)
     ctx = kzalloc(sizeof(struct pseudo_fs_context), GFP_KERNEL);
     if (likely(ctx)) {
         ctx->magic = magic;
+        fc->fs_private = ctx;
         fc->ops = &pseudo_fs_context_ops;
         fc->sb_flags |= SB_NOUSER;
     }

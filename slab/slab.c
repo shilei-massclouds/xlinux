@@ -305,13 +305,20 @@ static void
 cache_init_objs(struct kmem_cache *cachep, struct page *page)
 {
     int i;
+    void *objp;
 
     if (OBJFREELIST_SLAB(cachep)) {
         page->freelist = index_to_obj(cachep, page, cachep->num - 1);
     }
 
-    for (i = 0; i < cachep->num; i++)
+    for (i = 0; i < cachep->num; i++) {
+        objp = index_to_obj(cachep, page, i);
+        if (cachep->ctor) {
+            cachep->ctor(objp);
+        }
+
         set_free_obj(page, i, i);
+    }
 }
 
 static struct page *
@@ -834,6 +841,9 @@ set_objfreelist_slab_cache(struct kmem_cache *cachep,
                            slab_flags_t flags)
 {
     cachep->num = 0;
+
+    if (cachep->ctor)
+        return false;
 
     calculate_slab_order(cachep, size, flags | CFLGS_OBJFREELIST_SLAB);
     if (!cachep->num)
