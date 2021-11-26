@@ -41,4 +41,13 @@ init_mount(const char *dev_name, const char *dir_name,
 int
 kern_path(const char *name, unsigned int flags, struct path *path);
 
+struct vfsmount *
+kern_mount(struct file_system_type *type);
+
+static inline struct mount *
+real_mount(struct vfsmount *mnt)
+{
+    return container_of(mnt, struct mount, mnt);
+}
+
 #endif /* _LINUX_MOUNT_H */

@@ -3,5 +3,7 @@
 target_y := ko
 
 obj_y := fs.o
+obj_y += inode.o
 obj_y += mount.o
 obj_y += namei.o
+obj_y += block_dev.o

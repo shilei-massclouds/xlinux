@@ -34,4 +34,7 @@ vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 int
 vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 
+int
+kern_path(const char *name, unsigned int flags, struct path *path);
+
 #endif /* _LINUX_NAMEI_H */

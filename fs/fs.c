@@ -345,6 +345,56 @@ get_fs_type(const char *name)
 }
 EXPORT_SYMBOL(get_fs_type);
 
+struct dentry *
+mount_bdev(struct file_system_type *fs_type,
+           int flags, const char *dev_name,
+           int (*fill_super)(struct super_block *, void *, int))
+{
+    struct block_device *bdev;
+    fmode_t mode = FMODE_READ | FMODE_EXCL;
+
+    if (!(flags & SB_RDONLY))
+        mode |= FMODE_WRITE;
+
+    bdev = blkdev_get_by_path(dev_name, mode, fs_type);
+    if (IS_ERR(bdev))
+        return ERR_CAST(bdev);
+
+    panic("%s: ", __func__);
+}
+EXPORT_SYMBOL(mount_bdev);
+
+static int
+pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
+{
+    panic("%s: ", __func__);
+}
+
+static int
+pseudo_fs_get_tree(struct fs_context *fc)
+{
+    return get_tree_nodev(fc, pseudo_fs_fill_super);
+}
+
+static const struct fs_context_operations pseudo_fs_context_ops = {
+    .get_tree = pseudo_fs_get_tree,
+};
+
+struct pseudo_fs_context *
+init_pseudo(struct fs_context *fc, unsigned long magic)
+{
+    struct pseudo_fs_context *ctx;
+
+    ctx = kzalloc(sizeof(struct pseudo_fs_context), GFP_KERNEL);
+    if (likely(ctx)) {
+        ctx->magic = magic;
+        fc->ops = &pseudo_fs_context_ops;
+        fc->sb_flags |= SB_NOUSER;
+    }
+    return ctx;
+}
+EXPORT_SYMBOL(init_pseudo);
+
 static void
 init_once(void *foo)
 {
@@ -370,6 +420,7 @@ init_module(void)
     inode_init();
     mnt_init();
     BUG_ON(!names_cachep);
+    bdev_cache_init();
     printk("module[fs]: init end!\n");
     return 0;
 }

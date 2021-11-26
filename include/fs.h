@@ -27,6 +27,19 @@
 #define SB_KERNMOUNT    (1<<22) /* this is a kern_mount call */
 #define SB_I_VERSION    (1<<23) /* Update inode I_version field */
 #define SB_LAZYTIME (1<<25) /* Update the on-disk [acm]times lazily */
+#define SB_NOUSER   (1<<31)
+
+/*
+ * flags in file.f_mode.  Note that FMODE_READ and FMODE_WRITE must correspond
+ * to O_WRONLY and O_RDWR via the strange trick in do_dentry_open()
+ */
+
+/* file is open for reading */
+#define FMODE_READ      ((__force fmode_t)0x1)
+/* file is open for writing */
+#define FMODE_WRITE     ((__force fmode_t)0x2)
+/* File is opened with O_EXCL (only set for block devices) */
+#define FMODE_EXCL      ((__force fmode_t)0x80)
 
 struct filename {
     const char *name;   /* pointer to actual string */
@@ -96,6 +109,13 @@ struct inode {
 
     unsigned long       i_state;
     struct list_head    i_sb_list;
+
+    struct block_device *i_bdev;
+};
+
+struct pseudo_fs_context {
+    const struct super_operations *ops;
+    unsigned long magic;
 };
 
 struct file_operations {
@@ -181,5 +201,27 @@ register_filesystem(struct file_system_type * fs);
 
 struct file_system_type *
 get_fs_type(const char *name);
+
+struct dentry *
+mount_bdev(struct file_system_type *fs_type,
+           int flags, const char *dev_name,
+           int (*fill_super)(struct super_block *, void *, int));
+
+struct block_device *
+blkdev_get_by_path(const char *path, fmode_t mode, void *holder);
+
+struct inode *
+iget5_locked(struct super_block *sb, unsigned long hashval,
+             int (*test)(struct inode *, void *),
+             int (*set)(struct inode *, void *), void *data);
+
+void
+bdev_cache_init(void);
+
+struct pseudo_fs_context *
+init_pseudo(struct fs_context *fc, unsigned long magic);
+
+void
+inode_init_once(struct inode *inode);
 
 #endif /* _LINUX_FS_H */

@@ -8,7 +8,8 @@
 #define BLKDEV_MAJOR_MAX    512
 
 struct block_device {
-    struct gendisk *    bd_disk;
+    dev_t bd_dev;  /* not a kdev_t - it's a search key */
+    struct gendisk *bd_disk;
 };
 
 struct block_device_operations {

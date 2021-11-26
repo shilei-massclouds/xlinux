@@ -183,6 +183,13 @@ vfs_kern_mount(struct file_system_type *type,
 }
 EXPORT_SYMBOL(vfs_kern_mount);
 
+struct vfsmount *
+kern_mount(struct file_system_type *type)
+{
+    return vfs_kern_mount(type, SB_KERNMOUNT, type->name, NULL);
+}
+EXPORT_SYMBOL(kern_mount);
+
 void
 mnt_init(void)
 {

@@ -17,7 +17,7 @@
 #include <current.h>
 
 extern char boot_command_line[];
-extern bool ext4_initialized;
+extern bool ext2_initialized;
 
 dev_t ROOT_DEV;
 
@@ -226,7 +226,7 @@ static int
 init_module(void)
 {
     printk("module[rootfs]: init begin ...\n");
-    BUG_ON(!ext4_initialized);
+    BUG_ON(!ext2_initialized);
     BUG_ON(parse_args(boot_command_line, kernel_params, num_kernel_params));
     init_mount_tree();
     rootfs_initialized = true;
