@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <mount.h>
 #include <export.h>
+#include <limits.h>
 #include <printk.h>
 #include <string.h>
 
@@ -265,7 +266,6 @@ new_inode(struct super_block *sb)
 }
 EXPORT_SYMBOL(new_inode);
 
-/*
 struct dentry *
 simple_lookup(struct inode *dir,
               struct dentry *dentry,
@@ -273,13 +273,14 @@ simple_lookup(struct inode *dir,
 {
     if (dentry->d_name.len > NAME_MAX)
         return ERR_PTR(-ENAMETOOLONG);
+    /*
     if (!dentry->d_sb->s_d_op)
         d_set_d_op(dentry, &simple_dentry_operations);
+    */
     d_add(dentry, NULL);
     return NULL;
 }
 EXPORT_SYMBOL(simple_lookup);
-*/
 
 static struct file_system_type **
 find_filesystem(const char *name, unsigned len)

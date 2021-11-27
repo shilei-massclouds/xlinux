@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <string.h>
 #include <current.h>
+#include <stringhash.h>
 
 #define EMBEDDED_NAME_MAX (PATH_MAX - offsetof(struct filename, iname))
 
@@ -22,6 +23,25 @@ struct nameidata {
     struct filename *name;
     int dfd;
 };
+
+/*
+ * We know there's a real path component here of at least
+ * one character.
+ */
+static inline u64
+hash_name(const void *salt, const char *name)
+{
+    unsigned long hash = init_name_hash(salt);
+    unsigned long len = 0, c;
+
+    c = (unsigned char)*name;
+    do {
+        len++;
+        hash = partial_name_hash(c, hash);
+        c = (unsigned char)name[len];
+    } while (c && c != '/');
+    return hashlen_create(end_name_hash(hash), len);
+}
 
 struct filename *
 getname_kernel(const char *filename)
@@ -124,13 +144,8 @@ lookup_fast(struct nameidata *nd, struct inode **inode)
 {
     struct dentry *dentry;
     struct dentry *parent = nd->path.dentry;
-    const unsigned char *p = strchrnul(nd->last.name, '/');
-    int len = p - nd->last.name;
 
-    list_for_each_entry(dentry, &(parent->d_subdirs), d_child) {
-        if (!strncmp(nd->last.name, dentry->d_name.name, len))
-            break;
-    }
+    dentry = __d_lookup(parent, &nd->last);
     BUG_ON(dentry == NULL);
 
     *inode = d_backing_inode(dentry);
@@ -187,18 +202,15 @@ link_path_walk(const char *name, struct nameidata *nd)
         return 0;
 
     for (;;) {
-        int len;
-        char *p = strchr(name, '/');
-        if (p)
-            len = p - name;
-        else
-            len = strlen(name);
+        u64 hash_len;
 
+        hash_len = hash_name(nd->path.dentry, name);
+
+        nd->last.hash_len = hash_len;
         nd->last.name = name;
-        nd->last.len = len;
         nd->last_type = LAST_NORM;
 
-        name += len;
+        name += hashlen_len(hash_len);
         if (!*name) {
             nd->flags &= ~LOOKUP_PARENT;
             return 0;
@@ -275,11 +287,19 @@ __lookup_hash(const struct qstr *name,
               struct dentry *base,
               unsigned int flags)
 {
-    struct dentry *dentry;
+    struct dentry *old;
+    struct inode *dir = base->d_inode;
+    struct dentry *dentry = lookup_dcache(name, base, flags);
+
+    if (dentry)
+        return dentry;
 
     dentry = d_alloc(base, name);
     if (unlikely(!dentry))
         return ERR_PTR(-ENOMEM);
+
+    old = dir->i_op->lookup(dir, dentry, flags);
+    BUG_ON(old);
 
     return dentry;
 }

@@ -41,7 +41,7 @@ ramfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 static const struct inode_operations
 ramfs_dir_inode_operations = {
-    //.lookup = simple_lookup,
+    .lookup = simple_lookup,
     .mkdir = ramfs_mkdir,
     .mknod = ramfs_mknod,
 };
