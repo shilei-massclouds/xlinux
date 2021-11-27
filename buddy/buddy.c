@@ -29,6 +29,9 @@ EXPORT_SYMBOL(reserved_chunk_size);
 void *reserved_chunk_ptr;
 EXPORT_SYMBOL(reserved_chunk_ptr);
 
+unsigned long nr_kernel_pages;
+EXPORT_SYMBOL(nr_kernel_pages);
+
 static struct per_cpu_pageset boot_pageset;
 
 static unsigned long
@@ -301,6 +304,7 @@ free_area_init_core(struct pglist_data *pgdat)
 
         size = zone->spanned_pages;
         freesize = zone->present_pages;
+        nr_kernel_pages += freesize;
 
         memmap_pages = calc_memmap_size(size);
         if (freesize >= memmap_pages) {

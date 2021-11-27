@@ -5,7 +5,7 @@ include scripts/Makefile.include
 PHONY := all clean
 
 SUBDIRS		:= startup lib early_dt \
-	rbtree \
+	rbtree hashtable \
 	mm memblock buddy slab kalloc \
 	vma ioremap devres \
 	of platform kobject \
