@@ -9,6 +9,8 @@
 
 struct block_device {
     dev_t bd_dev;  /* not a kdev_t - it's a search key */
+    struct super_block *bd_super;
+    struct inode *bd_inode;     /* will die */
     struct gendisk *bd_disk;
 };
 
@@ -16,7 +18,7 @@ struct block_device_operations {
     /*
     blk_qc_t (*submit_bio) (struct bio *bio);
     */
-    int (*open) (struct block_device *, fmode_t);
+    int (*open)(struct block_device *, fmode_t);
     /*
     void (*release) (struct gendisk *, fmode_t);
     int (*rw_page)(struct block_device *, sector_t, struct page *, unsigned int);

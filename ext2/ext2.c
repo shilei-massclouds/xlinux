@@ -17,6 +17,7 @@ ext2_fill_super(struct super_block *sb, void *data, int silent)
 static struct dentry *
 ext2_mount(struct file_system_type *fs_type, int flags, const char *dev_name)
 {
+    printk("%s: dev_name(%s) flags(%x)\n", __func__, dev_name, flags);
     return mount_bdev(fs_type, flags, dev_name, ext2_fill_super);
 }
 

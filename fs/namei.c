@@ -204,6 +204,7 @@ link_path_walk(const char *name, struct nameidata *nd)
     for (;;) {
         u64 hash_len;
 
+        printk("%s 1: %s\n", __func__, name);
         hash_len = hash_name(nd->path.dentry, name);
 
         nd->last.hash_len = hash_len;
@@ -220,6 +221,7 @@ link_path_walk(const char *name, struct nameidata *nd)
             name++;
         } while (unlikely(*name == '/'));
 
+        printk("%s 2: %s\n", __func__, name);
         if (unlikely(!*name))
             panic("bad name!");
 
@@ -363,6 +365,7 @@ EXPORT_SYMBOL(vfs_mknod);
 static inline const char *
 lookup_last(struct nameidata *nd)
 {
+    printk("%s: %s\n", __func__, nd->last.name);
     if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
         nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 

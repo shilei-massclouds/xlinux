@@ -12,7 +12,6 @@
 
 struct file_system_type *file_systems;
 
-static struct kmem_cache *inode_cachep;
 static u32 unnamed_dev_ida;
 
 enum legacy_fs_param {
@@ -210,62 +209,6 @@ get_tree_nodev(struct fs_context *fc,
 }
 EXPORT_SYMBOL(get_tree_nodev);
 
-int
-inode_init_always(struct super_block *sb, struct inode *inode)
-{
-    inode->i_sb = sb;
-    return 0;
-}
-
-static struct inode *
-alloc_inode(struct super_block *sb)
-{
-    struct inode *inode;
-    const struct super_operations *ops = sb->s_op;
-
-    if (ops->alloc_inode)
-        inode = ops->alloc_inode(sb);
-    else
-        inode = kmem_cache_alloc(inode_cachep, GFP_KERNEL);
-
-    if (!inode)
-        return NULL;
-
-    BUG_ON(unlikely(inode_init_always(sb, inode)));
-    return inode;
-}
-
-struct inode *
-new_inode_pseudo(struct super_block *sb)
-{
-    struct inode *inode = alloc_inode(sb);
-
-    if (inode) {
-        inode->i_state = 0;
-        INIT_LIST_HEAD(&inode->i_sb_list);
-    }
-    return inode;
-}
-
-void
-inode_sb_list_add(struct inode *inode)
-{
-    list_add(&inode->i_sb_list, &inode->i_sb->s_inodes);
-}
-EXPORT_SYMBOL(inode_sb_list_add);
-
-struct inode *
-new_inode(struct super_block *sb)
-{
-    struct inode *inode;
-
-    inode = new_inode_pseudo(sb);
-    if (inode)
-        inode_sb_list_add(inode);
-    return inode;
-}
-EXPORT_SYMBOL(new_inode);
-
 struct dentry *
 simple_lookup(struct inode *dir,
               struct dentry *dentry,
@@ -408,23 +351,6 @@ init_pseudo(struct fs_context *fc, unsigned long magic)
     return ctx;
 }
 EXPORT_SYMBOL(init_pseudo);
-
-static void
-init_once(void *foo)
-{
-}
-
-void
-inode_init(void)
-{
-    /* inode slab cache */
-    inode_cachep = kmem_cache_create("inode_cache",
-                                     sizeof(struct inode),
-                                     0,
-                                     (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
-                                      SLAB_MEM_SPREAD|SLAB_ACCOUNT),
-                                     init_once);
-}
 
 static int
 init_module(void)

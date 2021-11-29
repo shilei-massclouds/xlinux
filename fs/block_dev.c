@@ -51,18 +51,35 @@ bdev_set(struct inode *inode, void *data)
     return 0;
 }
 
+void
+unlock_new_inode(struct inode *inode)
+{
+    BUG_ON(!(inode->i_state & I_NEW));
+    inode->i_state &= ~I_NEW & ~I_CREATING;
+}
+EXPORT_SYMBOL(unlock_new_inode);
+
 struct block_device *
 bdget(dev_t dev)
 {
+    struct block_device *bdev;
     struct inode *inode;
 
     inode = iget5_locked(blockdev_superblock, hash(dev),
                          bdev_test, bdev_set, &dev);
-
     if (!inode)
         return NULL;
 
-    panic("%s: ", __func__);
+    bdev = &BDEV_I(inode)->bdev;
+    if (inode->i_state & I_NEW) {
+        bdev->bd_super = NULL;
+        bdev->bd_inode = inode;
+        inode->i_mode = S_IFBLK;
+        inode->i_rdev = dev;
+        inode->i_bdev = bdev;
+        unlock_new_inode(inode);
+    }
+    return bdev;
 }
 
 static struct block_device *
@@ -94,6 +111,7 @@ lookup_bdev(const char *pathname)
     if (!pathname || !*pathname)
         return ERR_PTR(-EINVAL);
 
+    printk("%s: pathname(%s)\n", __func__, pathname);
     error = kern_path(pathname, LOOKUP_FOLLOW, &path);
     if (error)
         return ERR_PTR(error);
@@ -104,8 +122,10 @@ lookup_bdev(const char *pathname)
         goto fail;
     error = -ENOMEM;
     bdev = bd_acquire(inode);
-    if (!bdev)
+    if (!bdev) {
+        panic("bad bdev!");
         goto fail;
+    }
 out:
     path_put(&path);
     return bdev;
@@ -115,9 +135,26 @@ fail:
 }
 EXPORT_SYMBOL(lookup_bdev);
 
+static int
+__blkdev_get(struct block_device *bdev,
+             fmode_t mode,
+             void *holder,
+             int for_part)
+{
+    panic("%s:", __func__);
+}
+
+int
+blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
+{
+    return __blkdev_get(bdev, mode, holder, 0);
+}
+EXPORT_SYMBOL(blkdev_get);
+
 struct block_device *
 blkdev_get_by_path(const char *path, fmode_t mode, void *holder)
 {
+    int err;
     struct block_device *bdev;
 
     printk("%s: mode(%x) path(%s)\n", __func__, mode, path);
@@ -125,23 +162,11 @@ blkdev_get_by_path(const char *path, fmode_t mode, void *holder)
     if (IS_ERR(bdev))
         return bdev;
 
-    panic("%s: ", __func__);
-    /*
-    struct block_device *bdev;
-    int err;
-
-
     err = blkdev_get(bdev, mode, holder);
     if (err)
         return ERR_PTR(err);
 
-    if ((mode & FMODE_WRITE) && bdev_read_only(bdev)) {
-        blkdev_put(bdev, mode);
-        return ERR_PTR(-EACCES);
-    }
-
     return bdev;
-    */
 }
 EXPORT_SYMBOL(blkdev_get_by_path);
 

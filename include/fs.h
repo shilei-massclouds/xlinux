@@ -41,6 +41,13 @@
 /* File is opened with O_EXCL (only set for block devices) */
 #define FMODE_EXCL      ((__force fmode_t)0x80)
 
+/*
+ * Inode state bits.  Protected by inode->i_lock
+ */
+#define __I_NEW         3
+#define I_NEW           (1 << __I_NEW)
+#define I_CREATING      (1 << 15)
+
 struct filename {
     const char *name;   /* pointer to actual string */
     const char iname[];
@@ -102,6 +109,8 @@ struct inode {
     unsigned long       i_ino;
 
     dev_t               i_rdev;
+
+    struct hlist_node   i_hash;
 
     const struct inode_operations *i_op;
     const struct file_operations  *i_fop;
@@ -222,7 +231,13 @@ bdev_cache_init(void);
 struct pseudo_fs_context *
 init_pseudo(struct fs_context *fc, unsigned long magic);
 
-void
-inode_init_once(struct inode *inode);
+void inode_init_once(struct inode *inode);
+
+void inode_init(void);
+
+static inline int inode_unhashed(struct inode *inode)
+{
+    return hlist_unhashed(&inode->i_hash);
+}
 
 #endif /* _LINUX_FS_H */
