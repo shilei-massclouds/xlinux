@@ -4,10 +4,12 @@
 #include <slab.h>
 #include <class.h>
 #include <genhd.h>
+#include <major.h>
 #include <blkdev.h>
 #include <export.h>
 #include <kdev_t.h>
 #include <string.h>
+#include <kobj_map.h>
 
 #define BLKDEV_MAJOR_HASH_SIZE 255
 static struct blk_major_name {
@@ -23,6 +25,8 @@ struct class block_class = {
 const struct device_type disk_type = {
     .name = "disk",
 };
+
+static struct kobj_map *bdev_map;
 
 struct gendisk *
 __alloc_disk_node(int minors)
@@ -82,6 +86,27 @@ blk_alloc_devt(struct hd_struct *part, dev_t *devt)
     panic("bad partno (%d)", part->partno);
 }
 
+/*
+ * Register device numbers dev..(dev+range-1)
+ * range must be nonzero
+ * The hash chain is sorted on range, so that subranges can override.
+ */
+void
+blk_register_region(dev_t devt,
+                    unsigned long range,
+                    struct kobject *(*probe)(dev_t, int *, void *),
+                    void *data)
+{
+    kobj_map(bdev_map, devt, range, probe, data);
+}
+
+static struct kobject *
+exact_match(dev_t devt, int *partno, void *data)
+{
+    struct gendisk *p = data;
+    return &disk_to_dev(p)->kobj;
+}
+
 static void
 __device_add_disk(struct device *parent,
                   struct gendisk *disk,
@@ -96,6 +121,8 @@ __device_add_disk(struct device *parent,
     disk->major = MAJOR(devt);
     disk->first_minor = MINOR(devt);
     dev->devt = devt;
+
+    blk_register_region(disk_devt(disk), disk->minors, exact_match, disk);
 
     printk("%s: (%x) ma(%x) mi(%x)\n",
            __func__, dev->devt, disk->major, disk->first_minor);
@@ -194,12 +221,36 @@ blk_lookup_devt(const char *name, int partno)
 }
 EXPORT_SYMBOL(blk_lookup_devt);
 
+struct gendisk *
+get_gendisk(dev_t devt, int *partno)
+{
+    struct kobject *kobj;
+    struct gendisk *disk = NULL;
+
+    BUG_ON(MAJOR(devt) == BLOCK_EXT_MAJOR);
+
+    kobj = kobj_lookup(bdev_map, devt, partno);
+    BUG_ON(!kobj);
+    if (kobj)
+        disk = dev_to_disk(kobj_to_dev(kobj));
+
+    return disk;
+}
+EXPORT_SYMBOL(get_gendisk);
+
+static struct kobject *
+base_probe(dev_t devt, int *partno, void *data)
+{
+    return NULL;
+}
+
 static int
 init_module(void)
 {
     printk("module[genhd]: init begin ...\n");
     BUG_ON(!slab_is_available());
     BUG_ON(class_register(&block_class));
+    bdev_map = kobj_map_init(base_probe);
     printk("module[genhd]: init end!\n");
     return 0;
 }

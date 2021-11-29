@@ -4,6 +4,7 @@
 
 #include <sysfs.h>
 #include <device.h>
+#include <kdev_t.h>
 
 #define dev_to_disk(device) container_of((device), struct gendisk, part0.__dev)
 #define disk_to_dev(disk)   (&(disk)->part0.__dev)
@@ -88,5 +89,13 @@ part_to_disk(struct hd_struct *part)
 
 dev_t
 blk_lookup_devt(const char *name, int partno);
+
+struct gendisk *
+get_gendisk(dev_t devt, int *partno);
+
+static inline dev_t disk_devt(struct gendisk *disk)
+{
+    return MKDEV(disk->major, disk->first_minor);
+}
 
 #endif /* _LINUX_GENHD_H */

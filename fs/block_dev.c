@@ -5,6 +5,7 @@
 #include <slab.h>
 #include <stat.h>
 #include <errno.h>
+#include <genhd.h>
 #include <mount.h>
 #include <namei.h>
 #include <blkdev.h>
@@ -135,12 +136,37 @@ fail:
 }
 EXPORT_SYMBOL(lookup_bdev);
 
+static struct gendisk *
+bdev_get_gendisk(struct block_device *bdev, int *partno)
+{
+    struct gendisk *disk = get_gendisk(bdev->bd_dev, partno);
+
+    if (!disk)
+        return NULL;
+    /*
+     * Now that we hold gendisk reference we make sure bdev we looked up is
+     * not stale. If it is, it means device got removed and created before
+     * we looked up gendisk and we fail open in such case. Associating
+     * unhashed bdev with newly created gendisk could lead to two bdevs
+     * (and thus two independent caches) being associated with one device
+     * which is bad.
+     */
+    if (inode_unhashed(bdev->bd_inode)) {
+        return NULL;
+    }
+    return disk;
+}
+
 static int
 __blkdev_get(struct block_device *bdev,
              fmode_t mode,
              void *holder,
              int for_part)
 {
+    int partno;
+    struct gendisk *disk;
+
+    disk = bdev_get_gendisk(bdev, &partno);
     panic("%s:", __func__);
 }
 

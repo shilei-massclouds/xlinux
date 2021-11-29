@@ -130,4 +130,9 @@ bus_for_each_drv(struct bus_type *bus,
                  void *data,
                  int (*fn)(struct device_driver *, void *));
 
+static inline struct device *kobj_to_dev(struct kobject *kobj)
+{
+    return container_of(kobj, struct device, kobj);
+}
+
 #endif /* _DEVICE_H_ */
