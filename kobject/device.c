@@ -3,6 +3,7 @@
 #include <acgcc.h>
 #include <class.h>
 #include <errno.h>
+#include <device.h>
 #include <printk.h>
 #include <export.h>
 #include <device.h>
@@ -123,3 +124,10 @@ device_initial_probe(struct device *dev)
 {
     __device_attach(dev);
 }
+
+struct device *
+get_device(struct device *dev)
+{
+    return dev ? kobj_to_dev(&dev->kobj) : NULL;
+}
+EXPORT_SYMBOL(get_device);

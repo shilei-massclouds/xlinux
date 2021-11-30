@@ -3,7 +3,9 @@
 #ifndef _LINUX_BLKDEV_H
 #define _LINUX_BLKDEV_H
 
+#include <fs.h>
 #include <types.h>
+#include <genhd.h>
 
 #define BLKDEV_MAJOR_MAX    512
 
@@ -12,6 +14,9 @@ struct block_device {
     struct super_block *bd_super;
     struct inode *bd_inode;     /* will die */
     struct gendisk *bd_disk;
+    struct hd_struct *bd_part;
+    u8 bd_partno;
+    void *bd_claiming;
 };
 
 struct block_device_operations {
@@ -39,6 +44,8 @@ struct block_device_operations {
 };
 
 struct queue_limits {
+    unsigned int        physical_block_size;
+    unsigned int        logical_block_size;
     unsigned short      max_segments;
 };
 
@@ -49,6 +56,8 @@ struct request_queue {
      * various queue flags, see QUEUE_* below
      */
     unsigned long       queue_flags;
+
+    void *queuedata;
 };
 
 void
@@ -60,5 +69,46 @@ blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 void
 blk_queue_max_segments(struct request_queue *q,
                        unsigned short max_segments);
+
+static inline unsigned
+queue_logical_block_size(const struct request_queue *q)
+{
+    int retval = 512;
+
+    if (q && q->limits.logical_block_size)
+        retval = q->limits.logical_block_size;
+
+    return retval;
+}
+
+static inline struct request_queue *
+bdev_get_queue(struct block_device *bdev)
+{
+    return bdev->bd_disk->queue;    /* this is never NULL */
+}
+
+static inline unsigned int
+bdev_logical_block_size(struct block_device *bdev)
+{
+    return queue_logical_block_size(bdev_get_queue(bdev));
+}
+
+/* assumes size > 256 */
+static inline unsigned int
+blksize_bits(unsigned int size)
+{
+    unsigned int bits = 8;
+    do {
+        bits++;
+        size >>= 1;
+    } while (size > 256);
+    return bits;
+}
+
+static inline unsigned int
+block_size(struct block_device *bdev)
+{
+    return 1 << bdev->bd_inode->i_blkbits;
+}
 
 #endif /* _LINUX_BLKDEV_H */

@@ -289,26 +289,6 @@ get_fs_type(const char *name)
 }
 EXPORT_SYMBOL(get_fs_type);
 
-struct dentry *
-mount_bdev(struct file_system_type *fs_type,
-           int flags, const char *dev_name,
-           int (*fill_super)(struct super_block *, void *, int))
-{
-    struct block_device *bdev;
-    fmode_t mode = FMODE_READ | FMODE_EXCL;
-
-    if (!(flags & SB_RDONLY))
-        mode |= FMODE_WRITE;
-
-    printk("%s: %s %x\n", __func__, dev_name, flags);
-    bdev = blkdev_get_by_path(dev_name, mode, fs_type);
-    if (IS_ERR(bdev))
-        return ERR_CAST(bdev);
-
-    panic("%s: ", __func__);
-}
-EXPORT_SYMBOL(mount_bdev);
-
 static const struct super_operations simple_super_operations = {
 };
 

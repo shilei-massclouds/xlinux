@@ -107,4 +107,6 @@ static inline void local_flush_tlb_all(void)
 }                           \
 )
 
+#define struct_size(p, member, count) (count * sizeof(*(p)->member))
+
 #endif /* _UAPI_LINUX_KERNEL_H */

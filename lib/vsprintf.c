@@ -183,6 +183,9 @@ format_decode(const char *fmt, struct printf_spec *spec)
     case 's':
         spec->type = FORMAT_TYPE_STR;
         return ++fmt - start;
+    case 'p':
+        spec->type = FORMAT_TYPE_PTR;
+        return ++fmt - start;
     case 'o':
         spec->base = 8;
         break;
@@ -208,6 +211,39 @@ format_decode(const char *fmt, struct printf_spec *spec)
     }
 
     return ++fmt - start;
+}
+
+static char *
+pointer_string(char *buf, char *end,
+               const void *ptr,
+               struct printf_spec spec)
+{
+    spec.base = 16;
+    spec.flags |= SMALL;
+    return number(buf, end, (unsigned long int)ptr, spec);
+}
+
+static char *
+ptr_to_id(char *buf, char *end, const void *ptr, struct printf_spec spec)
+{
+    int ret;
+    unsigned long hashval;
+
+    /*
+     * Print the real pointer value for NULL and error pointers,
+     * as they are not actual addresses.
+     */
+    if (IS_ERR_OR_NULL(ptr))
+        return pointer_string(buf, end, ptr, spec);
+
+    return pointer_string(buf, end, ptr, spec);
+}
+
+static char *
+pointer(const char *fmt, char *buf, char *end, void *ptr,
+        struct printf_spec spec)
+{
+    return ptr_to_id(buf, end, ptr, spec);
 }
 
 int
@@ -247,6 +283,11 @@ vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
         }
         case FORMAT_TYPE_STR:
             str = string(str, end, va_arg(args, char *), spec);
+            break;
+        case FORMAT_TYPE_PTR:
+            str = pointer(fmt, str, end, va_arg(args, void *), spec);
+            while (isalnum(*fmt))
+                fmt++;
             break;
         default:
             switch (spec.type) {

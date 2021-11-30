@@ -3,6 +3,7 @@
 #include <bug.h>
 #include <slab.h>
 #include <class.h>
+#include <errno.h>
 #include <genhd.h>
 #include <major.h>
 #include <blkdev.h>
@@ -28,10 +29,30 @@ const struct device_type disk_type = {
 
 static struct kobj_map *bdev_map;
 
+int
+disk_expand_part_tbl(struct gendisk *disk, int partno)
+{
+    int target;
+    struct disk_part_tbl *ptbl;
+
+    target = partno + 1;
+    if (target < 0)
+        return -EINVAL;
+
+    ptbl = kzalloc_node(struct_size(ptbl, part, target), GFP_KERNEL);
+    if (!ptbl)
+        return -ENOMEM;
+
+    ptbl->len = target;
+    disk->part_tbl = ptbl;
+    return 0;
+}
+
 struct gendisk *
 __alloc_disk_node(int minors)
 {
     struct gendisk *disk;
+    struct disk_part_tbl *ptbl;
 
     if (minors > DISK_MAX_PARTS) {
         panic("block: can't allocate more than %d partitions\n",
@@ -40,12 +61,17 @@ __alloc_disk_node(int minors)
 
     disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL);
     if (disk) {
+        if (disk_expand_part_tbl(disk, 0))
+            panic("bad expand tbl!");
+
+        ptbl = disk->part_tbl;
+        ptbl->part[0] = &disk->part0;
+
         disk->minors = minors;
         disk_to_dev(disk)->class = &block_class;
         disk_to_dev(disk)->type = &disk_type;
         device_initialize(disk_to_dev(disk));
     }
-
     return disk;
 }
 EXPORT_SYMBOL(__alloc_disk_node);
@@ -243,6 +269,30 @@ base_probe(dev_t devt, int *partno, void *data)
 {
     return NULL;
 }
+
+struct hd_struct *
+__disk_get_part(struct gendisk *disk, int partno)
+{
+    struct disk_part_tbl *ptbl = disk->part_tbl;
+    BUG_ON(!ptbl);
+
+    if (unlikely(partno < 0 || partno >= ptbl->len))
+        return NULL;
+    return ptbl->part[partno];
+}
+
+struct hd_struct *
+disk_get_part(struct gendisk *disk, int partno)
+{
+    struct hd_struct *part;
+
+    part = __disk_get_part(disk, partno);
+    if (part)
+        get_device(part_to_dev(part));
+
+    return part;
+}
+EXPORT_SYMBOL(disk_get_part);
 
 static int
 init_module(void)

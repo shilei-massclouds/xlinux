@@ -135,4 +135,6 @@ static inline struct device *kobj_to_dev(struct kobject *kobj)
     return container_of(kobj, struct device, kobj);
 }
 
+struct device *get_device(struct device *dev);
+
 #endif /* _DEVICE_H_ */

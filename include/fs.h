@@ -27,6 +27,9 @@
 #define SB_KERNMOUNT    (1<<22) /* this is a kern_mount call */
 #define SB_I_VERSION    (1<<23) /* Update inode I_version field */
 #define SB_LAZYTIME (1<<25) /* Update the on-disk [acm]times lazily */
+
+#define SB_SUBMOUNT (1<<26)
+#define SB_NOSEC    (1<<28)
 #define SB_NOUSER   (1<<31)
 
 /*
@@ -88,12 +91,20 @@ struct super_operations {
 };
 
 struct super_block {
-    dev_t s_dev;    /* search index; _not_ kdev_t */
+    struct list_head s_list;    /* Keep this first */
+    dev_t s_dev;                /* search index; _not_ kdev_t */
     struct dentry *s_root;
     unsigned long s_flags;
-    void *s_fs_info; /* Proposed s_fs_info */
+    void *s_fs_info;            /* Proposed s_fs_info */
     const struct super_operations *s_op;
-    struct list_head    s_inodes;   /* all inodes */
+    struct list_head s_inodes;  /* all inodes */
+    struct hlist_node s_instances;
+    struct block_device *s_bdev;
+    struct file_system_type *s_type;
+    char s_id[32];              /* Informational name */
+    fmode_t s_mode;
+    unsigned char s_blocksize_bits;
+    unsigned long s_blocksize;
 };
 
 struct inode_operations {
@@ -108,7 +119,10 @@ struct inode {
     /* Stat data, not accessed from path walking */
     unsigned long       i_ino;
 
+    loff_t              i_size;
     dev_t               i_rdev;
+
+    u8                  i_blkbits;
 
     struct hlist_node   i_hash;
 
@@ -148,6 +162,7 @@ struct file_system_type {
                             int, const char *);
 
     struct file_system_type *next;
+    struct hlist_head fs_supers;
 };
 
 struct fs_struct {
@@ -239,5 +254,20 @@ static inline int inode_unhashed(struct inode *inode)
 {
     return hlist_unhashed(&inode->i_hash);
 }
+
+static inline void
+i_size_write(struct inode *inode, loff_t i_size)
+{
+    inode->i_size = i_size;
+}
+
+struct super_block *
+sget(struct file_system_type *type,
+     int (*test)(struct super_block *,void *),
+     int (*set)(struct super_block *,void *),
+     int flags,
+     void *data);
+
+int sb_set_blocksize(struct super_block *sb, int size);
 
 #endif /* _LINUX_FS_H */

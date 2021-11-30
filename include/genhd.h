@@ -17,7 +17,13 @@
 
 struct hd_struct {
     struct device __dev;
+    sector_t nr_sects;
     int partno;
+};
+
+struct disk_part_tbl {
+    int len;
+    struct hd_struct *part[];
 };
 
 struct gendisk {
@@ -30,6 +36,7 @@ struct gendisk {
                          * disks that can't be partitioned. */
     char disk_name[DISK_NAME_LEN];  /* name of major driver */
 
+    struct disk_part_tbl *part_tbl;
     struct hd_struct part0;
 
     const struct block_device_operations *fops;
@@ -57,17 +64,9 @@ extern struct gendisk *__alloc_disk_node(int minors);
 int
 register_blkdev(unsigned int major, const char *name);
 
-static inline sector_t get_capacity(struct gendisk *disk)
-{
-    return 0;
-    /* return disk->part0.nr_sects; */
-    /* Todo */
-}
-
 static inline void set_capacity(struct gendisk *disk, sector_t size)
 {
-    /* disk->part0.nr_sects = size; */
-    /* Todo */
+    disk->part0.nr_sects = size;
 }
 
 void
@@ -96,6 +95,15 @@ get_gendisk(dev_t devt, int *partno);
 static inline dev_t disk_devt(struct gendisk *disk)
 {
     return MKDEV(disk->major, disk->first_minor);
+}
+
+struct hd_struct *
+disk_get_part(struct gendisk *disk, int partno);
+
+static inline sector_t
+get_capacity(struct gendisk *disk)
+{
+    return disk->part0.nr_sects;
 }
 
 #endif /* _LINUX_GENHD_H */

@@ -2,6 +2,7 @@
 
 #include <bug.h>
 #include <slab.h>
+#include <block.h>
 #include <errno.h>
 #include <genhd.h>
 #include <sysfs.h>
@@ -225,7 +226,6 @@ set_capacity_revalidate_and_notify(struct gendisk *disk,
                                    sector_t size,
                                    bool revalidate)
 {
-    sector_t capacity = get_capacity(disk);
     set_capacity(disk, size);
 }
 EXPORT_SYMBOL(set_capacity_revalidate_and_notify);
@@ -249,22 +249,13 @@ virtblk_update_capacity(struct virtio_blk *vblk, bool resize)
         capacity = (sector_t)-1;
     }
 
-    /*
     nblocks = DIV_ROUND_UP_ULL(capacity, queue_logical_block_size(q) >> 9);
 
-    string_get_size(nblocks, queue_logical_block_size(q),
-            STRING_UNITS_2, cap_str_2, sizeof(cap_str_2));
-    string_get_size(nblocks, queue_logical_block_size(q),
-            STRING_UNITS_10, cap_str_10, sizeof(cap_str_10));
-
-    printk("[%s] %s%lu %d-byte logical blocks (%s/%s)\n",
+    printk("[%s] %s%lu %d-byte logical blocks\n",
            vblk->disk->disk_name,
            resize ? "new size: " : "",
            nblocks,
-           queue_logical_block_size(q),
-           cap_str_10,
-           cap_str_2);
-           */
+           queue_logical_block_size(q));
 
     set_capacity_revalidate_and_notify(vblk->disk, capacity, true);
 }
@@ -312,7 +303,9 @@ virtblk_probe(struct virtio_device *vdev)
     int err;
     int index;
     u32 sg_elems;
+    u32 blk_size;
     struct virtio_blk *vblk;
+    struct request_queue *q;
 
     if (!vdev->config->get) {
         panic("%s failure: config access disabled", __func__);
@@ -357,6 +350,15 @@ virtblk_probe(struct virtio_device *vdev)
 
     memset(&vblk->tag_set, 0, sizeof(vblk->tag_set));
 
+    q = blk_mq_init_queue(&vblk->tag_set);
+    if (IS_ERR(q)) {
+        err = -ENOMEM;
+        panic("out of memory!");
+    }
+    vblk->disk->queue = q;
+
+    q->queuedata = vblk;
+
     virtblk_name_format("vd", index, vblk->disk->disk_name, DISK_NAME_LEN);
 
     vblk->disk->major = major;
@@ -372,6 +374,15 @@ virtblk_probe(struct virtio_device *vdev)
     printk("%s: %s sg_elems(%u) major(%x)\n",
            __func__, vblk->disk->disk_name,
            vblk->sg_elems, major);
+
+    /* Host can optionally specify the block size of the device */
+    err = virtio_cread_feature(vdev, VIRTIO_BLK_F_BLK_SIZE,
+                               struct virtio_blk_config, blk_size,
+                               &blk_size);
+    if (!err)
+        blk_queue_logical_block_size(q, blk_size);
+    else
+        blk_size = queue_logical_block_size(q);
 
     virtblk_update_capacity(vblk, false);
 

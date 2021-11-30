@@ -157,17 +157,87 @@ bdev_get_gendisk(struct block_device *bdev, int *partno)
     return disk;
 }
 
+int
+bd_prepare_to_claim(struct block_device *bdev,
+                    struct block_device *whole,
+                    void *holder)
+{
+    /* if claiming is already in progress, wait for it to finish */
+    if (whole->bd_claiming)
+        panic("already claiming!");
+
+    /* yay, all mine */
+    whole->bd_claiming = holder;
+    return 0;
+}
+EXPORT_SYMBOL(bd_prepare_to_claim); /* only for the loop driver */
+
+void
+bd_set_size(struct block_device *bdev, loff_t size)
+{
+    i_size_write(bdev->bd_inode, size);
+}
+EXPORT_SYMBOL(bd_set_size);
+
+static void
+set_init_blocksize(struct block_device *bdev)
+{
+    bdev->bd_inode->i_blkbits = blksize_bits(bdev_logical_block_size(bdev));
+}
+
+static void
+bd_clear_claiming(struct block_device *whole, void *holder)
+{
+    whole->bd_claiming = NULL;
+}
+
+static void
+bd_finish_claiming(struct block_device *bdev,
+                   struct block_device *whole,
+                   void *holder)
+{
+    bd_clear_claiming(whole, holder);
+}
+
 static int
 __blkdev_get(struct block_device *bdev,
              fmode_t mode,
              void *holder,
              int for_part)
 {
+    int ret;
     int partno;
     struct gendisk *disk;
 
+    BUG_ON(for_part);
+
     disk = bdev_get_gendisk(bdev, &partno);
-    panic("%s:", __func__);
+    BUG_ON(partno);
+    if (mode & FMODE_EXCL) {
+        ret = bd_prepare_to_claim(bdev, bdev, holder);
+        if (ret)
+            panic("%s: can not claim!", __func__);
+    }
+
+    bdev->bd_disk = disk;
+    bdev->bd_partno = partno;
+    bdev->bd_part = disk_get_part(disk, partno);
+    BUG_ON(!bdev->bd_part);
+
+    ret = 0;
+    if (disk->fops->open) {
+        ret = disk->fops->open(bdev, mode);
+    } else {
+        panic("can not open disk!");
+    }
+
+    if (!ret) {
+        bd_set_size(bdev, (loff_t)get_capacity(disk)<<9);
+        set_init_blocksize(bdev);
+    }
+
+    bd_finish_claiming(bdev, bdev, holder);
+    return 0;
 }
 
 int
@@ -258,3 +328,34 @@ bdev_cache_init(void)
         panic("Cannot create bdev pseudo-fs");
     blockdev_superblock = bd_mnt->mnt_sb;   /* For writeback */
 }
+
+int
+set_blocksize(struct block_device *bdev, int size)
+{
+    /* Size must be a power of two, and between 512 and PAGE_SIZE */
+    if (size > PAGE_SIZE || size < 512 || !is_power_of_2(size))
+        return -EINVAL;
+
+    /* Size cannot be smaller than the size supported by the device */
+    if (size < bdev_logical_block_size(bdev))
+        return -EINVAL;
+
+    /* Don't change the size if it is same as current */
+    if (bdev->bd_inode->i_blkbits != blksize_bits(size))
+        bdev->bd_inode->i_blkbits = blksize_bits(size);
+    return 0;
+}
+EXPORT_SYMBOL(set_blocksize);
+
+int
+sb_set_blocksize(struct super_block *sb, int size)
+{
+    if (set_blocksize(sb->s_bdev, size))
+        return 0;
+    /* If we get here, we know size is power of two
+     * and it's value is between 512 and PAGE_SIZE */
+    sb->s_blocksize = size;
+    sb->s_blocksize_bits = blksize_bits(size);
+    return sb->s_blocksize;
+}
+EXPORT_SYMBOL(sb_set_blocksize);
