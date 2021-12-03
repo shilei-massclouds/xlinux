@@ -5,6 +5,10 @@
 #include <list.h>
 #include <path.h>
 #include <types.h>
+#include <xarray.h>
+
+#define BLOCK_SIZE_BITS 10
+#define BLOCK_SIZE      (1<<BLOCK_SIZE_BITS)
 
 #define SB_ACTIVE   (1<<30)
 
@@ -50,6 +54,19 @@
 #define __I_NEW         3
 #define I_NEW           (1 << __I_NEW)
 #define I_CREATING      (1 << 15)
+
+struct address_space {
+    struct xarray   i_pages;
+    unsigned long   nrpages;
+} __attribute__((aligned(sizeof(long))));
+
+/*
+ * Write life time hint values.
+ * Stored in struct inode as u8.
+ */
+enum rw_hint {
+    WRITE_LIFE_NOT_SET  = 0,
+};
 
 struct filename {
     const char *name;   /* pointer to actual string */
@@ -123,6 +140,7 @@ struct inode {
     dev_t               i_rdev;
 
     u8                  i_blkbits;
+    blkcnt_t            i_blocks;
 
     struct hlist_node   i_hash;
 
@@ -130,6 +148,8 @@ struct inode {
     const struct file_operations  *i_fop;
 
     struct super_block *i_sb;
+    struct address_space *i_mapping;
+    struct address_space i_data;
 
     unsigned long       i_state;
     struct list_head    i_sb_list;
@@ -236,6 +256,9 @@ struct block_device *
 blkdev_get_by_path(const char *path, fmode_t mode, void *holder);
 
 struct inode *
+iget_locked(struct super_block *sb, unsigned long ino);
+
+struct inode *
 iget5_locked(struct super_block *sb, unsigned long hashval,
              int (*test)(struct inode *, void *),
              int (*set)(struct inode *, void *), void *data);
@@ -269,5 +292,12 @@ sget(struct file_system_type *type,
      void *data);
 
 int sb_set_blocksize(struct super_block *sb, int size);
+
+int sb_min_blocksize(struct super_block *sb, int size);
+
+static inline loff_t i_size_read(const struct inode *inode)
+{
+    return inode->i_size;
+}
 
 #endif /* _LINUX_FS_H */

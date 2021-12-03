@@ -139,12 +139,6 @@ page_order(struct page *page)
     return page_private(page);
 }
 
-static inline void
-set_page_private(struct page *page, unsigned long private)
-{
-    page->private = private;
-}
-
 static inline int page_zone_id(struct page *page)
 {
     return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;

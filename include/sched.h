@@ -4,6 +4,9 @@
 
 #include <fs.h>
 
+/* Used in tsk->state: */
+#define TASK_UNINTERRUPTIBLE    0x0002
+
 struct task_struct {
     struct fs_struct *fs;
 };

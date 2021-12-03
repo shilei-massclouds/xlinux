@@ -3,8 +3,11 @@
 #define _BLOCK_H_
 
 #include <blkdev.h>
+#include <blk_types.h>
 
 void
 blk_queue_logical_block_size(struct request_queue *q, unsigned int size);
+
+blk_qc_t submit_bio(struct bio *bio);
 
 #endif /* _BLOCK_H_ */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include <blkdev.h>
+#include <block.h>
 #include <export.h>
 #include <printk.h>
 
@@ -36,6 +36,12 @@ blk_queue_max_segments(struct request_queue *q,
     q->limits.max_segments = max_segments;
 }
 EXPORT_SYMBOL(blk_queue_max_segments);
+
+blk_qc_t submit_bio(struct bio *bio)
+{
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(submit_bio);
 
 static int
 init_module(void)

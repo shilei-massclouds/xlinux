@@ -23,6 +23,14 @@
 
 #define _RET_IP_    (unsigned long)__builtin_return_address(0)
 
+/**
+ * swap - swap values of @a and @b
+ * @a: first value
+ * @b: second value
+ */
+#define swap(a, b) \
+    do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
+
 static inline bool
 IS_ERR(const void *ptr)
 {

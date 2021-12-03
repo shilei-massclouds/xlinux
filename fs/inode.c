@@ -4,6 +4,7 @@
 #include <bug.h>
 #include <hash.h>
 #include <slab.h>
+#include <errno.h>
 #include <export.h>
 #include <kernel.h>
 #include <string.h>
@@ -44,7 +45,10 @@ hash(struct super_block *sb, unsigned long hashval)
 int
 inode_init_always(struct super_block *sb, struct inode *inode)
 {
+    struct address_space *const mapping = &inode->i_data;
+
     inode->i_sb = sb;
+    inode->i_mapping = mapping;
     return 0;
 }
 
@@ -165,6 +169,61 @@ inode_insert5(struct inode *inode,
 
     return inode;
 }
+
+static struct inode *
+find_inode_fast(struct super_block *sb,
+                struct hlist_head *head,
+                unsigned long ino)
+{
+    struct inode *inode = NULL;
+
+    hlist_for_each_entry(inode, head, i_hash) {
+        if (inode->i_ino != ino)
+            continue;
+        if (inode->i_sb != sb)
+            continue;
+        if (unlikely(inode->i_state & I_CREATING))
+            return ERR_PTR(-ESTALE);
+        return inode;
+    }
+    return NULL;
+}
+
+struct inode *iget_locked(struct super_block *sb, unsigned long ino)
+{
+    struct inode *inode;
+    struct hlist_head *head = inode_hashtable + hash(sb, ino);
+
+ again:
+    inode = find_inode_fast(sb, head, ino);
+    if (inode) {
+        if (IS_ERR(inode))
+            return NULL;
+        if (unlikely(inode_unhashed(inode))) {
+            iput(inode);
+            goto again;
+        }
+        return inode;
+    }
+
+    inode = alloc_inode(sb);
+    if (inode) {
+        struct inode *old = find_inode_fast(sb, head, ino);
+        BUG_ON(old);
+
+        inode->i_ino = ino;
+        inode->i_state = I_NEW;
+        hlist_add_head(&inode->i_hash, head);
+        printk("%s: step2 (%p) (%p)\n",
+               __func__,
+               inode->i_sb_list.prev,
+               inode->i_sb->s_inodes.prev);
+        inode_sb_list_add(inode);
+        printk("%s: step3\n", __func__);
+    }
+    return inode;
+}
+EXPORT_SYMBOL(iget_locked);
 
 struct inode *
 iget5_locked(struct super_block *sb, unsigned long hashval,

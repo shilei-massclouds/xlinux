@@ -70,6 +70,8 @@
 #define EUSERS      87  /* Too many users */
 #define ENOTSOCK    88  /* Socket operation on non-socket */
 
+#define ESTALE      116 /* Stale file handle */
+
 #define EPROBE_DEFER    517 /* Driver requests probe retry */
 
 static inline void *

@@ -9,6 +9,15 @@
 
 #define BLKDEV_MAJOR_MAX    512
 
+typedef unsigned int blk_qc_t;
+
+enum req_opf {
+    /* read sectors from the device */
+    REQ_OP_READ     = 0,
+
+    REQ_OP_LAST,
+};
+
 struct block_device {
     dev_t bd_dev;  /* not a kdev_t - it's a search key */
     struct super_block *bd_super;
@@ -110,5 +119,7 @@ block_size(struct block_device *bdev)
 {
     return 1 << bdev->bd_inode->i_blkbits;
 }
+
+struct block_device *I_BDEV(struct inode *inode);
 
 #endif /* _LINUX_BLKDEV_H */

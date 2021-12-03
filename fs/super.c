@@ -9,6 +9,8 @@
 
 static LIST_HEAD(super_blocks);
 
+static u32 unnamed_dev_ida;
+
 static int
 set_bdev_super(struct super_block *s, void *data)
 {
@@ -30,6 +32,8 @@ alloc_super(struct file_system_type *type, int flags)
     s = kzalloc(sizeof(struct super_block), GFP_USER);
     if (!s)
         return NULL;
+
+    INIT_LIST_HEAD(&s->s_inodes);
     return s;
 }
 
@@ -68,6 +72,73 @@ sget(struct file_system_type *type,
     return s;
 }
 
+struct super_block *
+sget_fc(struct fs_context *fc,
+        int (*set)(struct super_block *, struct fs_context *))
+{
+    struct super_block *s = NULL;
+
+    s = alloc_super(fc->fs_type, fc->sb_flags);
+    if (!s)
+        return ERR_PTR(-ENOMEM);
+
+    s->s_fs_info = fc->s_fs_info;
+    if (set(s, fc))
+        panic("cannot set!");
+
+    return s;
+}
+
+int
+get_anon_bdev(dev_t *p)
+{
+    *p = MKDEV(0, unnamed_dev_ida++);
+    return 0;
+}
+EXPORT_SYMBOL(get_anon_bdev);
+
+int
+set_anon_super(struct super_block *s, void *data)
+{
+    return get_anon_bdev(&s->s_dev);
+}
+EXPORT_SYMBOL(set_anon_super);
+
+int
+set_anon_super_fc(struct super_block *sb, struct fs_context *fc)
+{
+    return set_anon_super(sb, NULL);
+}
+EXPORT_SYMBOL(set_anon_super_fc);
+
+int
+vfs_get_super(struct fs_context *fc,
+              int (*fill_super)(struct super_block *sb,
+                                struct fs_context *fc))
+{
+    struct super_block *sb;
+    sb = sget_fc(fc, set_anon_super_fc);
+    if (IS_ERR(sb))
+        return PTR_ERR(sb);
+
+    BUG_ON(sb->s_root);
+    if (fill_super(sb, fc))
+        panic("cannot fill super!");
+
+    sb->s_flags |= SB_ACTIVE;
+    fc->root = dget(sb->s_root);
+    return 0;
+}
+
+int
+get_tree_nodev(struct fs_context *fc,
+               int (*fill_super)(struct super_block *sb,
+                                 struct fs_context *fc))
+{
+    return vfs_get_super(fc, fill_super);
+}
+EXPORT_SYMBOL(get_tree_nodev);
+
 struct dentry *
 mount_bdev(struct file_system_type *fs_type,
            int flags, const char *dev_name,
@@ -90,6 +161,7 @@ mount_bdev(struct file_system_type *fs_type,
     if (IS_ERR(s))
         panic("bad super!");
 
+    printk("%s: step1 (%p)\n", __func__, s->s_inodes.prev);
     s->s_mode = mode;
     snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
     sb_set_blocksize(s, block_size(bdev));

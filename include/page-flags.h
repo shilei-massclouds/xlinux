@@ -106,6 +106,11 @@ static inline int PagePoisoned(const struct page *page)
     VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);    \
     page;                                           \
 })
+
+#define PF_ANY(page, enforce)   PF_POISONED_CHECK(page)
+
+#define PF_HEAD(page, enforce)  PF_POISONED_CHECK(compound_head(page))
+
 #define PF_NO_TAIL(page, enforce) ({                        \
         VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page); \
         PF_POISONED_CHECK(compound_head(page)); })
@@ -125,6 +130,10 @@ static __always_inline void SetPage##uname(struct page *page)   \
 #define CLEARPAGEFLAG(uname, lname, policy)                     \
 static __always_inline void ClearPage##uname(struct page *page) \
     { clear_bit(PG_##lname, &policy(page, 1)->flags); }
+
+#define TESTCLEARFLAG(uname, lname, policy)                         \
+static __always_inline int TestClearPage##uname(struct page *page)  \
+    { return test_and_clear_bit(PG_##lname, &policy(page, 1)->flags); }
 
 #define __CLEARPAGEFLAG(uname, lname, policy)                       \
 static __always_inline void __ClearPage##uname(struct page *page)   \
@@ -147,8 +156,20 @@ static __always_inline void __SetPage##uname(struct page *page) \
 __PAGEFLAG(Slab, slab, PF_NO_TAIL)
 
 PAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
-    __CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
     __SETPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
+    __CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
+
+/*
+ * Private page markings that may be used by the filesystem
+ * that owns the page for its own purposes.
+ */
+PAGEFLAG(Private, private, PF_ANY)
+    __SETPAGEFLAG(Private, private, PF_ANY)
+    __CLEARPAGEFLAG(Private, private, PF_ANY)
+
+PAGEFLAG(Active, active, PF_HEAD)
+    __CLEARPAGEFLAG(Active, active, PF_HEAD)
+    TESTCLEARFLAG(Active, active, PF_HEAD)
 
 #define PAGE_TYPE_BASE  0xf0000000
 /* Reserve      0x0000007f to catch underflows of page_mapcount */
@@ -185,5 +206,13 @@ static __always_inline void __ClearPage##uname(struct page *page)   \
  * PageBuddy() indicates that the page is free and in the buddy system
  */
 PAGE_TYPE_OPS(Buddy, buddy)
+
+static inline int PageUptodate(struct page *page)
+{
+    int ret;
+    page = compound_head(page);
+    ret = test_bit(PG_uptodate, &(page)->flags);
+    return ret;
+}
 
 #endif /* PAGE_FLAGS_H */

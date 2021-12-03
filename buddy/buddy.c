@@ -12,10 +12,11 @@
 #include <mmzone.h>
 #include <printk.h>
 #include <memblock.h>
+#include <mm_types.h>
 #include <page_ref.h>
 #include <page-flags.h>
 
-#define RESERVED_CHUNK_SIZE (PAGE_SIZE << 2)
+#define RESERVED_CHUNK_SIZE (PAGE_SIZE << 3)
 
 extern void (*reserve_bootmem_region_fn)(phys_addr_t, phys_addr_t);
 extern void (*free_pages_core_fn)(struct page *, unsigned int);

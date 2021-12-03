@@ -359,3 +359,18 @@ sb_set_blocksize(struct super_block *sb, int size)
     return sb->s_blocksize;
 }
 EXPORT_SYMBOL(sb_set_blocksize);
+
+int sb_min_blocksize(struct super_block *sb, int size)
+{
+    int minsize = bdev_logical_block_size(sb->s_bdev);
+    if (size < minsize)
+        size = minsize;
+    return sb_set_blocksize(sb, size);
+}
+EXPORT_SYMBOL(sb_min_blocksize);
+
+struct block_device *I_BDEV(struct inode *inode)
+{
+    return &BDEV_I(inode)->bdev;
+}
+EXPORT_SYMBOL(I_BDEV);

@@ -168,9 +168,13 @@ typedef __kernel_gid32_t    gid_t;
 typedef u64 dma_addr_t;
 
 typedef u64 sector_t;
+typedef u64 blkcnt_t;
 
 typedef u32 __kernel_dev_t;
 typedef __kernel_dev_t dev_t;
+
+typedef __kernel_ulong_t    __kernel_ino_t;
+typedef __kernel_ino_t      ino_t;
 
 typedef unsigned short  umode_t;
 typedef unsigned int    fmode_t;

@@ -140,4 +140,30 @@ test_bit(int nr, const volatile unsigned long *addr)
     return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }
 
+/**
+ * test_and_set_bit_lock - Set a bit and return its old value, for lock
+ * @nr: Bit to set
+ * @addr: Address to count from
+ *
+ * This operation is atomic and provides acquire barrier semantics.
+ * It can be used to implement bit locks.
+ */
+static inline int
+test_and_set_bit_lock(unsigned long nr, volatile unsigned long *addr)
+{
+    return __test_and_op_bit_ord(or, __NOP, nr, addr, .aq);
+}
+
+static inline void
+clear_bit_unlock(unsigned long nr, volatile unsigned long *addr)
+{
+    __op_bit_ord(and, __NOT, nr, addr, .rl);
+}
+
+static inline int
+test_and_clear_bit(int nr, volatile unsigned long *addr)
+{
+    return __test_and_op_bit(and, __NOT, nr, addr);
+}
+
 #endif /* _GENERIC_BITS_H_ */

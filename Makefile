@@ -4,9 +4,9 @@ include scripts/Makefile.include
 
 PHONY := all clean
 
-SUBDIRS		:= startup lib early_dt \
-	rbtree hashtable \
-	mm memblock buddy slab kalloc \
+SUBDIRS := startup lib early_dt \
+	rbtree hashtable xarray \
+	mm memblock buddy slab kalloc filemap \
 	vma ioremap devres \
 	of platform kobject \
 	dcache fs ramfs rootfs ext2 \
