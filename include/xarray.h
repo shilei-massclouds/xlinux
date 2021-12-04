@@ -3,6 +3,7 @@
 #define _LINUX_XARRAY_H
 
 #include <bug.h>
+#include <list.h>
 #include <kernel.h>
 
 #define XA_CHUNK_SHIFT  6
@@ -32,6 +33,12 @@
 
 struct xa_node {
     unsigned char   shift;  /* Bits remaining in each slot */
+    unsigned char   offset; /* Slot offset in parent */
+
+    struct xa_node  *parent;    /* NULL at top of tree */
+    struct xarray   *array;     /* The array we belong to */
+
+    struct list_head private_list;  /* For tree user */
 
     void *slots[XA_CHUNK_SIZE];
 };
@@ -66,10 +73,7 @@ xa_entry(const struct xarray *xa,
          unsigned int offset)
 {
     BUG_ON(offset >= XA_CHUNK_SIZE);
-    /*
-    return rcu_dereference_check(node->slots[offset],
-                        lockdep_is_held(&xa->xa_lock));
-                        */
+    return node->slots[offset];
 }
 
 static inline void *xa_mk_internal(unsigned long v)
@@ -159,10 +163,20 @@ static inline struct xa_node *xa_to_node(const void *entry)
     return (struct xa_node *)((unsigned long)entry - 2);
 }
 
+static inline void *xa_mk_node(const struct xa_node *node)
+{
+    return (void *)((unsigned long)node | 2);
+}
+
 void *xas_load(struct xa_state *xas);
 
 void *xas_store(struct xa_state *xas, void *entry);
 
 bool xas_nomem(struct xa_state *xas, gfp_t gfp);
+
+static inline void xas_set_err(struct xa_state *xas, long err)
+{
+    xas->xa_node = XA_ERROR(err);
+}
 
 #endif /* _LINUX_XARRAY_H */
