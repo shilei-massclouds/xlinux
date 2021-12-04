@@ -59,7 +59,6 @@ find_get_entry(struct address_space *mapping, pgoff_t offset)
     XA_STATE(xas, &mapping->i_pages, offset);
 
     page = xas_load(&xas);
-    BUG_ON(page == NULL);
     return page;
 }
 
