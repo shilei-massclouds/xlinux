@@ -29,7 +29,7 @@
  * Declare and initialise an xa_state on the stack.
  */
 #define XA_STATE(name, array, index) \
-    struct xa_state name = __XA_STATE(array, index, 0, 0)
+    struct xa_state name = __XA_STATE(array, index, 0)
 
 struct xa_node {
     unsigned char   shift;  /* Bits remaining in each slot */
@@ -37,8 +37,6 @@ struct xa_node {
 
     struct xa_node  *parent;    /* NULL at top of tree */
     struct xarray   *array;     /* The array we belong to */
-
-    struct list_head private_list;  /* For tree user */
 
     void *slots[XA_CHUNK_SIZE];
 };
@@ -51,20 +49,16 @@ struct xa_state {
     struct xarray *xa;
     unsigned long xa_index;
     unsigned char xa_shift;
-    unsigned char xa_sibs;
     unsigned char xa_offset;
     struct xa_node *xa_node;
-    struct xa_node *xa_alloc;
 };
 
-#define __XA_STATE(array, index, shift, sibs)  {    \
+#define __XA_STATE(array, index, shift)  {    \
     .xa = array,                    \
     .xa_index = index,              \
     .xa_shift = shift,              \
-    .xa_sibs = sibs,                \
     .xa_offset = 0,                 \
     .xa_node = XAS_RESTART,         \
-    .xa_alloc = NULL,               \
 }
 
 static inline void *
@@ -113,17 +107,6 @@ static inline bool xas_invalid(const struct xa_state *xas)
 static inline bool xas_valid(const struct xa_state *xas)
 {
     return !xas_invalid(xas);
-}
-
-static inline void *xas_reload(struct xa_state *xas)
-{
-    /*
-    struct xa_node *node = xas->xa_node;
-
-    if (node)
-        return xa_entry(xas->xa, node, xas->xa_offset);
-    return xa_head(xas->xa);
-    */
 }
 
 static inline void *xa_head(const struct xarray *xa)

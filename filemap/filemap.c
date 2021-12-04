@@ -15,23 +15,18 @@ __add_to_page_cache_locked(struct page *page,
     void *old;
     XA_STATE(xas, &mapping->i_pages, offset);
 
-    //mapping_set_update(&xas, mapping);
-
     page->mapping = mapping;
     page->index = offset;
 
-    do {
-        old = xas_load(&xas);
-        if (old && !xa_is_value(old))
-            panic("already exist! (%p)", old);
+    old = xas_load(&xas);
+    if (old && !xa_is_value(old))
+        panic("already exist! (%p)", old);
 
-        xas_store(&xas, page);
-        if (xas_error(&xas))
-            panic("can not store!");
+    xas_store(&xas, page);
+    if (xas_error(&xas))
+        panic("can not store!");
 
-        mapping->nrpages++;
-    } while (xas_nomem(&xas, gfp_mask & GFP_RECLAIM_MASK));
-
+    mapping->nrpages++;
     return 0;
 }
 
