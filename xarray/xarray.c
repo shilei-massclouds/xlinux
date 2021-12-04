@@ -206,11 +206,8 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 
 void *xas_store(struct xa_state *xas, void *entry)
 {
-    void *first, *next;
+    void *first;
     struct xa_node *node;
-    unsigned int offset;
-    int count = 0;
-    int values = 0;
     void **slot = &xas->xa->xa_head;
 
     printk("%s: 1 entry(%p)\n", __func__, entry);
@@ -232,11 +229,8 @@ void *xas_store(struct xa_state *xas, void *entry)
         return first;
 
     printk("%s: 3 first(%p) entry(%p)\n", __func__, first, entry);
-    next = first;
-    offset = xas->xa_offset;
-    if (node) {
-        slot = &node->slots[offset];
-    }
+    if (node)
+        slot = &node->slots[xas->xa_offset];
 
     *slot = entry;
 
