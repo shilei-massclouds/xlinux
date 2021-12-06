@@ -65,13 +65,33 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 {
     pgoff_t index;
     struct page *page;
+    struct buffer_head *bh;
+    struct buffer_head *head;
     struct inode *bd_inode = bdev->bd_inode;
     struct address_space *bd_mapping = bd_inode->i_mapping;
+
+    printk("%s: 1 block(%lu)\n", __func__, block);
 
     index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
     page = find_get_page_flags(bd_mapping, index);
     if (!page)
-        panic("%s: bad page!", __func__);
+        panic("%s: bad page(0x%p)!", __func__, page);
+
+    printk("%s: 2 index(%lu) page(0x%p)\n",
+           __func__, index, page);
+    if (!page_has_buffers(page))
+        return NULL;
+
+    head = page_buffers(page);
+    bh = head;
+    do {
+        if (!buffer_mapped(bh)) {
+            panic("%s: all_mapped");
+        } else if (bh->b_blocknr == block) {
+            return bh;
+        }
+        bh = bh->b_this_page;
+    } while (bh != head);
 
     panic("%s: !", __func__);
 }
@@ -169,6 +189,7 @@ link_dev_buffers(struct page *page, struct buffer_head *head)
     } while (bh);
     tail->b_this_page = head;
     attach_page_private(page, head);
+    printk("%s: page(0x%p)\n", __func__, page);
 }
 
 static sector_t
@@ -242,7 +263,7 @@ grow_dev_page(struct block_device *bdev,
      */
     bh = alloc_page_buffers(page, size, true);
 
-    printk("%s: 1 (%d, %u)\n", __func__, block, index);
+    printk("### %s: 1 (%d, %u)\n", __func__, block, index);
     link_dev_buffers(page, bh);
 
     end_block = init_page_buffers(page, bdev,
@@ -300,7 +321,7 @@ __getblk_gfp(struct block_device *bdev,
 {
     struct buffer_head *bh = __find_get_block(bdev, block, size);
 
-    printk("%s: 1 (%d, %u, %p)\n", __func__, block, size, bh);
+    printk("### %s: 1 (%d, %u, %p)\n", __func__, block, size, bh);
     if (bh == NULL)
         bh = __getblk_slow(bdev, block, size, gfp);
     return bh;

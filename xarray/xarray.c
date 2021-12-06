@@ -19,23 +19,19 @@ static void *xas_start(struct xa_state *xas)
 {
     void *entry;
 
-    printk("%s: 1 %p\n", __func__, entry);
     if (xas_valid(xas))
         panic("xas valid!");
     if (xas_error(xas))
         return NULL;
 
-    printk("%s: 2 %p\n", __func__, entry);
     entry = xa_head(xas->xa);
     if (!xa_is_node(entry)) {
-        printk("%s: 3 %d\n", __func__, xas->xa_index);
         if (xas->xa_index)
             return set_bounds(xas);
     } else {
         if ((xas->xa_index >> xa_to_node(entry)->shift) > XA_CHUNK_MASK)
             return set_bounds(xas);
     }
-    printk("%s: %p\n", __func__, entry);
 
     xas->xa_node = NULL;
     return entry;
