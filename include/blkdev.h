@@ -6,6 +6,7 @@
 #include <fs.h>
 #include <types.h>
 #include <genhd.h>
+#include <blk_types.h>
 
 #define BLKDEV_MAJOR_MAX    512
 
@@ -29,9 +30,7 @@ struct block_device {
 };
 
 struct block_device_operations {
-    /*
     blk_qc_t (*submit_bio) (struct bio *bio);
-    */
     int (*open)(struct block_device *, fmode_t);
     /*
     void (*release) (struct gendisk *, fmode_t);
@@ -64,7 +63,7 @@ struct request_queue {
     /*
      * various queue flags, see QUEUE_* below
      */
-    unsigned long       queue_flags;
+    unsigned long queue_flags;
 
     void *queuedata;
 };

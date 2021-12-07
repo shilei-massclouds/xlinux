@@ -356,7 +356,11 @@ submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 {
     struct bio *bio;
 
+    BUG_ON(wbc);
+
     bio = bio_alloc(GFP_NOIO, 1);
+    bio_set_dev(bio, bh->b_bdev);
+    bio_set_op_attrs(bio, op, op_flags);
 
     submit_bio(bio);
     return 0;
@@ -376,6 +380,7 @@ static struct buffer_head *__bread_slow(struct buffer_head *bh)
         return bh;
     } else {
         bh->b_end_io = end_buffer_read_sync;
+        printk("%s: \n", __func__);
         submit_bh(REQ_OP_READ, 0, bh);
         wait_on_buffer(bh);
         if (buffer_uptodate(bh))

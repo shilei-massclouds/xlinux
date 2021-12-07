@@ -44,6 +44,42 @@ blk_mq_init_queue(struct blk_mq_tag_set *set)
 }
 EXPORT_SYMBOL(blk_mq_init_queue);
 
+static struct request *
+__blk_mq_alloc_request(struct blk_mq_alloc_data *data)
+{
+    panic("%s: !", __func__);
+}
+
+blk_qc_t blk_mq_submit_bio(struct bio *bio)
+{
+    blk_qc_t cookie;
+    struct request *rq;
+    struct request_queue *q = bio->bi_disk->queue;
+    struct blk_mq_alloc_data data = {
+        .q = q,
+    };
+
+    data.cmd_flags = bio->bi_opf;
+    rq = __blk_mq_alloc_request(&data);
+    if (unlikely(!rq))
+        panic("request is NULL!");
+
+    panic("%s: !", __func__);
+    /*
+    cookie = request_to_qc_t(data.hctx, rq);
+
+    blk_mq_bio_to_request(rq, bio, nr_segs);
+    */
+
+    /* Insert the request at the IO scheduler queue */
+    /*
+    blk_mq_sched_insert_request(rq, false, true, true);
+
+    return cookie;
+    */
+}
+EXPORT_SYMBOL(blk_mq_submit_bio);
+
 static int
 init_module(void)
 {

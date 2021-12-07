@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <block.h>
+#include <blk-mq.h>
 #include <export.h>
 #include <printk.h>
 
@@ -37,9 +38,21 @@ blk_queue_max_segments(struct request_queue *q,
 }
 EXPORT_SYMBOL(blk_queue_max_segments);
 
+static blk_qc_t __submit_bio_noacct_mq(struct bio *bio)
+{
+    return blk_mq_submit_bio(bio);
+}
+
+blk_qc_t submit_bio_noacct(struct bio *bio)
+{
+    BUG_ON(bio->bi_disk->fops->submit_bio);
+    return __submit_bio_noacct_mq(bio);
+}
+EXPORT_SYMBOL(submit_bio_noacct);
+
 blk_qc_t submit_bio(struct bio *bio)
 {
-    panic("%s: !", __func__);
+    return submit_bio_noacct(bio);
 }
 EXPORT_SYMBOL(submit_bio);
 
