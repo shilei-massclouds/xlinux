@@ -5,6 +5,8 @@
 #include <export.h>
 #include <printk.h>
 
+extern int deadline_init(void);
+
 void
 blk_queue_flag_set(unsigned int flag, struct request_queue *q)
 {
@@ -60,6 +62,9 @@ static int
 init_module(void)
 {
     printk("module[block]: init begin ...\n");
+
+    deadline_init();
+
     printk("module[block]: init end!\n");
     return 0;
 }

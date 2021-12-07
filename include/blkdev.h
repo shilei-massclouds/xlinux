@@ -60,6 +60,8 @@ struct queue_limits {
 struct request_queue {
     struct queue_limits limits;
 
+    unsigned int nr_hw_queues;
+
     /*
      * various queue flags, see QUEUE_* below
      */

@@ -10,6 +10,7 @@
 #include <export.h>
 #include <kdev_t.h>
 #include <string.h>
+#include <elevator.h>
 #include <kobj_map.h>
 
 #define BLKDEV_MAJOR_HASH_SIZE 255
@@ -143,6 +144,9 @@ __device_add_disk(struct device *parent,
     struct device *dev = disk_to_dev(disk);
 
     BUG_ON(blk_alloc_devt(&disk->part0, &devt));
+
+    if (register_queue)
+        elevator_init_mq(disk->queue);
 
     disk->major = MAJOR(devt);
     disk->first_minor = MINOR(devt);

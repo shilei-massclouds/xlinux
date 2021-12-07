@@ -349,6 +349,13 @@ virtblk_probe(struct virtio_device *vdev)
     }
 
     memset(&vblk->tag_set, 0, sizeof(vblk->tag_set));
+    vblk->tag_set.nr_hw_queues = vblk->num_vqs;
+
+    /*
+    err = blk_mq_alloc_tag_set(&vblk->tag_set);
+    if (err)
+        panic("alloc tag set!");
+        */
 
     q = blk_mq_init_queue(&vblk->tag_set);
     if (IS_ERR(q)) {

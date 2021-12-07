@@ -7,11 +7,22 @@
 #include <kernel.h>
 #include <printk.h>
 
+static void
+blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
+                       struct request_queue *q)
+{
+    q->nr_hw_queues = set->nr_hw_queues;
+}
+
 struct request_queue *
 blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
                             struct request_queue *q,
                             bool elevator_init)
 {
+    blk_mq_realloc_hw_ctxs(set, q);
+    if (!q->nr_hw_queues)
+        panic("nr_hw_queues ZERO!");
+
     return q;
 }
 

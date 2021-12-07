@@ -6,6 +6,7 @@
 #include <blkdev.h>
 
 struct blk_mq_tag_set {
+    unsigned int nr_hw_queues;
 };
 
 struct blk_mq_alloc_data {
