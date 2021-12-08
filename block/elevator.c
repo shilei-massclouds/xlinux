@@ -2,6 +2,7 @@
 
 #include <bug.h>
 #include <list.h>
+#include <slab.h>
 #include <errno.h>
 #include <blkdev.h>
 #include <export.h>
@@ -61,6 +62,25 @@ void elevator_init_mq(struct request_queue *q)
         panic("can not init sched!");
 }
 EXPORT_SYMBOL(elevator_init_mq);
+
+struct elevator_queue *
+elevator_alloc(struct request_queue *q, struct elevator_type *e)
+{
+    struct elevator_queue *eq;
+
+    eq = kzalloc(sizeof(*eq), GFP_KERNEL);
+    if (unlikely(!eq))
+        return NULL;
+
+    eq->type = e;
+    /*
+    kobject_init(&eq->kobj, &elv_ktype);
+    hash_init(eq->hash);
+    */
+
+    return eq;
+}
+EXPORT_SYMBOL(elevator_alloc);
 
 int elv_register(struct elevator_type *e)
 {

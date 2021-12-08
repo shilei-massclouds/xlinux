@@ -8,6 +8,8 @@
 #include <genhd.h>
 #include <blk_types.h>
 
+#define BLKDEV_MAX_RQ   128 /* Default maximum */
+
 #define BLKDEV_MAJOR_MAX    512
 
 typedef unsigned int blk_qc_t;
@@ -58,8 +60,11 @@ struct queue_limits {
 };
 
 struct request_queue {
+    struct elevator_queue *elevator;
+
     struct queue_limits limits;
 
+    struct blk_mq_hw_ctx **queue_hw_ctx;
     unsigned int nr_hw_queues;
 
     /*
@@ -68,6 +73,23 @@ struct request_queue {
     unsigned long queue_flags;
 
     void *queuedata;
+
+    struct blk_mq_tag_set *tag_set;
+
+    unsigned long nr_requests;    /* Max # of requests */
+};
+
+/*
+ * Request state for blk-mq.
+ */
+enum mq_rq_state {
+    MQ_RQ_IDLE      = 0,
+    MQ_RQ_IN_FLIGHT = 1,
+    MQ_RQ_COMPLETE  = 2,
+};
+
+struct request {
+    enum mq_rq_state state;
 };
 
 void

@@ -12,6 +12,7 @@
 #include <printk.h>
 #include <virtio.h>
 #include <virtio_blk.h>
+#include <scatterlist.h>
 #include <virtio_ring.h>
 
 #define PART_BITS 4
@@ -23,6 +24,14 @@ static u32 _vd_index_ida;
 struct virtio_blk_vq {
     struct virtqueue *vq;
     char name[VQ_NAME_LEN];
+};
+
+struct virtblk_req {
+    /*
+    struct virtio_blk_outhdr out_hdr;
+    */
+    u8 status;
+    struct scatterlist sg[];
 };
 
 struct virtio_blk {
@@ -298,6 +307,30 @@ static const struct attribute_group *virtblk_attr_groups[] = {
 static unsigned int virtblk_queue_depth;
 
 static int
+virtblk_init_request(struct blk_mq_tag_set *set,
+                     struct request *rq,
+                     unsigned int hctx_idx)
+{
+    struct virtio_blk *vblk = set->driver_data;
+    struct virtblk_req *vbr = blk_mq_rq_to_pdu(rq);
+
+    sg_init_table(vbr->sg, vblk->sg_elems);
+    return 0;
+}
+
+static const struct blk_mq_ops virtio_mq_ops = {
+    /*
+    .queue_rq   = virtio_queue_rq,
+    .commit_rqs = virtio_commit_rqs,
+    .complete   = virtblk_request_done,
+    */
+    .init_request   = virtblk_init_request,
+    /*
+    .map_queues = virtblk_map_queues,
+    */
+};
+
+static int
 virtblk_probe(struct virtio_device *vdev)
 {
     int err;
@@ -349,7 +382,12 @@ virtblk_probe(struct virtio_device *vdev)
     }
 
     memset(&vblk->tag_set, 0, sizeof(vblk->tag_set));
+    vblk->tag_set.ops = &virtio_mq_ops;
+    vblk->tag_set.queue_depth = virtblk_queue_depth;
     vblk->tag_set.nr_hw_queues = vblk->num_vqs;
+    vblk->tag_set.driver_data = vblk;
+    vblk->tag_set.cmd_size = sizeof(struct virtblk_req) +
+        sizeof(struct scatterlist) * sg_elems;
 
     /*
     err = blk_mq_alloc_tag_set(&vblk->tag_set);
