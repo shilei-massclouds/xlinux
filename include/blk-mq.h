@@ -5,6 +5,31 @@
 
 #include <blkdev.h>
 
+/**
+ * enum hctx_type - Type of hardware queue
+ * @HCTX_TYPE_DEFAULT:  All I/O not otherwise accounted for.
+ * @HCTX_TYPE_READ: Just for READ I/O.
+ * @HCTX_TYPE_POLL: Polled I/O of any kind.
+ * @HCTX_MAX_TYPES: Number of types of hctx.
+ */
+enum hctx_type {
+    HCTX_TYPE_DEFAULT,
+    HCTX_TYPE_READ,
+    HCTX_TYPE_POLL,
+
+    HCTX_MAX_TYPES,
+};
+
+struct blk_mq_ctxs {
+    struct kobject kobj;
+    struct blk_mq_ctx *queue_ctx;
+};
+
+struct blk_mq_ctx {
+    struct blk_mq_hw_ctx *hctxs[HCTX_MAX_TYPES];
+    struct blk_mq_ctxs *ctxs;
+};
+
 #define queue_for_each_hw_ctx(q, hctx, i)               \
     for ((i) = 0; (i) < (q)->nr_hw_queues &&            \
          ({ hctx = (q)->queue_hw_ctx[i]; 1; }); (i)++)
@@ -53,6 +78,7 @@ struct blk_mq_tags {
 };
 
 struct blk_mq_hw_ctx {
+    struct blk_mq_tags *tags;
     struct blk_mq_tags *sched_tags;
 };
 
@@ -82,6 +108,9 @@ struct blk_mq_tag_set {
 struct blk_mq_alloc_data {
     struct request_queue *q;
     unsigned int cmd_flags;
+
+    struct blk_mq_ctx *ctx;
+    struct blk_mq_hw_ctx *hctx;
 };
 
 struct request_queue *
@@ -105,6 +134,47 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio);
 static inline void *blk_mq_rq_to_pdu(struct request *rq)
 {
     return rq + 1;
+}
+
+static inline struct blk_mq_tags *
+blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
+{
+    printk("%s: step1(%p)\n", __func__, data->hctx);
+    if (data->q->elevator)
+        return data->hctx->sched_tags;
+
+    return data->hctx->tags;
+}
+
+static inline struct blk_mq_ctx *
+__blk_mq_get_ctx(struct request_queue *q, unsigned int cpu)
+{
+    printk("%s: step1(%p)\n", __func__, q->queue_ctx);
+    return q->queue_ctx;
+}
+
+static inline struct blk_mq_ctx *blk_mq_get_ctx(struct request_queue *q)
+{
+    return __blk_mq_get_ctx(q, 0);
+}
+
+static inline struct blk_mq_hw_ctx *
+blk_mq_map_queue(struct request_queue *q,
+                 unsigned int flags,
+                 struct blk_mq_ctx *ctx)
+{
+    enum hctx_type type = HCTX_TYPE_DEFAULT;
+
+    /*
+     * The caller ensure that if REQ_HIPRI, poll must be enabled.
+     */
+    if (flags & REQ_HIPRI)
+        type = HCTX_TYPE_POLL;
+    else if ((flags & REQ_OP_MASK) == REQ_OP_READ)
+        type = HCTX_TYPE_READ;
+
+    printk("%s: step1(%d)(%p)\n", __func__, type, ctx->hctxs[type]);
+    return ctx->hctxs[type];
 }
 
 #endif /* BLK_MQ_H */

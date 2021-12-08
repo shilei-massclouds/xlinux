@@ -64,6 +64,9 @@ struct request_queue {
 
     struct queue_limits limits;
 
+    /* sw queues */
+    struct blk_mq_ctx *queue_ctx;
+
     struct blk_mq_hw_ctx **queue_hw_ctx;
     unsigned int nr_hw_queues;
 

@@ -82,16 +82,48 @@ blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
     }
 }
 
+static int blk_mq_alloc_ctxs(struct request_queue *q)
+{
+    struct blk_mq_ctxs *ctxs;
+
+    ctxs = kzalloc(sizeof(*ctxs), GFP_KERNEL);
+    if (!ctxs)
+        return -ENOMEM;
+
+    ctxs->queue_ctx = kzalloc(sizeof(struct blk_mq_ctx), GFP_KERNEL);
+    if (!ctxs->queue_ctx)
+        panic("out of memory!");
+
+    ctxs->queue_ctx->ctxs = ctxs;
+
+    //q->mq_kobj = &ctxs->kobj;
+    q->queue_ctx = ctxs->queue_ctx;
+
+    return 0;
+}
+
+static void blk_mq_map_swqueue(struct request_queue *q)
+{
+    int i;
+    struct blk_mq_ctx *ctx = q->queue_ctx;
+    for (i = 0; i < HCTX_TYPE_POLL; i++)
+        ctx->hctxs[i] = q->queue_hw_ctx[0];
+}
+
 struct request_queue *
 blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
                             struct request_queue *q,
                             bool elevator_init)
 {
+    if (blk_mq_alloc_ctxs(q))
+        panic("bad ctxs!");
+
     blk_mq_realloc_hw_ctxs(set, q);
     if (!q->nr_hw_queues)
         panic("nr_hw_queues ZERO!");
 
     q->tag_set = set;
+    blk_mq_map_swqueue(q);
     return q;
 }
 
@@ -125,9 +157,27 @@ blk_mq_init_queue(struct blk_mq_tag_set *set)
 EXPORT_SYMBOL(blk_mq_init_queue);
 
 static struct request *
+blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
+                   unsigned int tag,
+                   u64 alloc_time_ns)
+{
+    struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
+    struct request *rq = tags->static_rqs[tag];
+    return rq;
+}
+
+static struct request *
 __blk_mq_alloc_request(struct blk_mq_alloc_data *data)
 {
-    panic("%s: !", __func__);
+    unsigned int tag;
+    struct request_queue *q = data->q;
+
+    data->ctx = blk_mq_get_ctx(q);
+    data->hctx = blk_mq_map_queue(q, data->cmd_flags, data->ctx);
+
+    /* Todo: */
+    tag = 1;
+    return blk_mq_rq_ctx_init(data, tag, 0);
 }
 
 blk_qc_t blk_mq_submit_bio(struct bio *bio)

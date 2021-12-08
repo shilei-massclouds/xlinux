@@ -395,6 +395,7 @@ virtblk_probe(struct virtio_device *vdev)
         panic("alloc tag set!");
         */
 
+    printk("##################### %s: step1\n", __func__);
     q = blk_mq_init_queue(&vblk->tag_set);
     if (IS_ERR(q)) {
         err = -ENOMEM;
