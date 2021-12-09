@@ -183,6 +183,19 @@ set_work_pwq(struct work_struct *work,
                   WORK_STRUCT_PENDING|WORK_STRUCT_PWQ|extra_flags);
 }
 
+static void process_one_work(struct work_struct *work)
+{
+    list_del_init(&work->entry);
+
+    work->func(work);
+}
+
+/* Do I need to keep working?  Called from currently running workers. */
+static bool keep_working(struct worker_pool *pool)
+{
+    return !list_empty(&pool->worklist);
+}
+
 static void
 insert_work(struct pool_workqueue *pwq, struct work_struct *work,
             struct list_head *head, unsigned int extra_flags)
@@ -193,7 +206,17 @@ insert_work(struct pool_workqueue *pwq, struct work_struct *work,
     set_work_pwq(work, pwq, extra_flags);
     list_add_tail(&work->entry, head);
 
-    panic("%s: !", __func__);
+    /* !!! NOTICE !!! */
+    /* avoid starting another process */
+    do {
+        struct work_struct *work;
+
+        work = list_first_entry(&pool->worklist,
+                                struct work_struct, entry);
+
+        /* optimization path, not strictly necessary */
+        process_one_work(work);
+    } while (keep_working(pool));
 }
 
 static void

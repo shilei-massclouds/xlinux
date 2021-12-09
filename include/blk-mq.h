@@ -80,6 +80,12 @@ struct blk_mq_tags {
 
 struct blk_mq_hw_ctx {
     /**
+     * @state: BLK_MQ_S_* flags. Defines the state of the hw
+     * queue (active, scheduled to restart, stopped).
+     */
+    unsigned long state;
+
+    /**
      * @run_work: Used for scheduling a hardware queue run at a later time.
      */
     struct delayed_work run_work;

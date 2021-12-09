@@ -17,6 +17,45 @@ static int blk_mq_hw_ctx_size(struct blk_mq_tag_set *tag_set)
     return hw_ctx_size;
 }
 
+static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
+{
+    panic("%s: !", __func__);
+}
+
+void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
+{
+    int ret;
+
+    ret = __blk_mq_sched_dispatch_requests(hctx);
+    BUG_ON(ret);
+}
+
+/**
+ * __blk_mq_run_hw_queue - Run a hardware queue.
+ * @hctx: Pointer to the hardware queue to run.
+ *
+ * Send pending requests to the hardware.
+ */
+static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
+{
+    blk_mq_sched_dispatch_requests(hctx);
+}
+
+static void blk_mq_run_work_fn(struct work_struct *work)
+{
+    struct blk_mq_hw_ctx *hctx;
+
+    hctx = container_of(work, struct blk_mq_hw_ctx, run_work.work);
+
+    /*
+     * If we are stopped, don't run the queue.
+     */
+    if (test_bit(BLK_MQ_S_STOPPED, &hctx->state))
+        return;
+
+    __blk_mq_run_hw_queue(hctx);
+}
+
 static struct blk_mq_hw_ctx *
 blk_mq_alloc_hctx(struct request_queue *q, struct blk_mq_tag_set *set)
 {
@@ -27,6 +66,7 @@ blk_mq_alloc_hctx(struct request_queue *q, struct blk_mq_tag_set *set)
     if (!hctx)
         panic("out of memory!");
 
+    INIT_DELAYED_WORK(&hctx->run_work, blk_mq_run_work_fn);
     hctx->queue = q;
     return hctx;
 }

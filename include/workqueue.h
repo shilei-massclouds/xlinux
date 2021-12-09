@@ -10,6 +10,26 @@
  */
 #define work_data_bits(work) ((unsigned long *)(&(work)->data))
 
+#define __INIT_WORK(_work, _func, _onstack) \
+    do {                                    \
+        INIT_LIST_HEAD(&(_work)->entry);    \
+        (_work)->func = (_func);            \
+    } while (0)
+
+#define INIT_WORK(_work, _func) \
+    __INIT_WORK((_work), (_func), 0)
+
+#define __INIT_DELAYED_WORK(_work, _func, _tflags)  \
+    do {                                            \
+        INIT_WORK(&(_work)->work, (_func));         \
+    } while (0)
+
+#define INIT_DELAYED_WORK(_work, _func) \
+    __INIT_DELAYED_WORK(_work, _func, 0)
+
+struct work_struct;
+typedef void (*work_func_t)(struct work_struct *work);
+
 enum {
     WORK_STRUCT_PENDING_BIT = 0,    /* work item is pending execution */
     WORK_STRUCT_DELAYED_BIT = 1,    /* work item is delayed */
@@ -96,6 +116,7 @@ enum {
 struct work_struct {
     atomic_long_t data;
     struct list_head entry;
+    work_func_t func;
 };
 
 struct delayed_work {
