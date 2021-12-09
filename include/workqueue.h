@@ -95,10 +95,20 @@ enum {
 
 struct work_struct {
     atomic_long_t data;
+    struct list_head entry;
 };
 
 struct delayed_work {
     struct work_struct work;
+};
+
+struct pool_workqueue {
+    struct worker_pool *pool;       /* I: the associated pool */
+    struct workqueue_struct *wq;    /* I: the owning workqueue */
+};
+
+struct worker_pool {
+    struct list_head worklist;      /* L: list of pending works */
 };
 
 struct workqueue_struct *

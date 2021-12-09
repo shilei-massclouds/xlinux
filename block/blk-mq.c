@@ -202,7 +202,6 @@ __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx,
                             unsigned long msecs)
 {
     kblockd_mod_delayed_work_on(0, &hctx->run_work, msecs_to_jiffies(msecs));
-    panic("%s: async(%d)!", __func__, async);
 }
 
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
