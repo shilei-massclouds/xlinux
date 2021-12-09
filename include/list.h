@@ -135,6 +135,16 @@ __list_del_entry(struct list_head *entry)
     __list_del(entry->prev, entry->next);
 }
 
+/**
+ * list_del_init - deletes entry from list and reinitialize it.
+ * @entry: the element to delete from the list.
+ */
+static inline void list_del_init(struct list_head *entry)
+{
+    __list_del_entry(entry);
+    INIT_LIST_HEAD(entry);
+}
+
 static inline void
 list_del(struct list_head *entry)
 {
@@ -174,6 +184,25 @@ list_splice(const struct list_head *list, struct list_head *head)
 {
     if (!list_empty(list))
         __list_splice(list, head, head->next);
+}
+
+/**
+ * list_empty_careful - tests whether a list is empty and not being modified
+ * @head: the list to test
+ *
+ * Description:
+ * tests whether a list is empty _and_ checks that no other CPU might be
+ * in the process of modifying either member (next or prev)
+ *
+ * NOTE: using list_empty_careful() without synchronization
+ * can only be safe if the only activity that can happen
+ * to the list entry is list_del_init(). Eg. it cannot be used
+ * if another CPU could re-list_add() it.
+ */
+static inline int list_empty_careful(const struct list_head *head)
+{
+    struct list_head *next = head->next;
+    return (next == head) && (next == head->prev);
 }
 
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)

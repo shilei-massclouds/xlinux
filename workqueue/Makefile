@@ -2,4 +2,4 @@
 
 target_y := ko
 
-obj_y := blk-mq.o
+obj_y := workqueue.o

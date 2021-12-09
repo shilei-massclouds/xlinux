@@ -86,4 +86,11 @@ bio_set_op_attrs(struct bio *bio, unsigned op, unsigned op_flags)
     bio->bi_opf = op | op_flags;
 }
 
+static inline bool op_is_write(unsigned int op)
+{
+    return (op & 1);
+}
+
+#define req_op(req) ((req)->cmd_flags & REQ_OP_MASK)
+
 #endif /* __LINUX_BLK_TYPES_H */

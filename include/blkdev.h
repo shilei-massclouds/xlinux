@@ -12,6 +12,8 @@
 
 #define BLKDEV_MAJOR_MAX    512
 
+#define rq_data_dir(rq) (op_is_write(req_op(rq)) ? WRITE : READ)
+
 typedef unsigned int blk_qc_t;
 
 enum req_opf {
@@ -91,8 +93,21 @@ enum mq_rq_state {
     MQ_RQ_COMPLETE  = 2,
 };
 
+/*
+ * request flags
+ */
+typedef u32 req_flags_t;
+
 struct request {
+    struct request_queue *q;
+    struct blk_mq_ctx *mq_ctx;
+    struct blk_mq_hw_ctx *mq_hctx;
+
+    unsigned int cmd_flags;     /* op and common flags */
+    req_flags_t rq_flags;
+
     enum mq_rq_state state;
+    struct list_head queuelist;
 };
 
 void

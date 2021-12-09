@@ -4,6 +4,7 @@
 #define BLK_MQ_H
 
 #include <blkdev.h>
+#include <workqueue.h>
 
 /**
  * enum hctx_type - Type of hardware queue
@@ -78,8 +79,14 @@ struct blk_mq_tags {
 };
 
 struct blk_mq_hw_ctx {
+    /**
+     * @run_work: Used for scheduling a hardware queue run at a later time.
+     */
+    struct delayed_work run_work;
+
     struct blk_mq_tags *tags;
     struct blk_mq_tags *sched_tags;
+    struct request_queue *queue;
 };
 
 struct blk_mq_ops {
@@ -176,5 +183,10 @@ blk_mq_map_queue(struct request_queue *q,
     printk("%s: step1(%d)(%p)\n", __func__, type, ctx->hctxs[type]);
     return ctx->hctxs[type];
 }
+
+int
+kblockd_mod_delayed_work_on(int cpu,
+                            struct delayed_work *dwork,
+                            unsigned long delay);
 
 #endif /* BLK_MQ_H */

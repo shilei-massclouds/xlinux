@@ -11,6 +11,10 @@
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 #define cache_line_size()   L1_CACHE_BYTES
 
+/* generic data direction definitions */
+#define READ    0
+#define WRITE   1
+
 /**
  * ARRAY_SIZE - get the number of elements in array @arr
  * @arr: array to be sized

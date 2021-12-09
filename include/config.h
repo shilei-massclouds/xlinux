@@ -3,6 +3,8 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
+#define CONFIG_HZ 250
+
 /* Paging according to SV-39 */
 #define CONFIG_VA_BITS      39
 #define CONFIG_PA_BITS      56

@@ -5,6 +5,7 @@
 #include <export.h>
 #include <printk.h>
 
+extern int blk_dev_init(void);
 extern int deadline_init(void);
 
 void
@@ -40,30 +41,13 @@ blk_queue_max_segments(struct request_queue *q,
 }
 EXPORT_SYMBOL(blk_queue_max_segments);
 
-static blk_qc_t __submit_bio_noacct_mq(struct bio *bio)
-{
-    return blk_mq_submit_bio(bio);
-}
-
-blk_qc_t submit_bio_noacct(struct bio *bio)
-{
-    BUG_ON(bio->bi_disk->fops->submit_bio);
-    return __submit_bio_noacct_mq(bio);
-}
-EXPORT_SYMBOL(submit_bio_noacct);
-
-blk_qc_t submit_bio(struct bio *bio)
-{
-    return submit_bio_noacct(bio);
-}
-EXPORT_SYMBOL(submit_bio);
-
 static int
 init_module(void)
 {
     printk("module[block]: init begin ...\n");
 
     deadline_init();
+    blk_dev_init();
 
     printk("module[block]: init end!\n");
     return 0;

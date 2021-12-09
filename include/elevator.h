@@ -7,6 +7,8 @@
 struct elevator_type;
 
 struct elevator_mq_ops {
+    void (*insert_requests)(struct blk_mq_hw_ctx *, struct list_head *, bool);
+    bool (*has_work)(struct blk_mq_hw_ctx *);
     int (*init_sched)(struct request_queue *, struct elevator_type *);
 };
 
