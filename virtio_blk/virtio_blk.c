@@ -318,9 +318,16 @@ virtblk_init_request(struct blk_mq_tag_set *set,
     return 0;
 }
 
+static blk_status_t
+virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
+                const struct blk_mq_queue_data *bd)
+{
+    panic("%s: !", __func__);
+}
+
 static const struct blk_mq_ops virtio_mq_ops = {
-    /*
     .queue_rq   = virtio_queue_rq,
+    /*
     .commit_rqs = virtio_commit_rqs,
     .complete   = virtblk_request_done,
     */

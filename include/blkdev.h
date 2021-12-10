@@ -62,6 +62,8 @@ struct queue_limits {
 };
 
 struct request_queue {
+    const struct blk_mq_ops *mq_ops;
+
     struct elevator_queue *elevator;
 
     struct queue_limits limits;

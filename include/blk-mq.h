@@ -95,7 +95,24 @@ struct blk_mq_hw_ctx {
     struct request_queue *queue;
 };
 
+/**
+ * struct blk_mq_queue_data - Data about a request inserted in a queue
+ *
+ * @rq:   Request pointer.
+ * @last: If it is the last request in the queue.
+ */
+struct blk_mq_queue_data {
+    struct request *rq;
+    bool last;
+};
+
 struct blk_mq_ops {
+    /**
+     * @queue_rq: Queue a new request from block IO.
+     */
+    blk_status_t (*queue_rq)(struct blk_mq_hw_ctx *,
+                             const struct blk_mq_queue_data *);
+
     /**
      * @init_request: Called for every command allocated by the block layer
      * to allow the driver to set up driver specific data.

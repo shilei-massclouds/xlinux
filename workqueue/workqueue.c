@@ -262,7 +262,6 @@ mod_delayed_work_on(int cpu,
     if (likely(ret >= 0)) {
         __queue_delayed_work(cpu, wq, dwork, delay);
     }
-    panic("%s: ret(%d)!", __func__, ret);
 
     /* -ENOENT from try_to_grab_pending() becomes %true */
     return ret;

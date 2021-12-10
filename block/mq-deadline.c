@@ -9,6 +9,10 @@
 
 struct deadline_data {
     struct list_head fifo_list[2];
+    /*
+     * next in sort order. read, write or both are NULL
+     */
+    struct request *next_rq[2];
 };
 
 static int
@@ -84,9 +88,117 @@ static bool dd_has_work(struct blk_mq_hw_ctx *hctx)
         !list_empty_careful(&dd->fifo_list[1]);
 }
 
+static struct request *
+deadline_fifo_request(struct deadline_data *dd, int data_dir)
+{
+    struct request *rq;
+
+    BUG_ON(data_dir != READ && data_dir != WRITE);
+
+    if (list_empty(&dd->fifo_list[data_dir]))
+        return NULL;
+
+    rq = rq_entry_fifo(dd->fifo_list[data_dir].next);
+    if (data_dir == READ)
+        return rq;
+
+    /*
+     * Look for a write request that can be dispatched, that is one with
+     * an unlocked target zone.
+     */
+    list_for_each_entry(rq, &dd->fifo_list[WRITE], queuelist) {
+        return rq;
+    }
+    return NULL;
+}
+
+static struct request *
+deadline_next_request(struct deadline_data *dd, int data_dir)
+{
+    struct request *rq;
+
+    BUG_ON(data_dir != READ && data_dir != WRITE);
+
+    rq = dd->next_rq[data_dir];
+    return rq;
+}
+
+/*
+ * remove rq from rbtree and fifo.
+ */
+static void deadline_remove_request(struct request_queue *q, struct request *rq)
+{
+    struct deadline_data *dd = q->elevator->elevator_data;
+
+    list_del_init(&rq->queuelist);
+}
+
+/*
+ * move an entry to dispatch queue
+ */
+static void
+deadline_move_request(struct deadline_data *dd, struct request *rq)
+{
+    dd->next_rq[READ] = NULL;
+    dd->next_rq[WRITE] = NULL;
+
+    /*
+     * take it off the sort and fifo list
+     */
+    deadline_remove_request(rq->q, rq);
+}
+
+static struct request *__dd_dispatch_request(struct deadline_data *dd)
+{
+    int data_dir;
+    bool reads, writes;
+    struct request *rq;
+
+    reads = !list_empty(&dd->fifo_list[READ]);
+    writes = !list_empty(&dd->fifo_list[WRITE]);
+
+    if (reads) {
+        if (deadline_fifo_request(dd, WRITE))
+            goto dispatch_writes;
+
+        data_dir = READ;
+
+        goto dispatch_find_request;
+    }
+
+    if (writes) {
+ dispatch_writes:
+        data_dir = WRITE;
+
+        goto dispatch_find_request;
+    }
+
+    return NULL;
+
+ dispatch_find_request:
+
+    rq = deadline_next_request(dd, data_dir);
+    if (rq)
+        panic("rq is NOT NULL!");
+
+    rq = deadline_fifo_request(dd, data_dir);
+    if (!rq)
+        return NULL;
+
+    deadline_move_request(dd, rq);
+    return rq;
+}
+
+static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
+{
+    struct deadline_data *dd = hctx->queue->elevator->elevator_data;
+    return __dd_dispatch_request(dd);
+}
+
 static struct elevator_type mq_deadline = {
     .ops = {
         .insert_requests    = dd_insert_requests,
+        .dispatch_request   = dd_dispatch_request,
         .has_work           = dd_has_work,
         .init_sched         = dd_init_queue,
     },

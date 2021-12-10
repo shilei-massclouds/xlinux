@@ -17,9 +17,93 @@ static int blk_mq_hw_ctx_size(struct blk_mq_tag_set *tag_set)
     return hw_ctx_size;
 }
 
+bool
+blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx,
+                        struct list_head *list,
+                        unsigned int nr_budgets)
+{
+    struct request *rq;
+    int errors, queued;
+    blk_status_t ret = BLK_STS_OK;
+    struct request_queue *q = hctx->queue;
+
+    if (list_empty(list))
+        return false;
+
+    do {
+        struct blk_mq_queue_data bd;
+
+        rq = list_first_entry(list, struct request, queuelist);
+
+
+        list_del_init(&rq->queuelist);
+        bd.rq = rq;
+
+    printk("%s: step1 (%p, %p)\n",
+           __func__, q, q->mq_ops);
+        ret = q->mq_ops->queue_rq(hctx, &bd);
+    printk("%s: step2\n", __func__);
+        switch (ret) {
+        case BLK_STS_OK:
+            queued++;
+            break;
+        case BLK_STS_RESOURCE:
+        case BLK_STS_DEV_RESOURCE:
+            panic("BLK_STS_DEV_RESOURCE!");
+        case BLK_STS_ZONE_RESOURCE:
+            panic("BLK_STS_ZONE_RESOURCE!");
+        default:
+            errors++;
+            panic("default!");
+        }
+
+        panic("%s: !", __func__);
+
+    } while (!list_empty(list));
+
+    return (queued + errors) != 0;
+}
+
+static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
+{
+    int count = 0;
+    bool dispatched = false;
+    struct request_queue *q = hctx->queue;
+    struct elevator_queue *e = q->elevator;
+    LIST_HEAD(rq_list);
+    unsigned int max_dispatch = hctx->queue->nr_requests;
+
+    do {
+        struct request *rq;
+
+        if (e->type->ops.has_work && !e->type->ops.has_work(hctx))
+            break;
+
+        rq = e->type->ops.dispatch_request(hctx);
+        if (!rq)
+            panic("%s: bad request!", __func__);
+
+        list_add_tail(&rq->queuelist, &rq_list);
+    } while (++count < max_dispatch);
+
+    dispatched = blk_mq_dispatch_rq_list(hctx, &rq_list, count);
+    return !!dispatched;
+}
+
+static int blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
+{
+    int ret;
+
+    do {
+        ret = __blk_mq_do_dispatch_sched(hctx);
+    } while (ret == 1);
+
+    return ret;
+}
+
 static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
-    panic("%s: !", __func__);
+    return blk_mq_do_dispatch_sched(hctx);
 }
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
@@ -159,6 +243,9 @@ blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
                             struct request_queue *q,
                             bool elevator_init)
 {
+    /* mark the queue as mq asap */
+    q->mq_ops = set->ops;
+
     if (blk_mq_alloc_ctxs(q))
         panic("bad ctxs!");
 
