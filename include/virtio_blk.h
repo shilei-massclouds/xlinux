@@ -4,6 +4,10 @@
 
 #include <types.h>
 
+/* These two define direction. */
+#define VIRTIO_BLK_T_IN     0
+#define VIRTIO_BLK_T_OUT    1
+
 /* Feature bits */
 #define VIRTIO_BLK_F_SIZE_MAX   1   /* Indicates maximum segment size */
 #define VIRTIO_BLK_F_SEG_MAX    2   /* Indicates maximum # of segments */
@@ -22,6 +26,15 @@
 #define VIRTIO_BLK_F_CONFIG_WCE 11  /* Writeback mode available in config */
 
 #define VIRTIO_BLK_ID_BYTES 20  /* ID string length */
+
+struct virtio_blk_outhdr {
+    /* VIRTIO_BLK_T* */
+    __virtio32 type;
+    /* io priority. */
+    __virtio32 ioprio;
+    /* Sector (ie. 512 byte offset) */
+    __virtio64 sector;
+};
 
 struct virtio_blk_config {
     /* The capacity (in 512-byte sectors). */

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#include <blk.h>
 #include <bug.h>
 #include <slab.h>
 #include <errno.h>
@@ -362,9 +363,20 @@ blk_mq_sched_insert_request(struct request *rq,
         blk_mq_run_hw_queue(hctx, async);
 }
 
+static void
+blk_mq_bio_to_request(struct request *rq, struct bio *bio,
+                      unsigned int nr_segs)
+{
+    rq->__sector = bio->bi_iter.bi_sector;
+    blk_rq_bio_prep(rq, bio, nr_segs);
+
+    //blk_account_io_start(rq);
+}
+
 blk_qc_t blk_mq_submit_bio(struct bio *bio)
 {
     struct request *rq;
+    unsigned int nr_segs;
     struct request_queue *q = bio->bi_disk->queue;
     struct blk_mq_alloc_data data = {
         .q = q,
@@ -377,9 +389,9 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 
     /*
     cookie = request_to_qc_t(data.hctx, rq);
+    */
 
     blk_mq_bio_to_request(rq, bio, nr_segs);
-    */
 
     /* Insert the request at the IO scheduler queue */
     blk_mq_sched_insert_request(rq, false, true, true);

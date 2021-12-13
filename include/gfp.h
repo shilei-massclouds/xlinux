@@ -75,7 +75,7 @@
  * The caller requires %ZONE_NORMAL or a lower zone for direct access
  * but can direct reclaim.
  */
-
+#define GFP_ATOMIC  (__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
 #define GFP_KERNEL  (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
 #define GFP_NOWAIT  (__GFP_KSWAPD_RECLAIM)
 #define GFP_NOIO    (__GFP_RECLAIM)

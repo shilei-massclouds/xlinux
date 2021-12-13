@@ -4,7 +4,9 @@
 #include <types.h>
 #include <export.h>
 #include <virtio.h>
+#include <scatterlist.h>
 #include <virtio_ring.h>
+#include <dma-direction.h>
 
 #define to_vvq(_vq) container_of(_vq, struct vring_virtqueue, vq)
 
@@ -294,3 +296,230 @@ virtqueue_get_desc_addr(struct virtqueue *_vq)
     return vq->split.queue_dma_addr;
 }
 EXPORT_SYMBOL(virtqueue_get_desc_addr);
+
+static inline bool
+virtqueue_use_indirect(struct virtqueue *_vq, unsigned int total_sg)
+{
+    struct vring_virtqueue *vq = to_vvq(_vq);
+    return (vq->indirect && total_sg > 1 && vq->vq.num_free);
+}
+
+static struct vring_desc *
+alloc_indirect_split(struct virtqueue *_vq,
+                     unsigned int total_sg,
+                     gfp_t gfp)
+{
+    unsigned int i;
+    struct vring_desc *desc;
+
+    /*
+     * We require lowmem mappings for the descriptors because
+     * otherwise virt_to_phys will give us bogus addresses in the
+     * virtqueue.
+     */
+    gfp &= ~__GFP_HIGHMEM;
+
+    desc = kmalloc_array(total_sg, sizeof(struct vring_desc), gfp);
+    if (!desc)
+        panic("out of memory!");
+
+    for (i = 0; i < total_sg; i++)
+        desc[i].next = i + 1;
+    return desc;
+}
+
+/* Map one sg entry. */
+static dma_addr_t
+vring_map_one_sg(const struct vring_virtqueue *vq,
+                 struct scatterlist *sg,
+                 enum dma_data_direction direction)
+{
+    return (dma_addr_t)sg_phys(sg);
+}
+
+static dma_addr_t
+vring_map_single(const struct vring_virtqueue *vq,
+                 void *cpu_addr, size_t size,
+                 enum dma_data_direction direction)
+{
+    return (dma_addr_t)virt_to_phys(cpu_addr);
+}
+
+/**
+ * virtqueue_notify - second half of split virtqueue_kick call.
+ * @_vq: the struct virtqueue
+ *
+ * This does not need to be serialized.
+ *
+ * Returns false if host notify failed or queue is broken, otherwise true.
+ */
+bool virtqueue_notify(struct virtqueue *_vq)
+{
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    if (unlikely(vq->broken))
+        return false;
+
+    /* Prod other side to tell it about changes. */
+    if (!vq->notify(_vq)) {
+        vq->broken = true;
+        return false;
+    }
+    return true;
+}
+EXPORT_SYMBOL(virtqueue_notify);
+
+bool virtqueue_kick(struct virtqueue *vq)
+{
+    return virtqueue_notify(vq);
+}
+EXPORT_SYMBOL(virtqueue_kick);
+
+static inline int
+virtqueue_add_split(struct virtqueue *_vq,
+                    struct scatterlist *sgs[],
+                    unsigned int total_sg,
+                    unsigned int out_sgs,
+                    unsigned int in_sgs,
+                    void *data,
+                    void *ctx,
+                    gfp_t gfp)
+{
+    int head;
+    bool indirect;
+    struct scatterlist *sg;
+    struct vring_desc *desc;
+    unsigned int i, n, avail, descs_used, prev, err_idx;
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    printk("%s: indirect(%d) total_sg(%d) num_free(%u)\n",
+           __func__, vq->indirect, total_sg, vq->vq.num_free);
+
+    BUG_ON(!virtqueue_use_indirect(_vq, total_sg));
+
+    head = vq->free_head;
+
+    desc = alloc_indirect_split(_vq, total_sg, gfp);
+    if (desc) {
+        /* Use a single buffer which doesn't continue */
+        indirect = true;
+        /* Set up rest to use this indirect table. */
+        i = 0;
+        descs_used = 1;
+    } else {
+        panic("no desc!");
+    }
+
+    for (n = 0; n < out_sgs; n++) {
+        for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+            dma_addr_t addr = vring_map_one_sg(vq, sg, DMA_TO_DEVICE);
+
+            desc[i].flags = VRING_DESC_F_NEXT;
+            desc[i].addr = addr;
+            desc[i].len = sg->length;
+            prev = i;
+            i = desc[i].next;
+        }
+    }
+    for (; n < (out_sgs + in_sgs); n++) {
+        for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+            dma_addr_t addr = vring_map_one_sg(vq, sg, DMA_FROM_DEVICE);
+
+            desc[i].flags = VRING_DESC_F_NEXT | VRING_DESC_F_WRITE;
+            desc[i].addr = addr;
+            desc[i].len = sg->length;
+            prev = i;
+            i = desc[i].next;
+        }
+    }
+    /* Last one doesn't continue. */
+    desc[prev].flags &= ~VRING_DESC_F_NEXT;
+
+    if (indirect) {
+        /* Now that the indirect table is filled in, map it. */
+        dma_addr_t addr;
+        addr = vring_map_single(vq, desc,
+                                total_sg * sizeof(struct vring_desc),
+                                DMA_TO_DEVICE);
+
+        vq->split.vring.desc[head].flags = VRING_DESC_F_INDIRECT;
+        vq->split.vring.desc[head].addr = addr;
+        vq->split.vring.desc[head].len =
+            total_sg * sizeof(struct vring_desc);
+    }
+
+    /* We're using some buffers from the free list. */
+    vq->vq.num_free -= descs_used;
+
+    /* Update free pointer */
+    if (indirect)
+        vq->free_head = vq->split.vring.desc[head].next;
+    else
+        vq->free_head = i;
+
+    /* Put entry in available array
+     * (but don't update avail->idx until they do sync). */
+    avail = vq->split.avail_idx_shadow & (vq->split.vring.num - 1);
+    vq->split.vring.avail->ring[avail] = head;
+
+    /* Descriptors and available array need to be set before we expose the
+     * new available array entries. */
+    vq->split.avail_idx_shadow++;
+    vq->split.vring.avail->idx = vq->split.avail_idx_shadow;
+    vq->num_added++;
+
+    printk("%s: num_added(%d)\n", __func__, vq->num_added);
+
+    /* This is very unlikely, but theoretically possible.  Kick
+     * just in case. */
+    if (unlikely(vq->num_added == (1 << 16) - 1))
+        virtqueue_kick(_vq);
+
+    return 0;
+}
+
+static inline int
+virtqueue_add(struct virtqueue *_vq, struct scatterlist *sgs[],
+              unsigned int total_sg,
+              unsigned int out_sgs, unsigned int in_sgs,
+              void *data, void *ctx, gfp_t gfp)
+{
+    return virtqueue_add_split(_vq, sgs, total_sg, out_sgs, in_sgs,
+                               data, ctx, gfp);
+}
+
+/**
+ * virtqueue_add_sgs - expose buffers to other end
+ * @_vq: the struct virtqueue we're talking about.
+ * @sgs: array of terminated scatterlists.
+ * @out_sgs: the number of scatterlists readable by other side
+ * @in_sgs: the number of scatterlists which are writable (after readable ones)
+ * @data: the token identifying the buffer.
+ * @gfp: how to do memory allocations (if necessary).
+ *
+ * Caller must ensure we don't call this with other virtqueue operations
+ * at the same time (except where noted).
+ *
+ * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
+ */
+int
+virtqueue_add_sgs(struct virtqueue *_vq,
+                  struct scatterlist *sgs[],
+                  unsigned int out_sgs,
+                  unsigned int in_sgs,
+                  void *data,
+                  gfp_t gfp)
+{
+    unsigned int i, total_sg = 0;
+
+    /* Count them first. */
+    for (i = 0; i < out_sgs + in_sgs; i++) {
+        struct scatterlist *sg;
+
+        for (sg = sgs[i]; sg; sg = sg_next(sg))
+            total_sg++;
+    }
+    return virtqueue_add(_vq, sgs, total_sg, out_sgs, in_sgs,
+                         data, NULL, gfp);
+}
+EXPORT_SYMBOL(virtqueue_add_sgs);

@@ -359,7 +359,9 @@ submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
     BUG_ON(wbc);
 
     bio = bio_alloc(GFP_NOIO, 1);
+    bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
     bio_set_dev(bio, bh->b_bdev);
+    bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
     bio_set_op_attrs(bio, op, op_flags);
 
     submit_bio(bio);

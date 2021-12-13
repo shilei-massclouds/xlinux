@@ -36,10 +36,8 @@ void bio_init(struct bio *bio, struct bio_vec *table,
 {
     memset(bio, 0, sizeof(*bio));
 
-    /*
     bio->bi_io_vec = table;
     bio->bi_max_vecs = max_vecs;
-    */
 }
 EXPORT_SYMBOL(bio_init);
 
@@ -52,6 +50,7 @@ bio_alloc_bioset(gfp_t gfp_mask,
     struct bio *bio;
     unsigned front_pad;
     unsigned inline_vecs;
+    struct bio_vec *bvl = NULL;
 
     printk("%s: bs(0x%p) nr_iovecs(%u)\n", __func__, bs, nr_iovecs);
 
@@ -68,6 +67,15 @@ bio_alloc_bioset(gfp_t gfp_mask,
 
     bio = p + front_pad;
     bio_init(bio, NULL, 0);
+
+    if (nr_iovecs > inline_vecs) {
+        panic("nr_iovecs > incline_vecs");
+    } else if (nr_iovecs) {
+        bvl = bio->bi_inline_vecs;
+    }
+
+    bio->bi_max_vecs = nr_iovecs;
+    bio->bi_io_vec = bvl;
     return bio;
 }
 EXPORT_SYMBOL(bio_alloc_bioset);
@@ -91,6 +99,38 @@ bioset_init(struct bio_set *bs,
 
     return 0;
 }
+
+void
+__bio_add_page(struct bio *bio,
+               struct page *page,
+               unsigned int len,
+               unsigned int off)
+{
+    struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt];
+
+    BUG_ON(bio_full(bio, len));
+
+    bv->bv_page = page;
+    bv->bv_offset = off;
+    bv->bv_len = len;
+
+    printk("%s: bi_size(%u) len(%u)\n",
+           __func__, bio->bi_iter.bi_size, len);
+    bio->bi_iter.bi_size += len;
+    bio->bi_vcnt++;
+}
+EXPORT_SYMBOL(__bio_add_page);
+
+int
+bio_add_page(struct bio *bio, struct page *page,
+             unsigned int len, unsigned int offset)
+{
+    if (bio_full(bio, len))
+        return 0;
+    __bio_add_page(bio, page, len, offset);
+    return len;
+}
+EXPORT_SYMBOL(bio_add_page);
 
 static int init_bio(void)
 {

@@ -2,8 +2,29 @@
 #ifndef __LINUX_BLK_TYPES_H
 #define __LINUX_BLK_TYPES_H
 
+#include <bvec.h>
+
 #define REQ_OP_BITS 8
 #define REQ_OP_MASK ((1 << REQ_OP_BITS) - 1)
+
+enum req_opf {
+    /* read sectors from the device */
+    REQ_OP_READ     = 0,
+    /* write sectors to the device */
+    REQ_OP_WRITE    = 1,
+    /* flush the volatile write cache */
+    REQ_OP_FLUSH    = 2,
+    /* discard sectors */
+    REQ_OP_DISCARD  = 3,
+    /* securely erase sectors */
+    REQ_OP_SECURE_ERASE = 5,
+    /* write the same sector many times */
+    REQ_OP_WRITE_SAME   = 7,
+    /* write the zero filled sector many times */
+    REQ_OP_WRITE_ZEROES = 9,
+
+    REQ_OP_LAST,
+};
 
 typedef u8 blk_status_t;
 #define BLK_STS_OK 0
@@ -20,6 +41,9 @@ typedef u8 blk_status_t;
 
 #define BLK_STS_DEV_RESOURCE    ((__force blk_status_t)13)
 #define BLK_STS_ZONE_RESOURCE   ((__force blk_status_t)14)
+
+#define bio_op(bio) ((bio)->bi_opf & REQ_OP_MASK)
+#define req_op(req) ((req)->cmd_flags & REQ_OP_MASK)
 
 enum req_flag_bits {
     __REQ_FAILFAST_DEV =    /* no driver retries of device errors */
@@ -91,8 +115,19 @@ struct bio {
     unsigned int bi_opf;
 
     unsigned short bi_flags;    /* status, etc and bvec pool number */
+    unsigned short bi_ioprio;
+
+    struct bvec_iter bi_iter;
 
     u8 bi_partno;
+
+    unsigned short bi_vcnt;     /* how many bio_vec's */
+
+    unsigned short bi_max_vecs; /* max bvl_vecs we can hold */
+
+    struct bio_vec *bi_io_vec;  /* the actual vec list */
+
+    struct bio_vec bi_inline_vecs[];
 };
 
 /* obsolete, don't use in new code */
@@ -106,7 +141,5 @@ static inline bool op_is_write(unsigned int op)
 {
     return (op & 1);
 }
-
-#define req_op(req) ((req)->cmd_flags & REQ_OP_MASK)
 
 #endif /* __LINUX_BLK_TYPES_H */

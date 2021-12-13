@@ -7,6 +7,7 @@
 #include <types.h>
 #include <genhd.h>
 #include <blk_types.h>
+#include <scatterlist.h>
 
 #define BLKDEV_MAX_RQ   128 /* Default maximum */
 
@@ -15,13 +16,6 @@
 #define rq_data_dir(rq) (op_is_write(req_op(rq)) ? WRITE : READ)
 
 typedef unsigned int blk_qc_t;
-
-enum req_opf {
-    /* read sectors from the device */
-    REQ_OP_READ     = 0,
-
-    REQ_OP_LAST,
-};
 
 struct block_device {
     dev_t bd_dev;  /* not a kdev_t - it's a search key */
@@ -108,8 +102,18 @@ struct request {
     unsigned int cmd_flags;     /* op and common flags */
     req_flags_t rq_flags;
 
+    unsigned int __data_len;    /* total data len */
+    sector_t __sector;          /* sector cursor */
+
+    struct bio *bio;
+    struct bio *biotail;
+
+    unsigned short ioprio;
+
     enum mq_rq_state state;
     struct list_head queuelist;
+
+    struct gendisk *rq_disk;
 };
 
 void
@@ -164,5 +168,34 @@ block_size(struct block_device *bdev)
 }
 
 struct block_device *I_BDEV(struct inode *inode);
+
+static inline unsigned short req_get_ioprio(struct request *req)
+{
+    return req->ioprio;
+}
+
+static inline sector_t blk_rq_pos(const struct request *rq)
+{
+    return rq->__sector;
+}
+
+int
+__blk_rq_map_sg(struct request_queue *q,
+                struct request *rq,
+                struct scatterlist *sglist,
+                struct scatterlist **last_sg);
+
+static inline int
+blk_rq_map_sg(struct request_queue *q, struct request *rq,
+              struct scatterlist *sglist)
+{
+    struct scatterlist *last_sg = NULL;
+
+    return __blk_rq_map_sg(q, rq, sglist, &last_sg);
+}
+
+#define for_each_bio(_bio) \
+    for (; _bio; _bio = _bio->bi_next)
+
 
 #endif /* _LINUX_BLKDEV_H */

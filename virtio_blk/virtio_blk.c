@@ -11,6 +11,7 @@
 #include <export.h>
 #include <printk.h>
 #include <virtio.h>
+#include <blk_types.h>
 #include <virtio_blk.h>
 #include <scatterlist.h>
 #include <virtio_ring.h>
@@ -27,9 +28,7 @@ struct virtio_blk_vq {
 };
 
 struct virtblk_req {
-    /*
     struct virtio_blk_outhdr out_hdr;
-    */
     u8 status;
     struct scatterlist sg[];
 };
@@ -318,11 +317,72 @@ virtblk_init_request(struct blk_mq_tag_set *set,
     return 0;
 }
 
+static int
+virtblk_add_req(struct virtqueue *vq, struct virtblk_req *vbr,
+                struct scatterlist *data_sg, bool have_data)
+{
+    struct scatterlist hdr, status, *sgs[3];
+    unsigned int num_out = 0, num_in = 0;
+
+    sg_init_one(&hdr, &vbr->out_hdr, sizeof(vbr->out_hdr));
+    sgs[num_out++] = &hdr;
+
+    if (have_data) {
+        if (vbr->out_hdr.type & VIRTIO_BLK_T_OUT)
+            sgs[num_out++] = data_sg;
+        else
+            sgs[num_out + num_in++] = data_sg;
+    }
+
+    sg_init_one(&status, &vbr->status, sizeof(vbr->status));
+    sgs[num_out + num_in++] = &status;
+
+    return virtqueue_add_sgs(vq, sgs, num_out, num_in, vbr, GFP_ATOMIC);
+}
+
 static blk_status_t
 virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
                 const struct blk_mq_queue_data *bd)
 {
-    panic("%s: !", __func__);
+    int err;
+    u32 type;
+    unsigned int num;
+    struct request *req = bd->rq;
+    struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
+    struct virtio_blk *vblk = hctx->queue->queuedata;
+
+    switch (req_op(req)) {
+    case REQ_OP_READ:
+    case REQ_OP_WRITE:
+        type = 0;
+        break;
+    default:
+        panic("bad op(%d)", req_op(req));
+        break;
+    }
+
+    vbr->out_hdr.type   = type;
+    vbr->out_hdr.sector = type ? 0 : blk_rq_pos(req);
+    vbr->out_hdr.ioprio = req_get_ioprio(req);
+
+    num = blk_rq_map_sg(hctx->queue, req, vbr->sg);
+    if (num) {
+        if (rq_data_dir(req) == WRITE)
+            vbr->out_hdr.type |= VIRTIO_BLK_T_OUT;
+        else
+            vbr->out_hdr.type |= VIRTIO_BLK_T_IN;
+    }
+
+    err = virtblk_add_req(vblk->vqs[0].vq, vbr, vbr->sg, num);
+    if (err) {
+        panic("virtblk_add_req!");
+    }
+
+    panic("%s: op(%d) ioprio(%u) sector(%u) num(%d)!",
+          __func__, req_op(req),
+          vbr->out_hdr.ioprio,
+          vbr->out_hdr.sector,
+          num);
 }
 
 static const struct blk_mq_ops virtio_mq_ops = {

@@ -42,6 +42,7 @@
 
 #define phys_to_pfn(phys)   (PFN_DOWN(phys))
 #define pfn_to_phys(pfn)    (PFN_PHYS(pfn))
+#define page_to_phys(page)  (pfn_to_phys(page_to_pfn(page)))
 
 #define page_to_pfn __page_to_pfn
 #define pfn_to_page __pfn_to_page

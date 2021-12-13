@@ -3,6 +3,15 @@
 #ifndef _UAPI_LINUX_VIRTIO_RING_H
 #define _UAPI_LINUX_VIRTIO_RING_H
 
+#include <scatterlist.h>
+
+/* This marks a buffer as continuing via the next field. */
+#define VRING_DESC_F_NEXT       1
+/* This marks a buffer as write-only (otherwise read-only). */
+#define VRING_DESC_F_WRITE      2
+/* This means the buffer contains a list of buffer descriptors. */
+#define VRING_DESC_F_INDIRECT   4
+
 /* We support indirect buffer descriptors */
 #define VIRTIO_RING_F_INDIRECT_DESC 28
 
@@ -122,5 +131,10 @@ virtqueue_get_vring_size(struct virtqueue *_vq);
 
 dma_addr_t
 virtqueue_get_desc_addr(struct virtqueue *_vq);
+
+int
+virtqueue_add_sgs(struct virtqueue *_vq, struct scatterlist *sgs[],
+                  unsigned int out_sgs, unsigned int in_sgs,
+                  void *data, gfp_t gfp);
 
 #endif /* _UAPI_LINUX_VIRTIO_RING_H */

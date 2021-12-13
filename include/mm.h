@@ -20,7 +20,9 @@
 #define ZONES_MASK      ((1UL << ZONES_WIDTH) - 1)
 #define ZONEID_MASK     ((1UL << ZONEID_SHIFT) - 1)
 
-#define page_address(page) lowmem_page_address(page)
+#define page_address(page)  lowmem_page_address(page)
+
+#define offset_in_page(p)   ((unsigned long)(p) & ~PAGE_MASK)
 
 #define ALLOC_WMARK_LOW     WMARK_LOW
 

@@ -4,6 +4,8 @@
 
 #include <gfp.h>
 
+#define bh_offset(bh)   ((unsigned long)(bh)->b_data & ~PAGE_MASK)
+
 enum bh_state_bits {
     BH_Uptodate,    /* Contains valid data */
     BH_Dirty,   /* Is dirty */
