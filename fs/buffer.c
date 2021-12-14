@@ -385,7 +385,7 @@ static struct buffer_head *__bread_slow(struct buffer_head *bh)
         printk("%s: \n", __func__);
         submit_bh(REQ_OP_READ, 0, bh);
         wait_on_buffer(bh);
-        printk("%s: 1 buffer_uptodata(%d)\n",
+        printk("%s: 1 buffer_uptodate(%d)\n",
                __func__, buffer_uptodate(bh));
         if (buffer_uptodate(bh))
             return bh;
