@@ -347,6 +347,7 @@ virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
     int err;
     u32 type;
     unsigned int num;
+    bool notify = false;
     struct request *req = bd->rq;
     struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
     struct virtio_blk *vblk = hctx->queue->queuedata;
@@ -378,11 +379,17 @@ virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
         panic("virtblk_add_req!");
     }
 
-    panic("%s: op(%d) ioprio(%u) sector(%u) num(%d)!",
-          __func__, req_op(req),
-          vbr->out_hdr.ioprio,
-          vbr->out_hdr.sector,
-          num);
+    if (bd->last)
+        notify = true;
+
+    if (notify)
+        virtqueue_notify(vblk->vqs[0].vq);
+
+    printk("###### %s: end! notify(%d)\n", __func__, notify);
+    printk("%s: op(%d) ioprio(%u) sector(%u) num(%d)!\n",
+           __func__, req_op(req),
+           vbr->out_hdr.ioprio, vbr->out_hdr.sector, num);
+    return BLK_STS_OK;
 }
 
 static const struct blk_mq_ops virtio_mq_ops = {

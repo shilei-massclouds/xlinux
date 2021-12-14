@@ -137,4 +137,6 @@ virtqueue_add_sgs(struct virtqueue *_vq, struct scatterlist *sgs[],
                   unsigned int out_sgs, unsigned int in_sgs,
                   void *data, gfp_t gfp);
 
+bool virtqueue_notify(struct virtqueue *_vq);
+
 #endif /* _UAPI_LINUX_VIRTIO_RING_H */

@@ -40,10 +40,7 @@ blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx,
         list_del_init(&rq->queuelist);
         bd.rq = rq;
 
-    printk("%s: step1 (%p, %p)\n",
-           __func__, q, q->mq_ops);
         ret = q->mq_ops->queue_rq(hctx, &bd);
-    printk("%s: step2\n", __func__);
         switch (ret) {
         case BLK_STS_OK:
             queued++;
@@ -57,8 +54,6 @@ blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx,
             errors++;
             panic("default!");
         }
-
-        panic("%s: !", __func__);
 
     } while (!list_empty(list));
 
@@ -130,6 +125,7 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 {
     struct blk_mq_hw_ctx *hctx;
 
+    printk("%s: 1!\n", __func__);
     hctx = container_of(work, struct blk_mq_hw_ctx, run_work.work);
 
     /*
@@ -139,6 +135,7 @@ static void blk_mq_run_work_fn(struct work_struct *work)
         return;
 
     __blk_mq_run_hw_queue(hctx);
+    printk("%s: 2!\n", __func__);
 }
 
 static struct blk_mq_hw_ctx *
@@ -341,7 +338,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
     if (need_run)
         __blk_mq_delay_run_hw_queue(hctx, async, 0);
 
-    panic("%s: need_run(%d)!", __func__, need_run);
+    printk("%s: need_run(%d)!\n", __func__, need_run);
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
@@ -396,7 +393,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
     /* Insert the request at the IO scheduler queue */
     blk_mq_sched_insert_request(rq, false, true, true);
 
-    panic("%s: !", __func__);
+    printk("%s: !\n", __func__);
     return 0;
 }
 EXPORT_SYMBOL(blk_mq_submit_bio);
