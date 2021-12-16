@@ -6,6 +6,9 @@
 #include <sched.h>
 #include <export.h>
 #include <kernel.h>
+#include <ptrace.h>
+
+void (*handle_arch_irq)(struct pt_regs *);
 
 /* to be mentioned only in INIT_TASK */
 struct fs_struct init_fs = {

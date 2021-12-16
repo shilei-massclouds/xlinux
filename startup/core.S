@@ -64,6 +64,19 @@ relocate:
     wfi
     j .Lforever_park
 
+.align 2
+setup_trap_vector:
+    /* Set trap vector to exception handler */
+    la a0, handle_exception
+    csrw CSR_STVEC, a0
+
+    /*
+     * Set sup0 scratch register to 0, indicating to exception vector that
+     * we are presently executing in kernel.
+     */
+    csrw CSR_SSCRATCH, zero
+    ret
+
 .section .init.text, "ax"
 _start_kernel:
     mv s0, a0
@@ -93,6 +106,8 @@ clear_bss_done:
 
     # Enable paging
     call relocate
+
+    call setup_trap_vector
 
     # Setup init_task
     la tp, init_task
