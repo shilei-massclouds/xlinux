@@ -35,8 +35,19 @@
 #define SR_FS_CLEAN	_AC(0x00004000, UL)
 #define SR_FS_DIRTY	_AC(0x00006000, UL)
 
+/* Exception cause high bit - is an interrupt if set */
+#define CAUSE_IRQ_FLAG  (_AC(1, UL) << (__riscv_xlen - 1))
+
 #define SATP_M_39   _AC(0x8000000000000000, UL)
 #define SATP_MODE   SATP_M_39
+
+/* Interrupt causes (minus the high bit) */
+#define IRQ_S_SOFT      1
+#define IRQ_M_SOFT      3
+#define IRQ_S_TIMER     5
+#define IRQ_M_TIMER     7
+#define IRQ_S_EXT       9
+#define IRQ_M_EXT       11
 
 /* Exception causes */
 #define EXC_INST_MISALIGNED     0

@@ -45,6 +45,10 @@ struct xarray {
     void *xa_head;
 };
 
+#define XARRAY_INIT(name, flags) {  \
+    .xa_head = NULL,                \
+}
+
 struct xa_state {
     struct xarray *xa;
     unsigned long xa_index;

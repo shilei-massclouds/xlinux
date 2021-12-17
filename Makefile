@@ -5,11 +5,12 @@ include scripts/Makefile.include
 PHONY := all clean
 
 SUBDIRS := startup lib early_dt \
-	rbtree hashtable xarray scatterlist \
+	rbtree radix_tree hashtable xarray scatterlist \
 	mm memblock buddy slab kalloc filemap \
 	vma ioremap devres \
 	of platform kobject \
 	dcache fs ramfs rootfs ext2 \
+	irq intc \
 	block genhd bio \
 	virtio virtio_mmio virtio_blk \
 	workqueue \

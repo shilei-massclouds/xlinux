@@ -9,6 +9,7 @@
 #include <ptrace.h>
 
 void (*handle_arch_irq)(struct pt_regs *);
+EXPORT_SYMBOL(handle_arch_irq);
 
 /* to be mentioned only in INIT_TASK */
 struct fs_struct init_fs = {
