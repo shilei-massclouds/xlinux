@@ -5,6 +5,7 @@
 #include <device.h>
 #include <devres.h>
 #include <errno.h>
+#include <of_irq.h>
 #include <string.h>
 #include <export.h>
 #include <platform.h>
@@ -383,6 +384,33 @@ of_platform_default_populate_init(void)
                                 NULL, NULL);
 }
 EXPORT_SYMBOL(of_platform_default_populate_init);
+
+int
+platform_get_irq_optional(struct platform_device *dev,
+                          unsigned int num)
+{
+    int ret;
+
+    if (dev->dev.of_node) {
+        ret = of_irq_get(dev->dev.of_node, num);
+        if (ret > 0 || ret == -EPROBE_DEFER)
+            return ret;
+    }
+
+    panic("%s: !", __func__);
+}
+
+int platform_get_irq(struct platform_device *dev, unsigned int num)
+{
+    int ret;
+
+    ret = platform_get_irq_optional(dev, num);
+    if (ret < 0 && ret != -EPROBE_DEFER)
+        panic("IRQ index %u not found", num);
+
+    return ret;
+}
+EXPORT_SYMBOL(platform_get_irq);
 
 int
 platform_bus_init(void)

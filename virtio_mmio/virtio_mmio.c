@@ -7,6 +7,7 @@
 #include <export.h>
 #include <virtio.h>
 #include <platform.h>
+#include <irqreturn.h>
 #include <virtio_mmio.h>
 #include <virtio_config.h>
 #include <virtio_ring.h>
@@ -277,6 +278,11 @@ vm_del_vqs(struct virtio_device *vdev)
         vm_del_vq(vq);
 }
 
+static irqreturn_t vm_interrupt(int irq, void *opaque)
+{
+    panic("%s: !", __func__);
+}
+
 static int
 vm_find_vqs(struct virtio_device *vdev,
             unsigned nvqs, struct virtqueue *vqs[],
@@ -285,8 +291,18 @@ vm_find_vqs(struct virtio_device *vdev,
             const bool *ctx,
             struct irq_affinity *desc)
 {
-    int i;
+    int i, err;
     int queue_idx = 0;
+    struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+    int irq = platform_get_irq(vm_dev->pdev, 0);
+
+    if (irq < 0)
+        panic("bad irq(%d)!", irq);
+
+    err = request_irq(irq, vm_interrupt, IRQF_SHARED,
+                      dev_name(&vdev->dev), vm_dev);
+    if (err)
+        panic("can not request irq!");
 
     for (i = 0; i < nvqs; ++i) {
         if (!names[i]) {

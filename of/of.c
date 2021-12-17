@@ -386,40 +386,6 @@ populate_node(const void *blob,
     return true;
 }
 
-struct property *
-__of_find_property(const struct device_node *np, const char *name, int *lenp)
-{
-    struct property *pp;
-
-    if (!np)
-        return NULL;
-
-    for (pp = np->properties; pp; pp = pp->next) {
-        if (of_prop_cmp(pp->name, name) == 0) {
-            if (lenp)
-                *lenp = pp->length;
-            break;
-        }
-    }
-
-    return pp;
-}
-EXPORT_SYMBOL(__of_find_property);
-
-struct property *
-of_find_property(const struct device_node *np, const char *name, int *lenp)
-{
-    struct property *pp;
-    unsigned long flags;
-
-    //raw_spin_lock_irqsave(&devtree_lock, flags);
-    pp = __of_find_property(np, name, lenp);
-    //raw_spin_unlock_irqrestore(&devtree_lock, flags);
-
-    return pp;
-}
-EXPORT_SYMBOL(of_find_property);
-
 const void *
 __of_get_property(const struct device_node *np,
                   const char *name, int *lenp)
@@ -607,61 +573,6 @@ int of_n_size_cells(struct device_node *np)
     return of_bus_n_size_cells(np);
 }
 EXPORT_SYMBOL(of_n_size_cells);
-
-static void *
-of_find_property_value_of_size(const struct device_node *np,
-                               const char *propname,
-                               u32 min,
-                               u32 max,
-                               size_t *len)
-{
-    struct property *prop = of_find_property(np, propname, NULL);
-
-    if (!prop)
-        return ERR_PTR(-EINVAL);
-    if (!prop->value)
-        return ERR_PTR(-ENODATA);
-    if (prop->length < min)
-        return ERR_PTR(-EOVERFLOW);
-    if (max && prop->length > max)
-        return ERR_PTR(-EOVERFLOW);
-
-    if (len)
-        *len = prop->length;
-
-    return prop->value;
-}
-
-int
-of_property_read_variable_u32_array(const struct device_node *np,
-                                    const char *propname,
-                                    u32 *out_values,
-                                    size_t sz_min,
-                                    size_t sz_max)
-{
-    size_t sz, count;
-    const u32 *val;
-
-    val = of_find_property_value_of_size(np, propname,
-                                         (sz_min * sizeof(*out_values)),
-                                         (sz_max * sizeof(*out_values)),
-                                         &sz);
-
-    if (IS_ERR(val))
-        return PTR_ERR(val);
-
-    if (!sz_max)
-        sz = sz_min;
-    else
-        sz /= sizeof(*out_values);
-
-    count = sz;
-    while (count--)
-        *out_values++ = be32_to_cpup(val++);
-
-    return sz;
-}
-EXPORT_SYMBOL(of_property_read_variable_u32_array);
 
 static int
 init_module(void)

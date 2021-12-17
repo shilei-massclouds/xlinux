@@ -2,48 +2,9 @@
 #ifndef LIBFDT_H
 #define LIBFDT_H
 
+#include <of.h>
 #include <bits.h>
-#include <types.h>
-#include <fwnode.h>
 #include <kernel.h>
-#include <kobject.h>
-
-#define of_compat_cmp(s1, s2, l)    strcasecmp((s1), (s2))
-#define of_prop_cmp(s1, s2)         strcmp((s1), (s2))
-
-/*
- * struct device_node flag descriptions
- * (need to be visible even when !CONFIG_OF)
- */
-#define OF_DYNAMIC          1 /* (and properties) allocated via kmalloc */
-#define OF_DETACHED         2 /* detached from the device tree */
-#define OF_POPULATED        3 /* device already created */
-#define OF_POPULATED_BUS    4 /* platform bus created for children */
-#define OF_OVERLAY          5 /* allocated for an overlay */
-#define OF_OVERLAY_FREE_CSET    6 /* in overlay cset being freed */
-
-#define OF_BAD_ADDR ((u64)-1)
-
-typedef u32 phandle;
-
-struct device_node {
-	const char *name;
-    phandle     phandle;
-    const char *full_name;
-
-    struct property *properties;
-
-    struct device_node *parent;
-    struct device_node *child;
-    struct device_node *sibling;
-
-    struct kobject kobj;
-    struct fwnode_handle fwnode;
-
-    unsigned long _flags;
-};
-
-extern struct device_node *of_root;
 
 extern struct kobj_type of_node_ktype;
 extern const struct fwnode_operations of_fwnode_ops;
@@ -227,14 +188,6 @@ fdt32_ld(const fdt32_t *p)
 
 #define FDT_ERR_MAX         18
 
-struct property {
-    char    *name;
-    int     length;
-    void    *value;
-
-    struct property *next;
-};
-
 typedef int (*of_scan_flat_dt_cb)(unsigned long node,
                                   const char *uname,
                                   int depth,
@@ -271,12 +224,6 @@ static inline struct device_node *
 of_find_node_by_path(const char *path)
 {
     return of_find_node_opts_by_path(path, NULL);
-}
-
-static inline struct device_node *
-of_node_get(struct device_node *node)
-{
-    return node;
 }
 
 static inline void
@@ -346,12 +293,6 @@ static inline void
 of_node_clear_flag(struct device_node *n, unsigned long flag)
 {
     clear_bit(flag, &n->_flags);
-}
-
-static inline int
-of_node_check_flag(struct device_node *n, unsigned long flag)
-{
-    return test_bit(flag, &n->_flags);
 }
 
 static inline int

@@ -90,4 +90,6 @@ platform_set_drvdata(struct platform_device *pdev, void *data)
     dev_set_drvdata(&pdev->dev, data);
 }
 
+int platform_get_irq(struct platform_device *dev, unsigned int num);
+
 #endif /* OF_PLATFORM_H */
