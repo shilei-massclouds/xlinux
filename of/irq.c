@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <export.h>
 #include <of_irq.h>
+#include <irqdomain.h>
 
 struct device_node *of_irq_find_parent(struct device_node *child)
 {
@@ -91,7 +92,6 @@ int of_irq_get(struct device_node *dev, int index)
     if (rc)
         return rc;
 
-    BUG_ON(oirq.args_count != 1);
-    return oirq.args[0];
+    return irq_create_of_mapping(&oirq);
 }
 EXPORT_SYMBOL(of_irq_get);

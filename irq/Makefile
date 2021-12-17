@@ -4,4 +4,5 @@ target_y := ko
 
 obj_y := handle.o
 obj_y += irqdesc.o
+obj_y += irqdomain.o
 obj_y += manage.o
