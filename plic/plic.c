@@ -6,8 +6,8 @@
 #include <printk.h>
 #include <irqdomain.h>
 
-bool plic_initilized;
-EXPORT_SYMBOL(plic_initilized);
+bool plic_initialized;
+EXPORT_SYMBOL(plic_initialized);
 
 struct plic_priv {
     struct irq_domain *irqdomain;
@@ -43,7 +43,7 @@ plic_init(struct device_node *node, struct device_node *parent)
     if (!priv->irqdomain)
         panic("irq domain can not add linear!");
 
-    panic("%s: !", __func__);
+    return 0;
 }
 
 static int
@@ -57,6 +57,8 @@ init_module(void)
     printk("module[plic]: init begin ...\n");
 
     of_irq_init(&match);
+
+    plic_initialized = true;
 
     printk("module[plic]: init end!\n");
     return 0;

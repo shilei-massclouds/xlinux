@@ -38,6 +38,7 @@
 #define	ERANGE		34	/* Math result not representable */
 
 #define ENAMETOOLONG    36  /* File name too long */
+#define ENOSYS      38  /* Invalid system call number */
 
 #define EBFONT      59  /* Bad font file format */
 #define ENOSTR      60  /* Device not a stream */

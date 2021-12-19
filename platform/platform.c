@@ -10,7 +10,7 @@
 #include <export.h>
 #include <platform.h>
 
-extern bool plic_initilized;
+extern bool plic_initialized;
 
 struct device platform_bus = {
     .init_name  = "platform",
@@ -367,7 +367,7 @@ static int
 init_module(void)
 {
     printk("module[platform]: init begin ...\n");
-    BUG_ON(!plic_initilized);
+    BUG_ON(!plic_initialized);
     platform_bus_init();
     of_platform_default_populate_init();
     printk("module[platform]: init end!\n");

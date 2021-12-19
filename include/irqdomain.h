@@ -5,8 +5,15 @@
 #include <of.h>
 #include <list.h>
 #include <fwnode.h>
+#include <interrupt.h>
 
 #define IRQ_DOMAIN_IRQ_SPEC_PARAMS 16
+
+/* Irq domain flags */
+enum {
+    /* Irq domain is hierarchical */
+    IRQ_DOMAIN_FLAG_HIERARCHY   = (1 << 0),
+};
 
 enum irq_domain_bus_token {
     DOMAIN_BUS_ANY      = 0,
@@ -31,6 +38,7 @@ struct irq_domain {
     struct list_head link;
     const char *name;
     const struct irq_domain_ops *ops;
+    unsigned int flags;
     struct fwnode_handle *fwnode;
     enum irq_domain_bus_token bus_token;
 };
@@ -69,6 +77,24 @@ extern const struct fwnode_operations irqchip_fwnode_ops;
 static inline bool is_fwnode_irqchip(struct fwnode_handle *fwnode)
 {
     return fwnode && fwnode->ops == &irqchip_fwnode_ops;
+}
+
+int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
+                            unsigned int nr_irqs, int node, void *arg,
+                            bool realloc,
+                            const struct irq_affinity_desc *affinity);
+
+static inline int
+irq_domain_alloc_irqs(struct irq_domain *domain,
+                      unsigned int nr_irqs, int node, void *arg)
+{
+    return __irq_domain_alloc_irqs(domain, -1, nr_irqs, node, arg,
+                                   false, NULL);
+}
+
+static inline bool irq_domain_is_hierarchy(struct irq_domain *domain)
+{
+    return domain->flags & IRQ_DOMAIN_FLAG_HIERARCHY;
 }
 
 #endif /* _LINUX_IRQDOMAIN_H */

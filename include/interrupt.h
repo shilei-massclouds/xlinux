@@ -35,6 +35,14 @@ struct irq_affinity {
     void            *priv;
 };
 
+/**
+ * struct irq_affinity_desc - Interrupt affinity descriptor
+ * @mask:   cpumask to hold the affinity assignment
+ * @is_managed: 1 if the interrupt is managed internally
+ */
+struct irq_affinity_desc {
+};
+
 int
 request_threaded_irq(unsigned int irq, irq_handler_t handler,
                      irq_handler_t thread_fn,

@@ -59,6 +59,8 @@ kbasename(const char *path)
 
 char *kvasprintf(gfp_t gfp, const char *fmt, va_list ap);
 
+char *kasprintf(gfp_t gfp, const char *fmt, ...);
+
 const char *
 kvasprintf_const(gfp_t gfp, const char *fmt, va_list ap);
 

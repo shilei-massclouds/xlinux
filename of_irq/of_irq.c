@@ -135,8 +135,6 @@ void of_irq_init(const struct of_device_id *matches)
         if (desc->interrupt_parent == np)
             desc->interrupt_parent = NULL;
         list_add_tail(&desc->list, &intc_desc_list);
-
-        printk("%s 1:\n", __func__);
     }
 
     while (!list_empty(&intc_desc_list)) {
@@ -151,10 +149,7 @@ void of_irq_init(const struct of_device_id *matches)
             ret = desc->irq_init_cb(desc->dev, desc->interrupt_parent);
             if (ret)
                 panic("init irq err!");
-
-            printk("%s 2:\n", __func__);
         }
     }
-    panic("%s: !", __func__);
 }
 EXPORT_SYMBOL(of_irq_init);

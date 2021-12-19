@@ -3,6 +3,7 @@
 #include <of.h>
 #include <bug.h>
 #include <slab.h>
+#include <errno.h>
 #include <export.h>
 #include <irqdomain.h>
 
@@ -30,6 +31,7 @@ irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 
 unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 {
+    int virq;
     struct irq_domain *domain;
 
     if (fwspec->fwnode) {
@@ -37,6 +39,15 @@ unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
     } else {
         panic("fwnode is NULL!");
     }
+
+    if (irq_domain_is_hierarchy(domain)) {
+        virq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, fwspec);
+        if (virq <= 0)
+            return 0;
+    } else {
+        panic("not hierarchy!");
+    }
+
     panic("%s: !", __func__);
 }
 
@@ -66,6 +77,13 @@ unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
 }
 EXPORT_SYMBOL(irq_create_of_mapping);
 
+static void irq_domain_check_hierarchy(struct irq_domain *domain)
+{
+    /* Hierarchy irq_domains must implement callback alloc() */
+    if (domain->ops->alloc)
+        domain->flags |= IRQ_DOMAIN_FLAG_HIERARCHY;
+}
+
 struct irq_domain *
 __irq_domain_add(struct fwnode_handle *fwnode, int size,
                  irq_hw_number_t hwirq_max, int direct_max,
@@ -82,14 +100,58 @@ __irq_domain_add(struct fwnode_handle *fwnode, int size,
     if (is_fwnode_irqchip(fwnode)) {
         panic("fwnode is NOT irqchip!");
     } else if (is_of_node(fwnode)) {
-        printk("is of node!\n");
+        char *name;
+
+        /*
+         * fwnode paths contain '/', which debugfs is legitimately
+         * unhappy about. Replace them with ':', which does
+         * the trick and is not as offensive as '\'...
+         */
+        name = kasprintf(GFP_KERNEL, "%pfw", fwnode);
+        if (!name) {
+            kfree(domain);
+            return NULL;
+        }
+
+        strreplace(name, '/', ':');
+
+        domain->name = name;
+        domain->fwnode = fwnode;
     } else {
         panic("check fwnode error!");
     }
 
     domain->ops = ops;
+    irq_domain_check_hierarchy(domain);
 
     list_add(&domain->link, &irq_domain_list);
     return domain;
 }
 EXPORT_SYMBOL(__irq_domain_add);
+
+int
+irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
+                                unsigned int irq_base,
+                                unsigned int nr_irqs, void *arg)
+{
+    if (!domain->ops->alloc) {
+        panic("domain->ops->alloc() is NULL");
+        return -ENOSYS;
+    }
+
+    return domain->ops->alloc(domain, irq_base, nr_irqs, arg);
+}
+
+int
+__irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
+                        unsigned int nr_irqs, int node, void *arg,
+                        bool realloc,
+                        const struct irq_affinity_desc *affinity)
+{
+    int i, ret, virq;
+
+    panic("%s: !", __func__);
+    ret = irq_domain_alloc_irqs_hierarchy(domain, virq, nr_irqs, arg);
+
+    return virq;
+}
