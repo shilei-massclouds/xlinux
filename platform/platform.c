@@ -326,15 +326,6 @@ platform_driver_register(struct platform_driver *drv)
 }
 EXPORT_SYMBOL(platform_driver_register);
 
-const struct of_device_id *
-of_match_device(const struct of_device_id *matches, const struct device *dev)
-{
-    if ((!matches) || (!dev->of_node))
-        return NULL;
-    return of_match_node(matches, dev->of_node);
-}
-EXPORT_SYMBOL(of_match_device);
-
 struct resource *
 platform_get_resource(struct platform_device *dev,
                       unsigned int type,
@@ -371,16 +362,6 @@ devm_platform_ioremap_resource(struct platform_device *pdev,
     return devm_platform_get_and_ioremap_resource(pdev, index, NULL);
 }
 EXPORT_SYMBOL(devm_platform_ioremap_resource);
-
-struct device_node *
-of_get_parent(const struct device_node *node)
-{
-    if (!node)
-        return NULL;
-
-    return of_node_get(node->parent);
-}
-EXPORT_SYMBOL(of_get_parent);
 
 static int
 init_module(void)

@@ -574,6 +574,15 @@ int of_n_size_cells(struct device_node *np)
 }
 EXPORT_SYMBOL(of_n_size_cells);
 
+const struct of_device_id *
+of_match_device(const struct of_device_id *matches, const struct device *dev)
+{
+    if ((!matches) || (!dev->of_node))
+        return NULL;
+    return of_match_node(matches, dev->of_node);
+}
+EXPORT_SYMBOL(of_match_device);
+
 static int
 init_module(void)
 {

@@ -8,7 +8,7 @@ SUBDIRS := startup lib early_dt \
 	rbtree radix_tree hashtable xarray scatterlist \
 	mm memblock buddy slab kalloc filemap \
 	vma ioremap devres \
-	of platform kobject \
+	of of_irq platform kobject \
 	dcache fs ramfs rootfs ext2 \
 	irq intc plic \
 	block genhd bio \

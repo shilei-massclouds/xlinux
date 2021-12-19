@@ -47,10 +47,6 @@ platform_bus_init(void);
 int
 platform_driver_register(struct platform_driver *);
 
-const struct of_device_id *
-of_match_device(const struct of_device_id *matches,
-                const struct device *dev);
-
 static inline int
 of_driver_match_device(struct device *dev,
                        const struct device_driver *drv)
@@ -66,9 +62,6 @@ int
 of_address_to_resource(struct device_node *dev,
                        int index,
                        struct resource *r);
-
-struct device_node *
-of_get_parent(const struct device_node *node);
 
 void
 platform_device_put(struct platform_device *pdev);

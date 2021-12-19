@@ -3,6 +3,7 @@
 #define _LINUX_OF_H
 
 #include <types.h>
+#include <device.h>
 #include <fwnode.h>
 #include <kernel.h>
 #include <string.h>
@@ -132,5 +133,12 @@ static inline bool is_of_node(const struct fwnode_handle *fwnode)
 {
     return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &of_fwnode_ops;
 }
+
+const struct of_device_id *
+of_match_device(const struct of_device_id *matches,
+                const struct device *dev);
+
+struct device_node *
+of_get_parent(const struct device_node *node);
 
 #endif /* _LINUX_OF_H */
