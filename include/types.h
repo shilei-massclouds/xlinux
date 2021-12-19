@@ -111,7 +111,13 @@ extern const unsigned char _ctype[];
 
 typedef unsigned long   uintptr_t;
 
-typedef _Bool           bool;
+/*
+ * This type is the placeholder for a hardware interrupt number. It has to be
+ * big enough to enclose whatever representation is used by a given platform.
+ */
+typedef unsigned long irq_hw_number_t;
+
+typedef _Bool bool;
 
 enum {
     false   = 0,

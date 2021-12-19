@@ -1,10 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <bug.h>
+#include <irq.h>
+#include <slab.h>
 #include <errno.h>
 #include <export.h>
 #include <of_irq.h>
 #include <irqdomain.h>
+
+struct of_intc_desc {
+    struct list_head    list;
+    of_irq_init_cb_t    irq_init_cb;
+    struct device_node  *dev;
+    struct device_node  *interrupt_parent;
+};
 
 struct device_node *of_irq_find_parent(struct device_node *child)
 {
@@ -95,3 +104,57 @@ int of_irq_get(struct device_node *dev, int index)
     return irq_create_of_mapping(&oirq);
 }
 EXPORT_SYMBOL(of_irq_get);
+
+void of_irq_init(const struct of_device_id *matches)
+{
+    struct device_node *np;
+    struct of_intc_desc *desc;
+    struct list_head intc_desc_list;
+    const struct of_device_id *match;
+
+    INIT_LIST_HEAD(&intc_desc_list);
+
+    for_each_matching_node_and_match(np, matches, &match) {
+        if (!of_property_read_bool(np, "interrupt-controller") ||
+            !of_device_is_available(np))
+            continue;
+
+        BUG_ON(!match->data);
+
+        /*
+         * Here, we allocate and populate an of_intc_desc with the node
+         * pointer, interrupt-parent device_node etc.
+         */
+        desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+        if (!desc)
+            panic("out of memory!");
+
+        desc->irq_init_cb = match->data;
+        desc->dev = of_node_get(np);
+        desc->interrupt_parent = of_irq_find_parent(np);
+        if (desc->interrupt_parent == np)
+            desc->interrupt_parent = NULL;
+        list_add_tail(&desc->list, &intc_desc_list);
+
+        printk("%s 1:\n", __func__);
+    }
+
+    while (!list_empty(&intc_desc_list)) {
+        struct of_intc_desc *temp_desc;
+        list_for_each_entry_safe(desc, temp_desc, &intc_desc_list, list) {
+            int ret;
+
+            list_del(&desc->list);
+
+            of_node_set_flag(desc->dev, OF_POPULATED);
+
+            ret = desc->irq_init_cb(desc->dev, desc->interrupt_parent);
+            if (ret)
+                panic("init irq err!");
+
+            printk("%s 2:\n", __func__);
+        }
+    }
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(of_irq_init);

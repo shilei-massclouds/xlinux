@@ -10,7 +10,7 @@ SUBDIRS := startup lib early_dt \
 	vma ioremap devres \
 	of platform kobject \
 	dcache fs ramfs rootfs ext2 \
-	irq intc \
+	irq intc plic \
 	block genhd bio \
 	virtio virtio_mmio virtio_blk \
 	workqueue \

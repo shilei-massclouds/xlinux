@@ -6,16 +6,10 @@
 #include <device.h>
 #include <driver.h>
 #include <ioport.h>
+#include <mod_devicetable.h>
 
 #define PLATFORM_DEVID_NONE (-1)
 #define PLATFORM_DEVID_AUTO (-2)
-
-struct of_device_id {
-    char        name[32];
-    char        type[32];
-    char        compatible[128];
-    const void  *data;
-};
 
 struct of_dev_auxdata {
     char *compatible;

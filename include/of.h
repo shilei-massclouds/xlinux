@@ -4,6 +4,7 @@
 
 #include <types.h>
 #include <fwnode.h>
+#include <kernel.h>
 #include <string.h>
 #include <kobject.h>
 
@@ -87,6 +88,49 @@ of_property_read_u32_index(const struct device_node *np,
                            u32 index, u32 *out_value);
 
 struct property *
+__of_find_property(const struct device_node *np, const char *name, int *lenp);
+
+struct property *
 of_find_property(const struct device_node *np, const char *name, int *lenp);
+
+static inline void
+of_node_put(struct device_node *node)
+{
+}
+
+const char *
+of_prop_next_string(struct property *prop, const char *cur);
+
+const void *
+__of_get_property(const struct device_node *np,
+                  const char *name, int *lenp);
+
+const struct of_device_id *
+of_match_node(const struct of_device_id *matches,
+              const struct device_node *node);
+
+bool of_device_is_available(const struct device_node *device);
+
+static inline bool
+of_property_read_bool(const struct device_node *np, const char *propname)
+{
+    struct property *prop = of_find_property(np, propname, NULL);
+
+    return prop ? true : false;
+}
+
+extern const struct fwnode_operations of_fwnode_ops;
+
+static inline void
+of_node_init(struct device_node *node)
+{
+    //kobject_init(&node->kobj, &of_node_ktype);
+    node->fwnode.ops = &of_fwnode_ops;
+}
+
+static inline bool is_of_node(const struct fwnode_handle *fwnode)
+{
+    return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &of_fwnode_ops;
+}
 
 #endif /* _LINUX_OF_H */

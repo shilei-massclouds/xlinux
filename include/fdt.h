@@ -7,19 +7,11 @@
 #include <kernel.h>
 
 extern struct kobj_type of_node_ktype;
-extern const struct fwnode_operations of_fwnode_ops;
 
 static inline bool
 of_have_populated_dt(void)
 {
     return of_root != NULL;
-}
-
-static inline void
-of_node_init(struct device_node *node)
-{
-    //kobject_init(&node->kobj, &of_node_ktype);
-    node->fwnode.ops = &of_fwnode_ops;
 }
 
 #define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
@@ -226,21 +218,10 @@ of_find_node_by_path(const char *path)
     return of_find_node_opts_by_path(path, NULL);
 }
 
-static inline void
-of_node_put(struct device_node *node)
-{
-}
-
 int
 of_property_read_string(const struct device_node *np,
                         const char *propname,
                         const char **out_string);
-
-static inline bool
-is_of_node(const struct fwnode_handle *fwnode)
-{
-    return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &of_fwnode_ops;
-}
 
 #define to_of_node(__fwnode)                                \
     ({                                                      \

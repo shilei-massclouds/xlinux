@@ -10,6 +10,8 @@
 #include <export.h>
 #include <platform.h>
 
+extern bool plic_initilized;
+
 struct device platform_bus = {
     .init_name  = "platform",
 };
@@ -37,104 +39,6 @@ platform_bus_type = {
     .match      = platform_match,
 };
 EXPORT_SYMBOL(platform_bus_type);
-
-static bool
-__of_node_is_type(const struct device_node *np, const char *type)
-{
-    const char *match = __of_get_property(np, "device_type", NULL);
-
-    return np && match && type && !strcmp(match, type);
-}
-
-static bool
-of_node_name_eq(const struct device_node *np, const char *name)
-{
-    const char *node_name;
-    size_t len;
-
-    if (!np)
-        return false;
-
-    node_name = kbasename(np->full_name);
-    len = strchrnul(node_name, '@') - node_name;
-
-    return (strlen(name) == len) && (strncmp(node_name, name, len) == 0);
-}
-
-static int
-__of_device_is_compatible(const struct device_node *device,
-                          const char *compat,
-                          const char *type,
-                          const char *name)
-{
-    struct property *prop;
-    const char *cp;
-    int index = 0, score = 0;
-
-    /* Compatible match has highest priority */
-    if (compat && compat[0]) {
-        prop = __of_find_property(device, "compatible", NULL);
-        for (cp = of_prop_next_string(prop, NULL); cp;
-             cp = of_prop_next_string(prop, cp), index++) {
-            if (of_compat_cmp(cp, compat, strlen(compat)) == 0) {
-                pr_debug("%s: %s, %s\n", __func__, cp, compat);
-                score = INT_MAX/2 - (index << 2);
-                break;
-            }
-        }
-        if (!score)
-            return 0;
-    }
-
-    /* Matching type is better than matching name */
-    if (type && type[0]) {
-        if (!__of_node_is_type(device, type))
-            return 0;
-        score += 2;
-    }
-
-    /* Matching name is a bit better than not */
-    if (name && name[0]) {
-        if (!of_node_name_eq(device, name))
-            return 0;
-        score++;
-    }
-
-    return score;
-}
-
-static const struct of_device_id *
-__of_match_node(const struct of_device_id *matches,
-                const struct device_node *node)
-{
-    const struct of_device_id *best_match = NULL;
-    int score, best_score = 0;
-
-    if (!matches)
-        return NULL;
-
-    for (;
-         matches->name[0] || matches->type[0] || matches->compatible[0];
-         matches++) {
-        score = __of_device_is_compatible(node, matches->compatible,
-                                          matches->type, matches->name);
-        if (score > best_score) {
-            best_match = matches;
-            best_score = score;
-        }
-    }
-
-    return best_match;
-}
-
-const struct of_device_id *
-of_match_node(const struct of_device_id *matches,
-              const struct device_node *node)
-{
-    const struct of_device_id *match;
-    match = __of_match_node(matches, node);
-    return match;
-}
 
 static const struct of_dev_auxdata *
 of_dev_lookup(const struct of_dev_auxdata *lookup,
@@ -239,34 +143,6 @@ platform_device_put(struct platform_device *pdev)
     if (!IS_ERR_OR_NULL(pdev))
         put_device(&pdev->dev);
 }
-
-static bool
-__of_device_is_available(const struct device_node *device)
-{
-    const char *status;
-    int statlen;
-
-    if (!device)
-        return false;
-
-    status = __of_get_property(device, "status", &statlen);
-    if (status == NULL)
-        return true;
-
-    if (statlen > 0) {
-        if (!strcmp(status, "okay") || !strcmp(status, "ok"))
-            return true;
-    }
-
-    return false;
-}
-
-bool
-of_device_is_available(const struct device_node *device)
-{
-    return __of_device_is_available(device);
-}
-EXPORT_SYMBOL(of_device_is_available);
 
 static struct platform_device *
 of_platform_device_create_pdata(struct device_node *np,
@@ -510,6 +386,7 @@ static int
 init_module(void)
 {
     printk("module[platform]: init begin ...\n");
+    BUG_ON(!plic_initilized);
     platform_bus_init();
     of_platform_default_populate_init();
     printk("module[platform]: init end!\n");
