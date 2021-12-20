@@ -4,6 +4,7 @@
 
 #include <bits.h>
 #include <string.h>
+#include <compiler_attributes.h>
 
 #define BITMAP_MEM_ALIGNMENT 8
 #define BITMAP_MEM_MASK (BITMAP_MEM_ALIGNMENT - 1)
@@ -34,10 +35,9 @@ bitmap_find_next_zero_area(unsigned long *map,
 
 void __bitmap_set(unsigned long *map, unsigned int start, int len);
 
-static void
+static __always_inline void
 bitmap_set(unsigned long *map, unsigned int start, unsigned int nbits)
 {
-    /*
     if (__builtin_constant_p(nbits) && nbits == 1)
         __set_bit(start, map);
     else if (__builtin_constant_p(start & BITMAP_MEM_MASK) &&
@@ -47,7 +47,6 @@ bitmap_set(unsigned long *map, unsigned int start, unsigned int nbits)
         memset((char *)map + start / 8, 0xff, nbits / 8);
     else
         __bitmap_set(map, start, nbits);
-        */
 }
 
 #endif /* __LINUX_BITMAP_H */

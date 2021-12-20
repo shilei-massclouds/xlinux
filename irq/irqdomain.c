@@ -185,8 +185,8 @@ __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
         return virq;
     }
 
-    panic("%s: !", __func__);
     ret = irq_domain_alloc_irqs_hierarchy(domain, virq, nr_irqs, arg);
+    panic("%s: virq(%d)!", __func__, virq);
 
     return virq;
 }

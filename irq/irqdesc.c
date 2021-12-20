@@ -93,7 +93,7 @@ alloc_descs(unsigned int start, unsigned int cnt,
 
         irq_insert_desc(start + i, desc);
     }
-    //bitmap_set(allocated_irqs, start, cnt);
+    bitmap_set(allocated_irqs, start, cnt);
     return start;
 }
 
