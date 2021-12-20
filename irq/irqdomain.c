@@ -6,10 +6,12 @@
 #include <slab.h>
 #include <errno.h>
 #include <export.h>
+#include <irqchip.h>
 #include <irqdesc.h>
 #include <irqdomain.h>
 
 extern int nr_irqs;
+extern struct irq_chip no_irq_chip;
 
 static LIST_HEAD(irq_domain_list);
 
@@ -203,3 +205,46 @@ int irq_domain_translate_onecell(struct irq_domain *d,
     return 0;
 }
 EXPORT_SYMBOL(irq_domain_translate_onecell);
+
+struct irq_data *
+irq_domain_get_irq_data(struct irq_domain *domain, unsigned int virq)
+{
+    struct irq_data *irq_data;
+
+    for (irq_data = irq_get_irq_data(virq); irq_data;
+         irq_data = irq_data->parent_data)
+        if (irq_data->domain == domain)
+            return irq_data;
+
+    return NULL;
+}
+EXPORT_SYMBOL(irq_domain_get_irq_data);
+
+int
+irq_domain_set_hwirq_and_chip(struct irq_domain *domain,
+                              unsigned int virq,
+                              irq_hw_number_t hwirq,
+                              struct irq_chip *chip,
+                              void *chip_data)
+{
+    struct irq_data *irq_data = irq_domain_get_irq_data(domain, virq);
+
+    if (!irq_data)
+        return -ENOENT;
+
+    irq_data->hwirq = hwirq;
+    irq_data->chip = chip ? chip : &no_irq_chip;
+    irq_data->chip_data = chip_data;
+
+    return 0;
+}
+EXPORT_SYMBOL(irq_domain_set_hwirq_and_chip);
+
+void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
+                         irq_hw_number_t hwirq, struct irq_chip *chip,
+                         void *chip_data, irq_flow_handler_t handler,
+                         void *handler_data, const char *handler_name)
+{
+    irq_domain_set_hwirq_and_chip(domain, virq, hwirq, chip, chip_data);
+}
+EXPORT_SYMBOL(irq_domain_set_info);

@@ -6,6 +6,7 @@
 #include <list.h>
 #include <fwnode.h>
 #include <interrupt.h>
+#include <irqhandler.h>
 
 #define IRQ_DOMAIN_IRQ_SPEC_PARAMS 16
 
@@ -38,6 +39,7 @@ struct irq_domain {
     struct list_head link;
     const char *name;
     const struct irq_domain_ops *ops;
+    void *host_data;
     unsigned int flags;
     struct fwnode_handle *fwnode;
     enum irq_domain_bus_token bus_token;
@@ -101,5 +103,10 @@ int irq_domain_translate_onecell(struct irq_domain *d,
                                  struct irq_fwspec *fwspec,
                                  unsigned long *out_hwirq,
                                  unsigned int *out_type);
+
+void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
+                         irq_hw_number_t hwirq, struct irq_chip *chip,
+                         void *chip_data, irq_flow_handler_t handler,
+                         void *handler_data, const char *handler_name);
 
 #endif /* _LINUX_IRQDOMAIN_H */

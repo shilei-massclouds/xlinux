@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <irq.h>
 #include <slab.h>
 #include <export.h>
 #include <of_irq.h>
 #include <printk.h>
+#include <irqchip.h>
 #include <irqdomain.h>
 
 bool plic_initialized;
@@ -14,9 +16,27 @@ struct plic_priv {
 };
 
 static int
+plic_set_affinity(struct irq_data *d,
+                  const struct cpumask *mask_val,
+                  bool force)
+{
+    panic("%s: !", __func__);
+}
+
+static struct irq_chip plic_chip = {
+    .name = "SiFive PLIC",
+    .irq_set_affinity = plic_set_affinity,
+};
+
+static int
 plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
                    irq_hw_number_t hwirq)
 {
+    struct plic_priv *priv = d->host_data;
+
+    irq_domain_set_info(d, irq, hwirq, &plic_chip, d->host_data,
+                        handle_fasteoi_irq, NULL, NULL);
+
     irq_set_affinity(irq, NULL);
     return 0;
 }

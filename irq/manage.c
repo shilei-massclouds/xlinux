@@ -32,6 +32,7 @@ irq_do_set_affinity(struct irq_data *data,
 {
     struct irq_chip *chip = irq_data_get_irq_chip(data);
 
+    panic("%s: chip(%p)!", __func__, chip);
     return chip->irq_set_affinity(data, mask, force);
 }
 
@@ -60,7 +61,6 @@ int __irq_set_affinity(unsigned int irq,
     if (!desc)
         return -EINVAL;
 
-    panic("%s: !", __func__);
     return irq_set_affinity_locked(irq_desc_get_irq_data(desc), mask, force);
 }
 EXPORT_SYMBOL(__irq_set_affinity);

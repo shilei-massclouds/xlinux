@@ -49,6 +49,17 @@ radix_tree_load_root(const struct radix_tree_root *root,
     return 0;
 }
 
+static unsigned int
+radix_tree_descend(const struct radix_tree_node *parent,
+                   struct radix_tree_node **nodep, unsigned long index)
+{
+    unsigned int offset = (index >> parent->shift) & RADIX_TREE_MAP_MASK;
+    void **entry = parent->slots[offset];
+
+    *nodep = (void *)entry;
+    return offset;
+}
+
 void *
 __radix_tree_lookup(const struct radix_tree_root *root,
                     unsigned long index,
@@ -59,24 +70,18 @@ __radix_tree_lookup(const struct radix_tree_root *root,
     unsigned long maxindex;
     struct radix_tree_node *node, *parent;
 
- restart:
     parent = NULL;
     slot = (void **)&root->xa_head;
     radix_tree_load_root(root, &node, &maxindex);
     if (index > maxindex)
         return NULL;
 
-    panic("%s: !", __func__);
-
-    /*
     while (radix_tree_is_internal_node(node)) {
         unsigned offset;
 
         parent = entry_to_node(node);
         offset = radix_tree_descend(parent, &node, index);
         slot = parent->slots + offset;
-        if (node == RADIX_TREE_RETRY)
-            goto restart;
         if (parent->shift == 0)
             break;
     }
@@ -86,14 +91,12 @@ __radix_tree_lookup(const struct radix_tree_root *root,
     if (slotp)
         *slotp = slot;
     return node;
-    */
 }
 
 void *
 radix_tree_lookup(const struct radix_tree_root *root,
                   unsigned long index)
 {
-    printk("##############%s: \n", __func__);
     return __radix_tree_lookup(root, index, NULL, NULL);
 }
 EXPORT_SYMBOL(radix_tree_lookup);
@@ -139,17 +142,6 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
 static inline void *node_to_entry(void *ptr)
 {
     return (void *)((unsigned long)ptr | RADIX_TREE_INTERNAL_NODE);
-}
-
-static unsigned int
-radix_tree_descend(const struct radix_tree_node *parent,
-                   struct radix_tree_node **nodep, unsigned long index)
-{
-    unsigned int offset = (index >> parent->shift) & RADIX_TREE_MAP_MASK;
-    void **entry = parent->slots[offset];
-
-    *nodep = (void *)entry;
-    return offset;
 }
 
 static int

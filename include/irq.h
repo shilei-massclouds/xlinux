@@ -18,10 +18,15 @@ enum {
 };
 
 struct irq_data {
+    unsigned long hwirq;
     struct irq_chip *chip;
+    struct irq_domain *domain;
+    struct irq_data *parent_data;
+    void *chip_data;
 };
 
 struct irq_chip {
+    const char *name;
     int (*irq_set_affinity)(struct irq_data *data,
                             const struct cpumask *dest,
                             bool force);
