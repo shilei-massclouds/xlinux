@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <irq.h>
+#include <mmio.h>
 #include <slab.h>
 #include <export.h>
 #include <of_irq.h>
@@ -8,19 +9,56 @@
 #include <irqchip.h>
 #include <irqdomain.h>
 
-bool plic_initialized;
-EXPORT_SYMBOL(plic_initialized);
+#define PRIORITY_BASE   0
+#define PRIORITY_PER_ID 4
 
 struct plic_priv {
     struct irq_domain *irqdomain;
+    void *regs;
 };
+
+struct plic_handler {
+    void *enable_base;
+};
+
+bool plic_initialized;
+EXPORT_SYMBOL(plic_initialized);
+
+static struct plic_handler plic_handler;
+
+static inline void
+plic_toggle(struct plic_handler *handler, int hwirq, int enable)
+{
+    u32 hwirq_mask = 1 << (hwirq % 32);
+    u32 *reg = handler->enable_base + (hwirq / 32) * sizeof(u32);
+
+    if (enable)
+        writel(readl(reg) | hwirq_mask, reg);
+    else
+        writel(readl(reg) & ~hwirq_mask, reg);
+}
+
+static inline void
+plic_irq_toggle(const struct cpumask *mask, struct irq_data *d, int enable)
+{
+    struct plic_priv *priv = irq_get_chip_data(d->irq);
+
+    writel(enable, priv->regs + PRIORITY_BASE + d->hwirq * PRIORITY_PER_ID);
+    plic_toggle(&plic_handler, d->hwirq, enable);
+}
 
 static int
 plic_set_affinity(struct irq_data *d,
                   const struct cpumask *mask_val,
                   bool force)
 {
-    panic("%s: !", __func__);
+    panic("%s: 1 !", __func__);
+
+    plic_irq_toggle(NULL, d, 0);
+    plic_irq_toggle(NULL, d, 1);
+
+    panic("%s: 2 !", __func__);
+    return IRQ_SET_MASK_OK_DONE;
 }
 
 static struct irq_chip plic_chip = {

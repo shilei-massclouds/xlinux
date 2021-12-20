@@ -172,6 +172,45 @@ int irq_domain_alloc_descs(int virq, unsigned int cnt,
     return virq;
 }
 
+static struct irq_data *
+irq_domain_insert_irq_data(struct irq_domain *domain, struct irq_data *child)
+{
+    struct irq_data *irq_data;
+
+    irq_data = kzalloc(sizeof(*irq_data), GFP_KERNEL);
+    if (irq_data) {
+        child->parent_data = irq_data;
+        irq_data->irq = child->irq;
+        irq_data->domain = domain;
+    }
+
+    return irq_data;
+}
+
+static int
+irq_domain_alloc_irq_data(struct irq_domain *domain,
+                          unsigned int virq, unsigned int nr_irqs)
+{
+    int i;
+    struct irq_data *irq_data;
+    struct irq_domain *parent;
+
+    /* The outermost irq_data is embedded in struct irq_desc */
+    for (i = 0; i < nr_irqs; i++) {
+        irq_data = irq_get_irq_data(virq + i);
+        irq_data->domain = domain;
+
+        for (parent = domain->parent; parent; parent = parent->parent) {
+            irq_data = irq_domain_insert_irq_data(parent, irq_data);
+            if (!irq_data) {
+                panic("no memory!");
+            }
+        }
+    }
+
+    return 0;
+}
+
 int
 __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
                         unsigned int nr_irqs, int node, void *arg,
@@ -187,6 +226,9 @@ __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
         panic("cannot allocate IRQ(base %d, count %d)", irq_base, nr_irqs);
         return virq;
     }
+
+    if (irq_domain_alloc_irq_data(domain, virq, nr_irqs))
+        panic("can not alloc irq data!");
 
     ret = irq_domain_alloc_irqs_hierarchy(domain, virq, nr_irqs, arg);
     panic("%s: virq(%d)!", __func__, virq);
@@ -230,7 +272,7 @@ irq_domain_set_hwirq_and_chip(struct irq_domain *domain,
     struct irq_data *irq_data = irq_domain_get_irq_data(domain, virq);
 
     if (!irq_data)
-        return -ENOENT;
+        panic("no irq data!");
 
     irq_data->hwirq = hwirq;
     irq_data->chip = chip ? chip : &no_irq_chip;

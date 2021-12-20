@@ -43,6 +43,7 @@ struct irq_domain {
     unsigned int flags;
     struct fwnode_handle *fwnode;
     enum irq_domain_bus_token bus_token;
+    struct irq_domain *parent;
 };
 
 struct irq_domain_ops {
