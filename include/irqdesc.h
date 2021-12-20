@@ -2,12 +2,14 @@
 #ifndef _LINUX_IRQDESC_H
 #define _LINUX_IRQDESC_H
 
+#include <irq.h>
 #include <ptrace.h>
 #include <irqdomain.h>
 #include <irqhandler.h>
 
 struct irq_desc {
     irq_flow_handler_t handle_irq;
+    struct irq_data irq_data;
 };
 
 /*
@@ -43,5 +45,11 @@ struct irq_desc *irq_to_desc(unsigned int irq);
 int
 __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt,
                   const struct irq_affinity_desc *affinity);
+
+static inline struct irq_data *
+irq_desc_get_irq_data(struct irq_desc *desc)
+{
+    return &desc->irq_data;
+}
 
 #endif /* _LINUX_IRQDESC_H */

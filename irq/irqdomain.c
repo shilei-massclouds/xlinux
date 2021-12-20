@@ -2,6 +2,7 @@
 
 #include <of.h>
 #include <bug.h>
+#include <irq.h>
 #include <slab.h>
 #include <errno.h>
 #include <export.h>
@@ -190,3 +191,15 @@ __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 
     return virq;
 }
+
+int irq_domain_translate_onecell(struct irq_domain *d,
+                                 struct irq_fwspec *fwspec,
+                                 unsigned long *out_hwirq,
+                                 unsigned int *out_type)
+{
+    BUG_ON(fwspec->param_count < 1);
+    *out_hwirq = fwspec->param[0];
+    *out_type = IRQ_TYPE_NONE;
+    return 0;
+}
+EXPORT_SYMBOL(irq_domain_translate_onecell);

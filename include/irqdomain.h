@@ -97,4 +97,9 @@ static inline bool irq_domain_is_hierarchy(struct irq_domain *domain)
     return domain->flags & IRQ_DOMAIN_FLAG_HIERARCHY;
 }
 
+int irq_domain_translate_onecell(struct irq_domain *d,
+                                 struct irq_fwspec *fwspec,
+                                 unsigned long *out_hwirq,
+                                 unsigned int *out_type);
+
 #endif /* _LINUX_IRQDOMAIN_H */

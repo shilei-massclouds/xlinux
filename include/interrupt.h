@@ -55,4 +55,22 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
     return request_threaded_irq(irq, handler, NULL, flags, name, dev);
 }
 
+int
+__irq_set_affinity(unsigned int irq,
+                   const struct cpumask *cpumask,
+                   bool force);
+
+/**
+ * irq_set_affinity - Set the irq affinity of a given irq
+ * @irq:    Interrupt to set affinity
+ * @cpumask:    cpumask
+ *
+ * Fails if cpumask does not contain an online CPU
+ */
+static inline int
+irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
+{
+    return __irq_set_affinity(irq, cpumask, false);
+}
+
 #endif /* _LINUX_INTERRUPT_H */

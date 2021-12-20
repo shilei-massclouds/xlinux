@@ -14,10 +14,34 @@ struct plic_priv {
 };
 
 static int
+plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
+                   irq_hw_number_t hwirq)
+{
+    irq_set_affinity(irq, NULL);
+    return 0;
+}
+
+static int
 plic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
                       unsigned int nr_irqs, void *arg)
 {
-    panic("%s: !", __func__);
+    int i, ret;
+    unsigned int type;
+    irq_hw_number_t hwirq;
+    struct irq_fwspec *fwspec = arg;
+
+    ret = irq_domain_translate_onecell(domain, fwspec, &hwirq, &type);
+    if (ret)
+        return ret;
+
+    for (i = 0; i < nr_irqs; i++) {
+        ret = plic_irqdomain_map(domain, virq + i, hwirq + i);
+        if (ret)
+            return ret;
+    }
+
+    panic("%s: virq(%u) hwirq(%lu)!", __func__, virq, hwirq);
+    return 0;
 }
 
 static const struct irq_domain_ops plic_irqdomain_ops = {
