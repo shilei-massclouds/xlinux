@@ -6,6 +6,7 @@
 #include <mod_devicetable.h>
 
 #define NR_IRQS 64
+#define IRQ_BITMAP_BITS (NR_IRQS + 8196)
 
 #define for_each_matching_node_and_match(dn, matches, match) \
     for (dn = of_find_matching_node_and_match(NULL, matches, match); \

@@ -28,4 +28,8 @@ static inline bool radix_tree_is_internal_node(void *ptr)
 void *radix_tree_lookup(const struct radix_tree_root *root,
                         unsigned long index);
 
+int
+radix_tree_insert(struct radix_tree_root *root,
+                  unsigned long index, void *item);
+
 #endif /* _LINUX_RADIX_TREE_H */

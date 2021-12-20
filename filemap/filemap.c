@@ -19,7 +19,7 @@ __add_to_page_cache_locked(struct page *page,
     page->index = offset;
 
     old = xas_load(&xas);
-    if (old && !xa_is_value(old))
+    if (old)
         panic("already exist! (%p)", old);
 
     xas_store(&xas, page);

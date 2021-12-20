@@ -2,7 +2,9 @@
 
 #include <bug.h>
 #include <irq.h>
+#include <slab.h>
 #include <errno.h>
+#include <bitmap.h>
 #include <export.h>
 #include <irqdesc.h>
 #include <irq_regs.h>
@@ -11,6 +13,7 @@
 int nr_irqs = NR_IRQS;
 
 static RADIX_TREE(irq_desc_tree, GFP_KERNEL);
+static DECLARE_BITMAP(allocated_irqs, IRQ_BITMAP_BITS);
 
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
@@ -53,3 +56,71 @@ __handle_domain_irq(struct irq_domain *domain,
     return 0;
 }
 EXPORT_SYMBOL(__handle_domain_irq);
+
+static struct irq_desc *
+alloc_desc(int irq, unsigned int flags)
+{
+    struct irq_desc *desc;
+
+    desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+    if (!desc)
+        return NULL;
+
+    return desc;
+}
+
+static void
+irq_insert_desc(unsigned int irq, struct irq_desc *desc)
+{
+    radix_tree_insert(&irq_desc_tree, irq, desc);
+}
+
+static int
+alloc_descs(unsigned int start, unsigned int cnt,
+            const struct irq_affinity_desc *affinity)
+{
+    int i;
+    struct irq_desc *desc;
+
+    BUG_ON(affinity);
+
+    for (i = 0; i < cnt; i++) {
+        unsigned int flags = 0;
+
+        desc = alloc_desc(start + i, flags);
+        if (!desc)
+            panic("bad desc!");
+
+        irq_insert_desc(start + i, desc);
+    }
+    //bitmap_set(allocated_irqs, start, cnt);
+    return start;
+}
+
+int
+__irq_alloc_descs(int irq, unsigned int from, unsigned int cnt,
+                  const struct irq_affinity_desc *affinity)
+{
+    int start, ret;
+
+    if (!cnt)
+        return -EINVAL;
+
+    if (irq >= 0) {
+        if (from > irq)
+            return -EINVAL;
+        from = irq;
+    }
+
+    start = bitmap_find_next_zero_area(allocated_irqs, IRQ_BITMAP_BITS,
+                                       from, cnt, 0);
+
+    if (irq >=0 && start != irq)
+        return -EEXIST;
+
+    if (start + cnt > nr_irqs)
+        panic("need to extend!");
+
+    return alloc_descs(start, cnt, affinity);
+}
+EXPORT_SYMBOL(__irq_alloc_descs);

@@ -136,7 +136,6 @@ static int xas_expand(struct xa_state *xas, void *head)
         if (!node)
             return -ENOMEM;
 
-        BUG_ON(xa_is_value(head));
         node->slots[0] = head;
 
         if (xa_is_node(head)) {

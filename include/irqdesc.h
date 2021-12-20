@@ -40,4 +40,8 @@ static inline void generic_handle_irq_desc(struct irq_desc *desc)
 
 struct irq_desc *irq_to_desc(unsigned int irq);
 
+int
+__irq_alloc_descs(int irq, unsigned int from, unsigned int cnt,
+                  const struct irq_affinity_desc *affinity);
+
 #endif /* _LINUX_IRQDESC_H */

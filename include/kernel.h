@@ -6,6 +6,9 @@
 
 #define ALIGN(x, a) _ALIGN((x), (a))
 
+#define __ALIGN_KERNEL_MASK(x, mask)    (((x) + (mask)) & ~(mask))
+#define __ALIGN_MASK(x, mask)   __ALIGN_KERNEL_MASK((x), (mask))
+
 #define L1_CACHE_SHIFT  6
 #define L1_CACHE_BYTES  (1 << L1_CACHE_SHIFT)
 #define SMP_CACHE_BYTES L1_CACHE_BYTES

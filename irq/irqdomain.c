@@ -5,7 +5,10 @@
 #include <slab.h>
 #include <errno.h>
 #include <export.h>
+#include <irqdesc.h>
 #include <irqdomain.h>
+
+extern int nr_irqs;
 
 static LIST_HEAD(irq_domain_list);
 
@@ -142,6 +145,30 @@ irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
     return domain->ops->alloc(domain, irq_base, nr_irqs, arg);
 }
 
+int irq_domain_alloc_descs(int virq, unsigned int cnt,
+                           irq_hw_number_t hwirq,
+                           int node,
+                           const struct irq_affinity_desc *affinity)
+{
+    unsigned int hint;
+
+    if (virq >= 0) {
+        virq = __irq_alloc_descs(virq, virq, cnt, affinity);
+    } else {
+        hint = hwirq % nr_irqs;
+        if (hint == 0)
+            hint++;
+        printk("%s: 1 virq(%d)\n", __func__, virq);
+        virq = __irq_alloc_descs(-1, hint, cnt, affinity);
+        printk("%s: 2 virq(%d)\n", __func__, virq);
+        if (virq <= 0 && hint > 1) {
+            virq = __irq_alloc_descs(-1, 1, cnt, affinity);
+        }
+    }
+
+    return virq;
+}
+
 int
 __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
                         unsigned int nr_irqs, int node, void *arg,
@@ -149,6 +176,14 @@ __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
                         const struct irq_affinity_desc *affinity)
 {
     int i, ret, virq;
+
+    BUG_ON(realloc);
+
+    virq = irq_domain_alloc_descs(irq_base, nr_irqs, 0, node, affinity);
+    if (virq < 0) {
+        panic("cannot allocate IRQ(base %d, count %d)", irq_base, nr_irqs);
+        return virq;
+    }
 
     panic("%s: !", __func__);
     ret = irq_domain_alloc_irqs_hierarchy(domain, virq, nr_irqs, arg);

@@ -208,7 +208,8 @@ static inline u32 __swab32p(const u32 *p)
     return swab32(*p);
 }
 
-#define DECLARE_BITMAP(name,bits) unsigned long name[BITS_TO_LONGS(bits)]
+#define DECLARE_BITMAP(name, bits) \
+    unsigned long name[BITS_TO_LONGS(bits)]
 
 #define NR_CPUS 1
 

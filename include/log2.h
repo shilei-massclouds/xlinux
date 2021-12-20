@@ -3,6 +3,8 @@
 #define _LINUX_LOG2_H
 
 #include <bits.h>
+#include <page.h>
+#include <types.h>
 #include <compiler_attributes.h>
 
 static inline __attribute__((const))

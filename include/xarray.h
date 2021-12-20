@@ -140,11 +140,6 @@ static inline bool xas_top(struct xa_node *node)
     return node <= XAS_RESTART;
 }
 
-static inline bool xa_is_value(const void *entry)
-{
-    return (unsigned long)entry & 1;
-}
-
 static inline struct xa_node *xa_to_node(const void *entry)
 {
     return (struct xa_node *)((unsigned long)entry - 2);
