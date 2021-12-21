@@ -1,10 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <bug.h>
+#include <slab.h>
 #include <errno.h>
 #include <export.h>
 #include <irqdesc.h>
 #include <interrupt.h>
+
+static int
+__setup_irq(unsigned int irq,
+            struct irq_desc *desc,
+            struct irqaction *new)
+{
+    /* Todo: */
+    return 0;
+}
 
 int
 request_threaded_irq(unsigned int irq,
@@ -14,14 +24,26 @@ request_threaded_irq(unsigned int irq,
                      const char *devname,
                      void *dev_id)
 {
+    int retval;
     struct irq_desc *desc;
+    struct irqaction *action;
 
     desc = irq_to_desc(irq);
     if (!desc)
         return -EINVAL;
 
-    //retval = __setup_irq(irq, desc, action);
-    panic("%s: !", __func__);
+    action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+    if (!action)
+        return -ENOMEM;
+
+    action->handler = handler;
+    action->thread_fn = thread_fn;
+    action->flags = irqflags;
+    action->name = devname;
+    action->dev_id = dev_id;
+
+    retval = __setup_irq(irq, desc, action);
+    return retval;
 }
 EXPORT_SYMBOL(request_threaded_irq);
 

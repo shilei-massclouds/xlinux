@@ -58,8 +58,6 @@ plic_set_affinity(struct irq_data *d,
 {
     plic_irq_toggle(NULL, d, 0);
     plic_irq_toggle(NULL, d, 1);
-
-    panic("%s: !", __func__);
     return IRQ_SET_MASK_OK_DONE;
 }
 
@@ -99,14 +97,11 @@ plic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
         return ret;
 
     for (i = 0; i < nr_irqs; i++) {
-        printk("%s: 1 (%d) virq(%u)\n", __func__, i, virq);
         ret = plic_irqdomain_map(domain, virq + i, hwirq + i);
-        printk("%s: 2 (%d) virq(%u)\n", __func__, i, virq);
         if (ret)
             return ret;
     }
 
-    panic("%s: virq(%u) hwirq(%lu)!", __func__, virq, hwirq);
     return 0;
 }
 

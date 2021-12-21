@@ -43,6 +43,14 @@ struct irq_affinity {
 struct irq_affinity_desc {
 };
 
+struct irqaction {
+    irq_handler_t   handler;
+    irq_handler_t   thread_fn;
+    unsigned int    flags;
+    const char      *name;
+    void            *dev_id;
+};
+
 int
 request_threaded_irq(unsigned int irq, irq_handler_t handler,
                      irq_handler_t thread_fn,

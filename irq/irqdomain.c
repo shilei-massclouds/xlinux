@@ -54,7 +54,7 @@ unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
         panic("not hierarchy!");
     }
 
-    panic("%s: !", __func__);
+    return virq;
 }
 
 static void
@@ -212,6 +212,11 @@ irq_domain_alloc_irq_data(struct irq_domain *domain,
     return 0;
 }
 
+static void irq_domain_insert_irq(int virq)
+{
+    /* Todo: */
+}
+
 int
 __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
                         unsigned int nr_irqs, int node, void *arg,
@@ -231,10 +236,12 @@ __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
     if (irq_domain_alloc_irq_data(domain, virq, nr_irqs))
         panic("can not alloc irq data!");
 
-    printk("%s: 1 virq(%d)\n", __func__, virq);
     ret = irq_domain_alloc_irqs_hierarchy(domain, virq, nr_irqs, arg);
-    printk("%s: 2 virq(%d)\n", __func__, virq);
-    panic("%s: virq(%d)!", __func__, virq);
+    if (ret < 0)
+        panic("bad alloc!");
+
+    for (i = 0; i < nr_irqs; i++)
+        irq_domain_insert_irq(virq + i);
 
     return virq;
 }
