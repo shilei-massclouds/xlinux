@@ -3,4 +3,3 @@
 target_y := ko
 
 obj_y := platform.o
-obj_y += address.o

@@ -58,11 +58,6 @@ void *
 devm_platform_ioremap_resource(struct platform_device *pdev,
                                unsigned int index);
 
-int
-of_address_to_resource(struct device_node *dev,
-                       int index,
-                       struct resource *r);
-
 void
 platform_device_put(struct platform_device *pdev);
 

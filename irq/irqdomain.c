@@ -128,6 +128,7 @@ __irq_domain_add(struct fwnode_handle *fwnode, int size,
     }
 
     domain->ops = ops;
+    domain->host_data = host_data;
     irq_domain_check_hierarchy(domain);
 
     list_add(&domain->link, &irq_domain_list);
@@ -230,7 +231,9 @@ __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
     if (irq_domain_alloc_irq_data(domain, virq, nr_irqs))
         panic("can not alloc irq data!");
 
+    printk("%s: 1 virq(%d)\n", __func__, virq);
     ret = irq_domain_alloc_irqs_hierarchy(domain, virq, nr_irqs, arg);
+    printk("%s: 2 virq(%d)\n", __func__, virq);
     panic("%s: virq(%d)!", __func__, virq);
 
     return virq;
@@ -288,5 +291,6 @@ void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
                          void *handler_data, const char *handler_name)
 {
     irq_domain_set_hwirq_and_chip(domain, virq, hwirq, chip, chip_data);
+    irq_set_chip_data(virq, chip_data);
 }
 EXPORT_SYMBOL(irq_domain_set_info);

@@ -8,4 +8,6 @@ struct irq_data *irq_get_irq_data(unsigned int irq);
 
 void handle_fasteoi_irq(struct irq_desc *desc);
 
+int irq_set_chip_data(unsigned int irq, void *data);
+
 #endif /* _IRQ_CHIP_H_ */

@@ -8,6 +8,7 @@
 #include <printk.h>
 #include <irqchip.h>
 #include <irqdomain.h>
+#include <of_address.h>
 
 #define PRIORITY_BASE   0
 #define PRIORITY_PER_ID 4
@@ -43,6 +44,8 @@ plic_irq_toggle(const struct cpumask *mask, struct irq_data *d, int enable)
 {
     struct plic_priv *priv = irq_get_chip_data(d->irq);
 
+    panic("%s: 1 (%u, %u)!", __func__, priv->regs, d->hwirq);
+
     writel(enable, priv->regs + PRIORITY_BASE + d->hwirq * PRIORITY_PER_ID);
     plic_toggle(&plic_handler, d->hwirq, enable);
 }
@@ -52,12 +55,10 @@ plic_set_affinity(struct irq_data *d,
                   const struct cpumask *mask_val,
                   bool force)
 {
-    panic("%s: 1 !", __func__);
-
     plic_irq_toggle(NULL, d, 0);
     plic_irq_toggle(NULL, d, 1);
 
-    panic("%s: 2 !", __func__);
+    panic("%s: !", __func__);
     return IRQ_SET_MASK_OK_DONE;
 }
 
@@ -72,10 +73,14 @@ plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 {
     struct plic_priv *priv = d->host_data;
 
+    printk("######### %s: 0 irq(%u)\n", __func__, irq);
     irq_domain_set_info(d, irq, hwirq, &plic_chip, d->host_data,
                         handle_fasteoi_irq, NULL, NULL);
 
+
+    printk("%s: 1 irq(%u)\n", __func__, irq);
     irq_set_affinity(irq, NULL);
+    printk("%s: 2 irq(%u)\n", __func__, irq);
     return 0;
 }
 
@@ -93,7 +98,9 @@ plic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
         return ret;
 
     for (i = 0; i < nr_irqs; i++) {
+        printk("%s: 1 (%d) virq(%u)\n", __func__, i, virq);
         ret = plic_irqdomain_map(domain, virq + i, hwirq + i);
+        printk("%s: 2 (%d) virq(%u)\n", __func__, i, virq);
         if (ret)
             return ret;
     }
@@ -115,6 +122,10 @@ plic_init(struct device_node *node, struct device_node *parent)
     priv = kzalloc(sizeof(*priv), GFP_KERNEL);
     if (!priv)
         panic("out of memory!");
+
+    priv->regs = of_iomap(node, 0);
+    if (!priv->regs)
+        panic("bad regs!");
 
     of_property_read_u32(node, "riscv,ndev", &nr_irqs);
     if (!nr_irqs)

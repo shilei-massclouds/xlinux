@@ -60,6 +60,8 @@ int __irq_set_affinity(unsigned int irq,
     if (!desc)
         return -EINVAL;
 
+    printk("%s: 1 irq(%u)\n", __func__, irq);
+    printk("%s: 2 irq(%u) (%u)\n", __func__, irq, desc->irq_data.irq);
     return irq_set_affinity_locked(irq_desc_get_irq_data(desc), mask, force);
 }
 EXPORT_SYMBOL(__irq_set_affinity);

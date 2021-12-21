@@ -10,6 +10,8 @@
 #include <irq_regs.h>
 #include <radix-tree.h>
 
+extern struct irq_chip no_irq_chip;
+
 int nr_irqs = NR_IRQS;
 
 static RADIX_TREE(irq_desc_tree, GFP_KERNEL);
@@ -57,6 +59,14 @@ __handle_domain_irq(struct irq_domain *domain,
 }
 EXPORT_SYMBOL(__handle_domain_irq);
 
+static void
+desc_set_defaults(unsigned int irq, struct irq_desc *desc)
+{
+    desc->irq_data.irq = irq;
+    desc->irq_data.chip = &no_irq_chip;
+    desc->irq_data.chip_data = NULL;
+}
+
 static struct irq_desc *
 alloc_desc(int irq, unsigned int flags)
 {
@@ -66,6 +76,7 @@ alloc_desc(int irq, unsigned int flags)
     if (!desc)
         return NULL;
 
+    desc_set_defaults(irq, desc);
     return desc;
 }
 

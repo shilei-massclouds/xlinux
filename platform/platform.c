@@ -9,6 +9,7 @@
 #include <string.h>
 #include <export.h>
 #include <platform.h>
+#include <of_address.h>
 
 extern bool plic_initialized;
 
