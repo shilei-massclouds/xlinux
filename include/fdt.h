@@ -319,38 +319,6 @@ fdt_get_string(const void *fdt, int stroffset, int *lenp);
 struct property *
 of_find_property(const struct device_node *np, const char *name, int *lenp);
 
-int
-of_property_read_variable_u32_array(const struct device_node *np,
-                                    const char *propname,
-                                    u32 *out_values,
-                                    size_t sz_min,
-                                    size_t sz_max);
-
-static inline int
-of_property_read_u32_array(const struct device_node *np,
-                           const char *propname,
-                           u32 *out_values,
-                           size_t sz)
-{
-    int ret = of_property_read_variable_u32_array(np,
-                                                  propname,
-                                                  out_values,
-                                                  sz,
-                                                  0);
-    if (ret >= 0)
-        return 0;
-    else
-        return ret;
-}
-
-static inline int
-of_property_read_u32(const struct device_node *np,
-                     const char *propname,
-                     u32 *out_value)
-{
-    return of_property_read_u32_array(np, propname, out_value, 1);
-}
-
 int of_n_addr_cells(struct device_node *np);
 int of_n_size_cells(struct device_node *np);
 

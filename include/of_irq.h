@@ -11,4 +11,11 @@ int of_irq_get(struct device_node *dev, int index);
 
 void of_irq_init(const struct of_device_id *matches);
 
+int of_irq_count(struct device_node *dev);
+
+int
+of_irq_parse_one(struct device_node *device,
+                 int index,
+                 struct of_phandle_args *out_irq);
+
 #endif /* __OF_IRQ_H */

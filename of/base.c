@@ -2,6 +2,7 @@
 
 #include <of.h>
 #include <irq.h>
+#include <errno.h>
 #include <export.h>
 
 static bool
@@ -200,3 +201,164 @@ of_device_is_available(const struct device_node *device)
     return __of_device_is_available(device);
 }
 EXPORT_SYMBOL(of_device_is_available);
+
+int
+of_phandle_iterator_args(struct of_phandle_iterator *it,
+                         uint32_t *args, int size)
+{
+    int i, count;
+
+    count = it->cur_count;
+
+    BUG_ON(size < count);
+
+    for (i = 0; i < count; i++)
+        args[i] = be32_to_cpup(it->cur++);
+
+    return count;
+}
+
+static int
+__of_parse_phandle_with_args(const struct device_node *np,
+                             const char *list_name,
+                             const char *cells_name,
+                             int cell_count, int index,
+                             struct of_phandle_args *out_args)
+{
+    struct of_phandle_iterator it;
+    int rc, cur_index = 0;
+
+    of_for_each_phandle(&it, rc, np, list_name, cells_name, cell_count) {
+        if (cur_index == index) {
+            if (!it.phandle)
+                return -ENOENT;
+
+            if (out_args) {
+                int c;
+
+                c = of_phandle_iterator_args(&it, out_args->args,
+                                             MAX_PHANDLE_ARGS);
+                out_args->np = it.node;
+                out_args->args_count = c;
+            } else {
+                of_node_put(it.node);
+            }
+
+            /* Found it! return success */
+            return 0;
+        }
+
+        cur_index++;
+    }
+
+    return rc;
+}
+
+int
+of_parse_phandle_with_args(const struct device_node *np,
+                           const char *list_name,
+                           const char *cells_name,
+                           int index,
+                           struct of_phandle_args *out_args)
+{
+    int cell_count = -1;
+
+    if (index < 0)
+        return -EINVAL;
+
+    if (!cells_name)
+        cell_count = 0;
+
+    return __of_parse_phandle_with_args(np, list_name, cells_name,
+                                        cell_count, index, out_args);
+}
+EXPORT_SYMBOL(of_parse_phandle_with_args);
+
+int
+of_phandle_iterator_init(struct of_phandle_iterator *it,
+                         const struct device_node *np,
+                         const char *list_name,
+                         const char *cells_name,
+                         int cell_count)
+{
+    int size;
+    const u32 *list;
+
+    memset(it, 0, sizeof(*it));
+
+    /*
+     * one of cell_count or cells_name must be provided to determine the
+     * argument length.
+     */
+    if (cell_count < 0 && !cells_name)
+        return -EINVAL;
+
+    list = of_get_property(np, list_name, &size);
+    if (!list)
+        return -ENOENT;
+
+    printk("%s: %d\n", np->name, size);
+
+    it->cells_name = cells_name;
+    it->cell_count = cell_count;
+    it->parent = np;
+    it->list_end = list + size / sizeof(*list);
+    it->phandle_end = list;
+    it->cur = list;
+
+    return 0;
+}
+EXPORT_SYMBOL(of_phandle_iterator_init);
+
+int of_phandle_iterator_next(struct of_phandle_iterator *it)
+{
+    uint32_t count = 0;
+
+    if (it->node) {
+        of_node_put(it->node);
+        it->node = NULL;
+    }
+
+    if (!it->cur || it->phandle_end >= it->list_end)
+        return -ENOENT;
+
+    it->cur = it->phandle_end;
+
+    /* If phandle is 0, then it is an empty entry with no arguments. */
+    it->phandle = be32_to_cpup(it->cur++);
+    printk("%s: %x %x (%p)\n", __func__,
+           it->phandle, be32_to_cpup(it->cur), it->cur);
+
+    if (it->phandle) {
+        /*
+         * Find the provider node and parse the #*-cells property to
+         * determine the argument length.
+         */
+        it->node = of_find_node_by_phandle(it->phandle);
+
+        if (it->cells_name) {
+            if (!it->node) {
+                panic("%p: could not find phandle\n", it->parent);
+            }
+
+            if (of_property_read_u32(it->node, it->cells_name, &count))
+                panic("bad property!");
+        } else {
+            count = it->cell_count;
+        }
+
+        /*
+         * Make sure that the arguments actually fit in the remaining
+         * property data length
+         */
+        if (it->cur + count > it->list_end) {
+            panic("%p: %s = %d found %d\n",
+                  it->parent, it->cells_name, count, it->cell_count);
+        }
+    }
+
+    it->phandle_end = it->cur + count;
+    it->cur_count = count;
+    return 0;
+}
+EXPORT_SYMBOL(of_phandle_iterator_next);

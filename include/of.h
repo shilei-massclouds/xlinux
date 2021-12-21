@@ -63,6 +63,38 @@ struct of_phandle_args {
     uint32_t args[MAX_PHANDLE_ARGS];
 };
 
+struct of_phandle_iterator {
+    /* Common iterator information */
+    const char *cells_name;
+    int cell_count;
+    const struct device_node *parent;
+
+    /* List size information */
+    const u32 *list_end;
+    const u32 *phandle_end;
+
+    /* Current position state */
+    const u32 *cur;
+    uint32_t cur_count;
+    phandle phandle;
+    struct device_node *node;
+};
+
+int
+of_phandle_iterator_init(struct of_phandle_iterator *it,
+                         const struct device_node *np,
+                         const char *list_name,
+                         const char *cells_name,
+                         int cell_count);
+
+int of_phandle_iterator_next(struct of_phandle_iterator *it);
+
+#define of_for_each_phandle(it, err, np, ln, cn, cc)                \
+    for (of_phandle_iterator_init((it), (np), (ln), (cn), (cc)),    \
+         err = of_phandle_iterator_next(it);                        \
+         err == 0;                                                  \
+         err = of_phandle_iterator_next(it))
+
 extern struct device_node *of_root;
 
 struct device_node *of_get_parent(const struct device_node *node);
@@ -106,6 +138,9 @@ const void *
 __of_get_property(const struct device_node *np,
                   const char *name, int *lenp);
 
+const void *
+of_get_property(const struct device_node *np, const char *name, int *lenp);
+
 const struct of_device_id *
 of_match_node(const struct of_device_id *matches,
               const struct device_node *node);
@@ -140,5 +175,44 @@ of_match_device(const struct of_device_id *matches,
 
 struct device_node *
 of_get_parent(const struct device_node *node);
+
+int
+of_parse_phandle_with_args(const struct device_node *np,
+                           const char *list_name,
+                           const char *cells_name,
+                           int index,
+                           struct of_phandle_args *out_args);
+
+int
+of_property_read_variable_u32_array(const struct device_node *np,
+                                    const char *propname,
+                                    u32 *out_values,
+                                    size_t sz_min,
+                                    size_t sz_max);
+
+static inline int
+of_property_read_u32_array(const struct device_node *np,
+                           const char *propname,
+                           u32 *out_values,
+                           size_t sz)
+{
+    int ret = of_property_read_variable_u32_array(np,
+                                                  propname,
+                                                  out_values,
+                                                  sz,
+                                                  0);
+    if (ret >= 0)
+        return 0;
+    else
+        return ret;
+}
+
+static inline int
+of_property_read_u32(const struct device_node *np,
+                     const char *propname,
+                     u32 *out_value)
+{
+    return of_property_read_u32_array(np, propname, out_value, 1);
+}
 
 #endif /* _LINUX_OF_H */

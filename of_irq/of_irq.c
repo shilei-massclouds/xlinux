@@ -60,6 +60,71 @@ of_find_property_value_of_size(const struct device_node *np,
     return prop->value;
 }
 
+int of_irq_parse_raw(const u32 *addr, struct of_phandle_args *out_irq)
+{
+    int i;
+    u32 addrsize;
+    const u32 *tmp;
+    u32 initial_match_array[MAX_PHANDLE_ARGS];
+    struct device_node *ipar, *tnode, *old = NULL;
+    u32 intsize = 1;
+
+    ipar = of_node_get(out_irq->np);
+
+    /* First get the #interrupt-cells property of the current cursor
+     * that tells us how to interpret the passed-in intspec. If there
+     * is none, we are nice and just walk up the tree
+     */
+    do {
+        if (!of_property_read_u32(ipar, "#interrupt-cells", &intsize))
+            break;
+        tnode = ipar;
+        ipar = of_irq_find_parent(ipar);
+        of_node_put(tnode);
+    } while (ipar);
+
+    if (ipar == NULL)
+        panic(" -> no parent found !\n");
+
+    if (out_irq->args_count != intsize)
+        panic("bad intsize!");
+
+    /* Look for this #address-cells. We have to implement the old linux
+     * trick of looking for the parent here as some device-trees rely on it
+     */
+    old = of_node_get(ipar);
+    do {
+        tmp = of_get_property(old, "#address-cells", NULL);
+        tnode = of_get_parent(old);
+        of_node_put(old);
+        old = tnode;
+    } while (old && tmp == NULL);
+    of_node_put(old);
+    old = NULL;
+    addrsize = (tmp == NULL) ? 2 : be32_to_cpu(*tmp);
+
+    /* Range check so that the temporary buffer doesn't overflow */
+    BUG_ON(addrsize + intsize > MAX_PHANDLE_ARGS);
+
+    /* Precalculate the match array - this simplifies match loop */
+    for (i = 0; i < addrsize; i++)
+        initial_match_array[i] = addr ? addr[i] : 0;
+    for (i = 0; i < intsize; i++)
+        initial_match_array[addrsize + i] = cpu_to_be32(out_irq->args[i]);
+
+    while (ipar != NULL) {
+        /* Now check if cursor is an interrupt-controller and if it is
+         * then we are done
+         */
+        if (of_property_read_bool(ipar, "interrupt-controller")) {
+            printk(" -> got it !\n");
+            return 0;
+        }
+        panic("%s: !", __func__);
+    }
+    panic("%s: addrsize(%u) intsize(%u)!", __func__, addrsize, intsize);
+}
+
 int
 of_irq_parse_one(struct device_node *device,
                  int index,
@@ -67,7 +132,19 @@ of_irq_parse_one(struct device_node *device,
 {
     int i, res;
     u32 intsize;
+    const u32 *addr;
     struct device_node *p;
+
+    /* Get the reg property (if any) */
+    addr = of_get_property(device, "reg", NULL);
+
+    /* Try the new-style interrupts-extended first */
+    res = of_parse_phandle_with_args(device,
+                                     "interrupts-extended",
+                                     "#interrupt-cells",
+                                     index, out_irq);
+    if (!res)
+        return of_irq_parse_raw(addr, out_irq);
 
     /* Look for the interrupt parent. */
     p = of_irq_find_parent(device);
@@ -91,6 +168,7 @@ of_irq_parse_one(struct device_node *device,
 
     return res;
 }
+EXPORT_SYMBOL(of_irq_parse_one);
 
 int of_irq_get(struct device_node *dev, int index)
 {
@@ -153,3 +231,19 @@ void of_irq_init(const struct of_device_id *matches)
     }
 }
 EXPORT_SYMBOL(of_irq_init);
+
+/**
+ * of_irq_count - Count the number of IRQs a node uses
+ * @dev: pointer to device tree node
+ */
+int of_irq_count(struct device_node *dev)
+{
+    struct of_phandle_args irq;
+    int nr = 0;
+
+    while (of_irq_parse_one(dev, nr, &irq) == 0)
+        nr++;
+
+    return nr;
+}
+EXPORT_SYMBOL(of_irq_count);

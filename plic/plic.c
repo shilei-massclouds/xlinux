@@ -13,6 +13,9 @@
 #define PRIORITY_BASE   0
 #define PRIORITY_PER_ID 4
 
+#define ENABLE_BASE     0x2000
+#define ENABLE_PER_HART 0x80
+
 struct plic_priv {
     struct irq_domain *irqdomain;
     void *regs;
@@ -43,8 +46,6 @@ static inline void
 plic_irq_toggle(const struct cpumask *mask, struct irq_data *d, int enable)
 {
     struct plic_priv *priv = irq_get_chip_data(d->irq);
-
-    panic("%s: 1 (%u, %u)!", __func__, priv->regs, d->hwirq);
 
     writel(enable, priv->regs + PRIORITY_BASE + d->hwirq * PRIORITY_PER_ID);
     plic_toggle(&plic_handler, d->hwirq, enable);
@@ -116,7 +117,9 @@ static const struct irq_domain_ops plic_irqdomain_ops = {
 static int
 plic_init(struct device_node *node, struct device_node *parent)
 {
+    int i;
     u32 nr_irqs;
+    int nr_contexts;
     struct plic_priv *priv;
 
     priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -131,10 +134,22 @@ plic_init(struct device_node *node, struct device_node *parent)
     if (!nr_irqs)
         panic("out iounmap!");
 
+    nr_contexts = of_irq_count(node);
+
     priv->irqdomain = irq_domain_add_linear(node, nr_irqs + 1,
                                             &plic_irqdomain_ops, priv);
     if (!priv->irqdomain)
         panic("irq domain can not add linear!");
+
+    for (i = 0; i < nr_contexts; i++) {
+        struct of_phandle_args parent;
+
+        if (of_irq_parse_one(node, i, &parent))
+            panic("failed to parse parent for context %d.", i);
+
+        plic_handler.enable_base =
+            priv->regs + ENABLE_BASE + i * ENABLE_PER_HART;
+    }
 
     return 0;
 }
