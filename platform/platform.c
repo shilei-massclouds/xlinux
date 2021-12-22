@@ -12,6 +12,7 @@
 #include <of_address.h>
 
 extern bool plic_initialized;
+extern bool intc_initialized;
 
 struct device platform_bus = {
     .init_name  = "platform",
@@ -369,6 +370,7 @@ init_module(void)
 {
     printk("module[platform]: init begin ...\n");
     BUG_ON(!plic_initialized);
+    BUG_ON(!intc_initialized);
     platform_bus_init();
     of_platform_default_populate_init();
     printk("module[platform]: init end!\n");

@@ -12,4 +12,6 @@ int irq_set_chip_data(unsigned int irq, void *data);
 
 void irq_percpu_enable(struct irq_desc *desc);
 
+void handle_percpu_devid_irq(struct irq_desc *desc);
+
 #endif /* _IRQ_CHIP_H_ */

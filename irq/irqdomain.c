@@ -26,20 +26,87 @@ irq_find_matching_fwspec(struct irq_fwspec *fwspec,
     struct fwnode_handle *fwnode = fwspec->fwnode;
 
     list_for_each_entry(h, &irq_domain_list, link) {
+        printk("%s: name(%s) (%p, %p) (%u)\n",
+               __func__, h->name, fwnode, h->fwnode, bus_token);
         if (fwnode && (h->fwnode == fwnode) &&
             ((bus_token == DOMAIN_BUS_ANY) ||
              (h->bus_token == bus_token)))
             return h;
     }
 
-    panic("no irq domain!");
+    return NULL;
 }
 EXPORT_SYMBOL(irq_find_matching_fwspec);
+
+int irq_domain_associate(struct irq_domain *domain,
+                         unsigned int virq, irq_hw_number_t hwirq)
+{
+    int ret;
+    struct irq_data *irq_data = irq_get_irq_data(virq);
+
+    BUG_ON(!irq_data);
+    BUG_ON(irq_data->domain);
+
+    irq_data->hwirq = hwirq;
+    irq_data->domain = domain;
+
+    if (domain->ops->map) {
+        ret = domain->ops->map(domain, virq, hwirq);
+        if (ret != 0)
+            panic("map failed!");
+
+        /* If not already assigned, give the domain the chip's name */
+        if (!domain->name && irq_data->chip)
+            domain->name = irq_data->chip->name;
+    }
+
+    return 0;
+}
+
+unsigned int irq_create_mapping(struct irq_domain *domain,
+                                irq_hw_number_t hwirq)
+{
+    int virq;
+    struct device_node *of_node;
+
+    BUG_ON(!domain);
+
+    of_node = irq_domain_get_of_node(domain);
+
+    /* Allocate a virtual interrupt number */
+    virq = irq_domain_alloc_descs(-1, 1, hwirq, NULL);
+    if (virq <= 0)
+        panic("-> virq allocation failed\n");
+
+    if (irq_domain_associate(domain, virq, hwirq))
+        panic("can not assocate!");
+
+    return virq;
+}
+
+static int
+irq_domain_translate(struct irq_domain *d,
+                     struct irq_fwspec *fwspec,
+                     irq_hw_number_t *hwirq, unsigned int *type)
+{
+    if (d->ops->translate)
+        return d->ops->translate(d, fwspec, hwirq, type);
+    if (d->ops->xlate)
+        return d->ops->xlate(d, to_of_node(fwspec->fwnode),
+                             fwspec->param, fwspec->param_count,
+                             hwirq, type);
+
+    /* If domain has no translation, then we assume interrupt line */
+    *hwirq = fwspec->param[0];
+    return 0;
+}
 
 unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 {
     int virq;
+    irq_hw_number_t hwirq;
     struct irq_domain *domain;
+    unsigned int type = IRQ_TYPE_NONE;
 
     if (fwspec->fwnode) {
         domain = irq_find_matching_fwspec(fwspec, DOMAIN_BUS_ANY);
@@ -47,12 +114,20 @@ unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
         panic("fwnode is NULL!");
     }
 
+    if (!domain)
+        panic("no irq domain found!");
+
+    if (irq_domain_translate(domain, fwspec, &hwirq, &type))
+        return 0;
+
     if (irq_domain_is_hierarchy(domain)) {
         virq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, fwspec);
         if (virq <= 0)
             return 0;
     } else {
-        panic("not hierarchy!");
+        virq = irq_create_mapping(domain, hwirq);
+        if (!virq)
+            return 0;
     }
 
     return virq;
@@ -152,7 +227,6 @@ irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
 
 int irq_domain_alloc_descs(int virq, unsigned int cnt,
                            irq_hw_number_t hwirq,
-                           int node,
                            const struct irq_affinity_desc *affinity)
 {
     unsigned int hint;
@@ -228,7 +302,7 @@ __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 
     BUG_ON(realloc);
 
-    virq = irq_domain_alloc_descs(irq_base, nr_irqs, 0, node, affinity);
+    virq = irq_domain_alloc_descs(irq_base, nr_irqs, 0, affinity);
     if (virq < 0) {
         panic("cannot allocate IRQ(base %d, count %d)", irq_base, nr_irqs);
         return virq;
@@ -258,6 +332,20 @@ int irq_domain_translate_onecell(struct irq_domain *d,
     return 0;
 }
 EXPORT_SYMBOL(irq_domain_translate_onecell);
+
+int irq_domain_xlate_onecell(struct irq_domain *d,
+                             struct device_node *ctrlr,
+                             const u32 *intspec,
+                             unsigned int intsize,
+                             unsigned long *out_hwirq,
+                             unsigned int *out_type)
+{
+    BUG_ON(intsize < 1);
+    *out_hwirq = intspec[0];
+    *out_type = IRQ_TYPE_NONE;
+    return 0;
+}
+EXPORT_SYMBOL(irq_domain_xlate_onecell);
 
 struct irq_data *
 irq_domain_get_irq_data(struct irq_domain *domain, unsigned int virq)

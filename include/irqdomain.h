@@ -47,8 +47,15 @@ struct irq_domain {
 };
 
 struct irq_domain_ops {
+    int (*map)(struct irq_domain *d,
+               unsigned int virq, irq_hw_number_t hw);
+    int (*xlate)(struct irq_domain *d, struct device_node *node,
+                 const u32 *intspec, unsigned int intsize,
+                 unsigned long *out_hwirq, unsigned int *out_type);
     int (*alloc)(struct irq_domain *d, unsigned int virq,
                  unsigned int nr_irqs, void *arg);
+    int (*translate)(struct irq_domain *d, struct irq_fwspec *fwspec,
+                     unsigned long *out_hwirq, unsigned int *out_type);
 };
 
 unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data);
@@ -142,5 +149,22 @@ static inline struct irq_domain *irq_find_host(struct device_node *node)
 
     return d;
 }
+
+int irq_domain_xlate_onecell(struct irq_domain *d,
+                             struct device_node *ctrlr,
+                             const u32 *intspec,
+                             unsigned int intsize,
+                             unsigned long *out_hwirq,
+                             unsigned int *out_type);
+
+static inline struct device_node *
+irq_domain_get_of_node(struct irq_domain *d)
+{
+    return to_of_node(d->fwnode);
+}
+
+int irq_domain_alloc_descs(int virq, unsigned int cnt,
+                           irq_hw_number_t hwirq,
+                           const struct irq_affinity_desc *affinity);
 
 #endif /* _LINUX_IRQDOMAIN_H */

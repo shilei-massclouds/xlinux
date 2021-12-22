@@ -18,4 +18,6 @@ of_irq_parse_one(struct device_node *device,
                  int index,
                  struct of_phandle_args *out_irq);
 
+unsigned int irq_of_parse_and_map(struct device_node *dev, int index);
+
 #endif /* __OF_IRQ_H */

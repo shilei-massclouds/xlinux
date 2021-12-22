@@ -40,6 +40,11 @@ EXPORT_SYMBOL(irq_set_chip_data);
 
 void irq_percpu_enable(struct irq_desc *desc)
 {
-    panic("%s: !", __func__);
-    //desc->irq_data.chip->irq_unmask(&desc->irq_data);
+    desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
+
+void handle_percpu_devid_irq(struct irq_desc *desc)
+{
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(handle_percpu_devid_irq);

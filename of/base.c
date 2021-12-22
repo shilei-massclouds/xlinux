@@ -244,6 +244,7 @@ __of_parse_phandle_with_args(const struct device_node *np,
                 of_node_put(it.node);
             }
 
+            printk("%s: %s %x\n", __func__, np->name, out_args->args[0]);
             /* Found it! return success */
             return 0;
         }

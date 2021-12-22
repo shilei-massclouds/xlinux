@@ -115,6 +115,7 @@ plic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 }
 
 static const struct irq_domain_ops plic_irqdomain_ops = {
+    .translate  = irq_domain_translate_onecell,
     .alloc  = plic_irq_domain_alloc,
 };
 
@@ -170,9 +171,8 @@ plic_init(struct device_node *node, struct device_node *parent)
 
         /* Find parent domain and register chained handler */
         if (!plic_parent_irq && irq_find_host(parent.np)) {
-            printk("%s: 1\n", __func__);
+            plic_parent_irq = irq_of_parse_and_map(node, i);
         }
-        panic("%s: 2", __func__);
 
         plic_handler.hart_base =
             priv->regs + CONTEXT_BASE + i * CONTEXT_PER_HART;

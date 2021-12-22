@@ -29,6 +29,16 @@
 
 #define for_each_of_allnodes(dn) for_each_of_allnodes_from(NULL, dn)
 
+#define to_of_node(__fwnode)                                \
+    ({                                                      \
+        typeof(__fwnode) __to_of_node_fwnode = (__fwnode);  \
+                                                            \
+        is_of_node(__to_of_node_fwnode) ?                   \
+            container_of(__to_of_node_fwnode,               \
+                     struct device_node, fwnode) :          \
+            NULL;                                           \
+    })
+
 typedef u32 phandle;
 
 struct property {

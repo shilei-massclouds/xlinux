@@ -138,6 +138,8 @@ of_irq_parse_one(struct device_node *device,
     /* Get the reg property (if any) */
     addr = of_get_property(device, "reg", NULL);
 
+    printk("%s: \n", __func__);
+
     /* Try the new-style interrupts-extended first */
     res = of_parse_phandle_with_args(device,
                                      "interrupts-extended",
@@ -146,6 +148,8 @@ of_irq_parse_one(struct device_node *device,
     if (!res)
         return of_irq_parse_raw(addr, out_irq);
 
+    printk("%s: %s %s 0x%x\n",
+           __func__, device->name, out_irq->np->name, out_irq->args[0]);
     /* Look for the interrupt parent. */
     p = of_irq_find_parent(device);
     if (p == NULL)
@@ -166,6 +170,7 @@ of_irq_parse_one(struct device_node *device,
             return res;
     }
 
+    res = of_irq_parse_raw(addr, out_irq);
     return res;
 }
 EXPORT_SYMBOL(of_irq_parse_one);
@@ -247,3 +252,14 @@ int of_irq_count(struct device_node *dev)
     return nr;
 }
 EXPORT_SYMBOL(of_irq_count);
+
+unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
+{
+    struct of_phandle_args oirq;
+
+    if (of_irq_parse_one(dev, index, &oirq))
+        return 0;
+
+    return irq_create_of_mapping(&oirq);
+}
+EXPORT_SYMBOL(irq_of_parse_and_map);

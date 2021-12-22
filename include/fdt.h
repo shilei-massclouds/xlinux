@@ -223,16 +223,6 @@ of_property_read_string(const struct device_node *np,
                         const char *propname,
                         const char **out_string);
 
-#define to_of_node(__fwnode)                                \
-    ({                                                      \
-        typeof(__fwnode) __to_of_node_fwnode = (__fwnode);  \
-                                                            \
-        is_of_node(__to_of_node_fwnode) ?                   \
-            container_of(__to_of_node_fwnode,               \
-                     struct device_node, fwnode) :          \
-            NULL;                                           \
-    })
-
 #define of_fwnode_handle(node)                          \
     ({                                                  \
         typeof(node) __of_fwnode_handle_node = (node);  \
