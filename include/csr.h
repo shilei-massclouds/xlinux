@@ -35,6 +35,8 @@
 #define SR_FS_CLEAN	_AC(0x00004000, UL)
 #define SR_FS_DIRTY	_AC(0x00006000, UL)
 
+# define SR_IE      SR_SIE
+
 /* Exception cause high bit - is an interrupt if set */
 #define CAUSE_IRQ_FLAG  (_AC(1, UL) << (__riscv_xlen - 1))
 
@@ -65,6 +67,22 @@
 ({                                                      \
     unsigned long __v = (unsigned long)(val);           \
     __asm__ __volatile__ ("csrw " __ASM_STR(csr) ", %0" \
+                          : : "rK" (__v)                \
+                          : "memory");                  \
+})
+
+#define csr_set(csr, val)                               \
+({                                                      \
+    unsigned long __v = (unsigned long)(val);           \
+    __asm__ __volatile__ ("csrs " __ASM_STR(csr) ", %0" \
+                          : : "rK" (__v)                \
+                          : "memory");                  \
+})
+
+#define csr_clear(csr, val)                             \
+({                                                      \
+    unsigned long __v = (unsigned long)(val);           \
+    __asm__ __volatile__ ("csrc " __ASM_STR(csr) ", %0" \
                           : : "rK" (__v)                \
                           : "memory");                  \
 })

@@ -69,4 +69,6 @@ static inline void *irq_get_chip_data(unsigned int irq)
     return d ? d->chip_data : NULL;
 }
 
+void enable_percpu_irq(unsigned int irq);
+
 #endif /* _IRQ_H_ */

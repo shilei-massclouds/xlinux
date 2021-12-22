@@ -34,6 +34,7 @@ irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 
     panic("no irq domain!");
 }
+EXPORT_SYMBOL(irq_find_matching_fwspec);
 
 unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 {

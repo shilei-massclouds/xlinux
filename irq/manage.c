@@ -4,6 +4,7 @@
 #include <slab.h>
 #include <errno.h>
 #include <export.h>
+#include <irqchip.h>
 #include <irqdesc.h>
 #include <interrupt.h>
 
@@ -87,3 +88,14 @@ int __irq_set_affinity(unsigned int irq,
     return irq_set_affinity_locked(irq_desc_get_irq_data(desc), mask, force);
 }
 EXPORT_SYMBOL(__irq_set_affinity);
+
+void enable_percpu_irq(unsigned int irq)
+{
+    struct irq_desc *desc = irq_to_desc(irq);
+
+    if (!desc)
+        return;
+
+    irq_percpu_enable(desc);
+}
+EXPORT_SYMBOL(enable_percpu_irq);

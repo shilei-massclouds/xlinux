@@ -19,13 +19,10 @@
 static inline int
 wait_on_bit_io(unsigned long *word, int bit, unsigned mode)
 {
-    if (!test_bit(bit, word))
-        return 0;
-
-    /* Todo */
+    /* NOTICE: Just wait until the bit is cleared. */
+    printk("%s: ...\n", __func__);
+    while (test_bit(bit, word));
     return 0;
-    //panic("%s:", __func__);
-    //return out_of_line_wait_on_bit(word, bit, bit_wait_io, mode);
 }
 
 /**

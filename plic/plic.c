@@ -16,17 +16,26 @@
 #define ENABLE_BASE     0x2000
 #define ENABLE_PER_HART 0x80
 
+#define CONTEXT_BASE        0x200000
+#define CONTEXT_PER_HART    0x1000
+#define CONTEXT_THRESHOLD   0x00
+
+#define PLIC_ENABLE_THRESHOLD   0
+
 struct plic_priv {
     struct irq_domain *irqdomain;
     void *regs;
 };
 
 struct plic_handler {
+    void *hart_base;
     void *enable_base;
 };
 
 bool plic_initialized;
 EXPORT_SYMBOL(plic_initialized);
+
+static int plic_parent_irq;
 
 static struct plic_handler plic_handler;
 
@@ -109,6 +118,23 @@ static const struct irq_domain_ops plic_irqdomain_ops = {
     .alloc  = plic_irq_domain_alloc,
 };
 
+static void plic_set_threshold(struct plic_handler *handler, u32 threshold)
+{
+    /* priority must be > threshold to trigger an interrupt */
+    writel(threshold, handler->hart_base + CONTEXT_THRESHOLD);
+}
+
+static int plic_starting_cpu(void)
+{
+    if (plic_parent_irq)
+        enable_percpu_irq(plic_parent_irq);
+    else
+        panic("parent irq not available");
+
+    plic_set_threshold(&plic_handler, PLIC_ENABLE_THRESHOLD);
+    return 0;
+}
+
 static int
 plic_init(struct device_node *node, struct device_node *parent)
 {
@@ -142,9 +168,20 @@ plic_init(struct device_node *node, struct device_node *parent)
         if (of_irq_parse_one(node, i, &parent))
             panic("failed to parse parent for context %d.", i);
 
+        /* Find parent domain and register chained handler */
+        if (!plic_parent_irq && irq_find_host(parent.np)) {
+            printk("%s: 1\n", __func__);
+        }
+        panic("%s: 2", __func__);
+
+        plic_handler.hart_base =
+            priv->regs + CONTEXT_BASE + i * CONTEXT_PER_HART;
+
         plic_handler.enable_base =
             priv->regs + ENABLE_BASE + i * ENABLE_PER_HART;
     }
+
+    plic_starting_cpu();
 
     return 0;
 }

@@ -110,4 +110,37 @@ void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
                          void *chip_data, irq_flow_handler_t handler,
                          void *handler_data, const char *handler_name);
 
+struct irq_domain *
+irq_find_matching_fwspec(struct irq_fwspec *fwspec,
+                         enum irq_domain_bus_token bus_token);
+
+static inline struct irq_domain *
+irq_find_matching_fwnode(struct fwnode_handle *fwnode,
+                         enum irq_domain_bus_token bus_token)
+{
+    struct irq_fwspec fwspec = {
+        .fwnode = fwnode,
+    };
+
+    return irq_find_matching_fwspec(&fwspec, bus_token);
+}
+
+static inline struct irq_domain *
+irq_find_matching_host(struct device_node *node,
+                       enum irq_domain_bus_token bus_token)
+{
+    return irq_find_matching_fwnode(of_node_to_fwnode(node), bus_token);
+}
+
+static inline struct irq_domain *irq_find_host(struct device_node *node)
+{
+    struct irq_domain *d;
+
+    d = irq_find_matching_host(node, DOMAIN_BUS_WIRED);
+    if (!d)
+        d = irq_find_matching_host(node, DOMAIN_BUS_ANY);
+
+    return d;
+}
+
 #endif /* _LINUX_IRQDOMAIN_H */

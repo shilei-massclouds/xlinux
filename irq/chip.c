@@ -37,3 +37,9 @@ int irq_set_chip_data(unsigned int irq, void *data)
     return 0;
 }
 EXPORT_SYMBOL(irq_set_chip_data);
+
+void irq_percpu_enable(struct irq_desc *desc)
+{
+    panic("%s: !", __func__);
+    //desc->irq_data.chip->irq_unmask(&desc->irq_data);
+}
