@@ -18,6 +18,16 @@ static LIST_HEAD(irq_domain_list);
 const struct fwnode_operations irqchip_fwnode_ops;
 EXPORT_SYMBOL(irqchip_fwnode_ops);
 
+static void irq_domain_set_mapping(struct irq_domain *domain,
+                                   irq_hw_number_t hwirq,
+                                   struct irq_data *irq_data)
+{
+    if (hwirq < domain->revmap_size)
+        domain->linear_revmap[hwirq] = irq_data->irq;
+    else
+        panic("hwirq too large!");
+}
+
 struct irq_domain *
 irq_find_matching_fwspec(struct irq_fwspec *fwspec,
                          enum irq_domain_bus_token bus_token)
@@ -60,6 +70,7 @@ int irq_domain_associate(struct irq_domain *domain,
             domain->name = irq_data->chip->name;
     }
 
+    irq_domain_set_mapping(domain, hwirq, irq_data);
     return 0;
 }
 
@@ -205,6 +216,7 @@ __irq_domain_add(struct fwnode_handle *fwnode, int size,
 
     domain->ops = ops;
     domain->host_data = host_data;
+    domain->revmap_size = size;
     irq_domain_check_hierarchy(domain);
 
     list_add(&domain->link, &irq_domain_list);
@@ -289,7 +301,17 @@ irq_domain_alloc_irq_data(struct irq_domain *domain,
 
 static void irq_domain_insert_irq(int virq)
 {
-    /* Todo: */
+    struct irq_data *data;
+
+    for (data = irq_get_irq_data(virq); data; data = data->parent_data) {
+        struct irq_domain *domain = data->domain;
+
+        irq_domain_set_mapping(domain, data->hwirq, data);
+
+        /* If not already assigned, give the domain the chip's name */
+        if (!domain->name && data->chip)
+            domain->name = data->chip->name;
+    }
 }
 
 int
@@ -387,6 +409,30 @@ void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
                          void *handler_data, const char *handler_name)
 {
     irq_domain_set_hwirq_and_chip(domain, virq, hwirq, chip, chip_data);
+    __irq_set_handler(virq, handler, 0, handler_name);
     irq_set_chip_data(virq, chip_data);
 }
 EXPORT_SYMBOL(irq_domain_set_info);
+
+/**
+ * irq_find_mapping() - Find a linux irq from a hw irq number.
+ * @domain: domain owning this hardware interrupt
+ * @hwirq: hardware irq number in that domain space
+ */
+unsigned int
+irq_find_mapping(struct irq_domain *domain, irq_hw_number_t hwirq)
+{
+    struct irq_data *data;
+
+    BUG_ON(domain == NULL);
+
+    printk("%s: %u, %u\n",
+           __func__, hwirq, domain->revmap_size);
+
+    /* Check if the hwirq is in the linear revmap. */
+    if (hwirq < domain->revmap_size)
+        return domain->linear_revmap[hwirq];
+
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(irq_find_mapping);

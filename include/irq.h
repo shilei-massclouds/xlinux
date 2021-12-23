@@ -4,6 +4,8 @@
 
 #include <types.h>
 #include <ptrace.h>
+#include <irqreturn.h>
+#include <irqhandler.h>
 #include <mod_devicetable.h>
 
 #define NR_IRQS 64
@@ -72,5 +74,25 @@ static inline void *irq_get_chip_data(unsigned int irq)
 }
 
 void enable_percpu_irq(unsigned int irq);
+
+void
+__irq_set_handler(unsigned int irq, irq_flow_handler_t handle,
+                  int is_chained, const char *name);
+
+/*
+ * Set a highlevel chained flow handler for a given IRQ.
+ * (a chained handler is automatically enabled and set to
+ *  IRQ_NOREQUEST, IRQ_NOPROBE, and IRQ_NOTHREAD)
+ */
+static inline void
+irq_set_chained_handler(unsigned int irq, irq_flow_handler_t handle)
+{
+    __irq_set_handler(irq, handle, 1, NULL);
+}
+
+irqreturn_t handle_irq_event(struct irq_desc *desc);
+
+#define for_each_action_of_desc(desc, act) \
+    for (act = desc->action; act; act = act->next)
 
 #endif /* _IRQ_H_ */

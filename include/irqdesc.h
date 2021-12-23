@@ -8,8 +8,10 @@
 #include <irqhandler.h>
 
 struct irq_desc {
-    irq_flow_handler_t handle_irq;
     struct irq_data irq_data;
+    irq_flow_handler_t handle_irq;
+    struct irqaction *action;    /* IRQ action list */
+    const char *name;
 };
 
 /*
@@ -51,5 +53,17 @@ irq_desc_get_irq_data(struct irq_desc *desc)
 {
     return &desc->irq_data;
 }
+
+static inline unsigned int irq_desc_get_irq(struct irq_desc *desc)
+{
+    return desc->irq_data.irq;
+}
+
+static inline struct irq_chip *irq_desc_get_chip(struct irq_desc *desc)
+{
+    return desc->irq_data.chip;
+}
+
+int generic_handle_irq(unsigned int irq);
 
 #endif /* _LINUX_IRQDESC_H */

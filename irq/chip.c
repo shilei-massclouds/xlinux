@@ -15,6 +15,7 @@ EXPORT_SYMBOL(irq_get_irq_data);
 
 void handle_fasteoi_irq(struct irq_desc *desc)
 {
+    handle_irq_event(desc);
     panic("%s: !", __func__);
 }
 EXPORT_SYMBOL(handle_fasteoi_irq);
@@ -46,6 +47,35 @@ void irq_percpu_enable(struct irq_desc *desc)
 
 void handle_percpu_devid_irq(struct irq_desc *desc)
 {
-    panic("%s: !", __func__);
+    unsigned int irq = irq_desc_get_irq(desc);
+    struct irqaction *action = desc->action;
+
+    if (likely(action))
+        action->handler(irq, action->percpu_dev_id);
+    else
+        panic("!!! NOTICE: no action for irq:%u !", irq);
 }
 EXPORT_SYMBOL(handle_percpu_devid_irq);
+
+static void
+__irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
+                     int is_chained, const char *name)
+{
+    BUG_ON(!handle);
+
+    desc->handle_irq = handle;
+    desc->name = name;
+}
+
+void
+__irq_set_handler(unsigned int irq, irq_flow_handler_t handle,
+                  int is_chained, const char *name)
+{
+    struct irq_desc *desc = irq_to_desc(irq);
+
+    if (!desc)
+        return;
+
+    __irq_do_set_handler(desc, handle, is_chained, name);
+}
+EXPORT_SYMBOL(__irq_set_handler);

@@ -44,6 +44,9 @@ struct irq_domain {
     struct fwnode_handle *fwnode;
     enum irq_domain_bus_token bus_token;
     struct irq_domain *parent;
+
+    unsigned int revmap_size;
+    unsigned int linear_revmap[];
 };
 
 struct irq_domain_ops {
@@ -166,5 +169,8 @@ irq_domain_get_of_node(struct irq_domain *d)
 int irq_domain_alloc_descs(int virq, unsigned int cnt,
                            irq_hw_number_t hwirq,
                            const struct irq_affinity_desc *affinity);
+
+unsigned int
+irq_find_mapping(struct irq_domain *domain, irq_hw_number_t hwirq);
 
 #endif /* _LINUX_IRQDOMAIN_H */

@@ -8,12 +8,22 @@
 #include <irqdesc.h>
 #include <interrupt.h>
 
+extern struct irq_chip no_irq_chip;
+
 static int
 __setup_irq(unsigned int irq,
             struct irq_desc *desc,
             struct irqaction *new)
 {
-    /* Todo: */
+    if (!desc)
+        return -EINVAL;
+
+    if (desc->irq_data.chip == &no_irq_chip)
+        return -ENOSYS;
+
+    new->irq = irq;
+    desc->action = new;
+
     return 0;
 }
 
@@ -71,6 +81,7 @@ irq_set_affinity_locked(struct irq_data *data,
                         const struct cpumask *mask,
                         bool force)
 {
+    printk("%s: 1\n", __func__);
     return irq_try_set_affinity(data, mask, force);
 }
 

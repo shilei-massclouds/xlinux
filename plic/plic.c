@@ -20,6 +20,7 @@
 #define CONTEXT_BASE        0x200000
 #define CONTEXT_PER_HART    0x1000
 #define CONTEXT_THRESHOLD   0x00
+#define CONTEXT_CLAIM       0x04
 
 #define PLIC_ENABLE_THRESHOLD   0
 
@@ -31,6 +32,7 @@ struct plic_priv {
 struct plic_handler {
     void *hart_base;
     void *enable_base;
+    struct plic_priv *priv;
 };
 
 bool plic_initialized;
@@ -86,10 +88,7 @@ plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
     irq_domain_set_info(d, irq, hwirq, &plic_chip, d->host_data,
                         handle_fasteoi_irq, NULL, NULL);
 
-
-    printk("%s: 1 irq(%u)\n", __func__, irq);
     irq_set_affinity(irq, NULL);
-    printk("%s: 2 irq(%u)\n", __func__, irq);
     return 0;
 }
 
@@ -138,6 +137,23 @@ static int plic_starting_cpu(void)
     return 0;
 }
 
+static void plic_handle_irq(struct irq_desc *desc)
+{
+    irq_hw_number_t hwirq;
+    struct plic_handler *handler = &plic_handler;
+    struct irq_chip *chip = irq_desc_get_chip(desc);
+    void *claim = handler->hart_base + CONTEXT_CLAIM;
+
+    while ((hwirq = readl(claim))) {
+        int irq = irq_find_mapping(handler->priv->irqdomain, hwirq);
+
+        if (unlikely(irq <= 0))
+            panic("can't find mapping for hwirq %lu", hwirq);
+        else
+            generic_handle_irq(irq);
+    }
+}
+
 static int
 plic_init(struct device_node *node, struct device_node *parent)
 {
@@ -181,6 +197,8 @@ plic_init(struct device_node *node, struct device_node *parent)
         /* Find parent domain and register chained handler */
         if (!plic_parent_irq && irq_find_host(parent.np)) {
             plic_parent_irq = irq_of_parse_and_map(node, i);
+            if (plic_parent_irq)
+                irq_set_chained_handler(plic_parent_irq, plic_handle_irq);
         }
 
         plic_handler.hart_base =
@@ -188,6 +206,8 @@ plic_init(struct device_node *node, struct device_node *parent)
 
         plic_handler.enable_base =
             priv->regs + ENABLE_BASE + i * ENABLE_PER_HART;
+
+        plic_handler.priv = priv;
     }
 
     plic_starting_cpu();

@@ -108,6 +108,7 @@ init_vq(struct virtio_blk *vblk)
         goto out;
     }
 
+    printk("%s: desc(0x%p)!\n", __func__, virtblk_done);
     for (i = 0; i < num_vqs; i++) {
         callbacks[i] = virtblk_done;
         snprintf(vblk->vqs[i].name, VQ_NAME_LEN, "req.%d", i);

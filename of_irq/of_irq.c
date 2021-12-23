@@ -138,7 +138,7 @@ of_irq_parse_one(struct device_node *device,
     /* Get the reg property (if any) */
     addr = of_get_property(device, "reg", NULL);
 
-    printk("%s: \n", __func__);
+    printk("%s: 1\n", __func__);
 
     /* Try the new-style interrupts-extended first */
     res = of_parse_phandle_with_args(device,
@@ -148,8 +148,7 @@ of_irq_parse_one(struct device_node *device,
     if (!res)
         return of_irq_parse_raw(addr, out_irq);
 
-    printk("%s: %s %s 0x%x\n",
-           __func__, device->name, out_irq->np->name, out_irq->args[0]);
+    printk("%s: 2\n", __func__);
     /* Look for the interrupt parent. */
     p = of_irq_find_parent(device);
     if (p == NULL)

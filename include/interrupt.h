@@ -44,11 +44,14 @@ struct irq_affinity_desc {
 };
 
 struct irqaction {
-    irq_handler_t   handler;
-    irq_handler_t   thread_fn;
-    unsigned int    flags;
-    const char      *name;
-    void            *dev_id;
+    irq_handler_t handler;
+    void *percpu_dev_id;
+    struct irqaction *next;
+    irq_handler_t thread_fn;
+    unsigned int irq;
+    unsigned int flags;
+    const char *name;
+    void *dev_id;
 };
 
 int
