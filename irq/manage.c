@@ -96,6 +96,7 @@ void enable_percpu_irq(unsigned int irq)
     if (!desc)
         return;
 
+    printk("%s: irq(%x)\n", __func__, irq);
     irq_percpu_enable(desc);
 }
 EXPORT_SYMBOL(enable_percpu_irq);

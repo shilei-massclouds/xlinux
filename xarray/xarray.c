@@ -114,9 +114,7 @@ static int xas_expand(struct xa_state *xas, void *head)
     struct xa_node *node = NULL;
     struct xarray *xa = xas->xa;
 
-    printk("%s: head(%p) xa(%p)\n", __func__, head, xas->xa);
     if (!head) {
-        printk("%s: 1\n", __func__);
         if (xas->xa_index == 0)
             return 0;
         while ((xas->xa_index >> shift) >= XA_CHUNK_SIZE)
@@ -129,8 +127,6 @@ static int xas_expand(struct xa_state *xas, void *head)
     xas->xa_node = NULL;
 
     while (xas->xa_index > max_index(head)) {
-        printk("%s: shift(%d) max(%lu, %lu)\n",
-               __func__, shift, xas->xa_index, max_index(head));
         BUG_ON(shift > BITS_PER_LONG);
         node = xas_alloc(xas, shift);
         if (!node)
@@ -163,10 +159,8 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 
     if (xas_top(node)) {
         entry = xa_head_locked(xa);
-        printk("%s: 1 entry(%p)\n", __func__, entry);
         xas->xa_node = NULL;
         shift = xas_expand(xas, entry);
-        printk("%s: 2 shift(%d)\n", __func__, shift);
         if (shift < 0)
             return NULL;
         if (!shift && !allow_root)
@@ -191,9 +185,6 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
         }
         entry = xas_descend(xas, node);
         slot = &node->slots[xas->xa_offset];
-
-        printk("%s: shift(%d) order(%d), xa_offset(%lu)",
-               __func__, shift, order, xas->xa_offset);
     }
 
     return entry;
@@ -205,12 +196,9 @@ void *xas_store(struct xa_state *xas, void *entry)
     struct xa_node *node;
     void **slot = &xas->xa->xa_head;
 
-    printk("%s: 1 entry(%p)\n", __func__, entry);
     if (entry) {
         bool allow_root = !xa_is_node(entry) && !xa_is_zero(entry);
         first = xas_create(xas, allow_root);
-        printk("%s: entry(%p) allow_root(%d) first(%p)\n",
-               __func__, entry, allow_root, first);
     } else {
         first = xas_load(xas);
     }
@@ -218,18 +206,15 @@ void *xas_store(struct xa_state *xas, void *entry)
     if (xas_invalid(xas))
         return first;
 
-    printk("%s: 2 entry(%p)\n", __func__, entry);
     node = xas->xa_node;
     if (first == entry)
         return first;
 
-    printk("%s: 3 first(%p) entry(%p)\n", __func__, first, entry);
     if (node)
         slot = &node->slots[xas->xa_offset];
 
     *slot = entry;
 
-    printk("%s: ret first(%p)\n", __func__, first);
     return first;
 }
 EXPORT_SYMBOL(xas_store);

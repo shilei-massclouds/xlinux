@@ -86,14 +86,8 @@ static inline bool bio_full(struct bio *bio, unsigned len)
     if (bio->bi_vcnt >= bio->bi_max_vecs)
         return true;
 
-    printk("###### %s: bi_size(%u) len(%u)\n",
-           __func__, bio->bi_iter.bi_size, len);
-
     if (bio->bi_iter.bi_size > UINT_MAX - len)
         return true;
-
-    printk("###### %s 2: bi_size(%u) len(%u)\n",
-           __func__, bio->bi_iter.bi_size, len);
 
     return false;
 }

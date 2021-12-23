@@ -35,8 +35,6 @@
 #define SR_FS_CLEAN	_AC(0x00004000, UL)
 #define SR_FS_DIRTY	_AC(0x00006000, UL)
 
-# define SR_IE      SR_SIE
-
 /* Exception cause high bit - is an interrupt if set */
 #define CAUSE_IRQ_FLAG  (_AC(1, UL) << (__riscv_xlen - 1))
 
@@ -61,6 +59,9 @@
 #define EXC_INST_PAGE_FAULT     12
 #define EXC_LOAD_PAGE_FAULT     13
 #define EXC_STORE_PAGE_FAULT    15
+
+#define SR_IE       SR_SIE
+#define RV_IRQ_EXT  IRQ_S_EXT
 
 #ifndef __ASSEMBLY__
 #define csr_write(csr, val)                             \

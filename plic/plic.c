@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <csr.h>
 #include <irq.h>
 #include <mmio.h>
 #include <slab.h>
@@ -127,6 +128,7 @@ static void plic_set_threshold(struct plic_handler *handler, u32 threshold)
 
 static int plic_starting_cpu(void)
 {
+    printk("%s: plic_parent_irq(%x)\n", __func__, plic_parent_irq);
     if (plic_parent_irq)
         enable_percpu_irq(plic_parent_irq);
     else
@@ -168,6 +170,13 @@ plic_init(struct device_node *node, struct device_node *parent)
 
         if (of_irq_parse_one(node, i, &parent))
             panic("failed to parse parent for context %d.", i);
+
+        /*
+         * Skip contexts other than external interrupts for our
+         * privilege level.
+         */
+        if (parent.args[0] != RV_IRQ_EXT)
+            continue;
 
         /* Find parent domain and register chained handler */
         if (!plic_parent_irq && irq_find_host(parent.np)) {
