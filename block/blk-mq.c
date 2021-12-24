@@ -398,6 +398,36 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 }
 EXPORT_SYMBOL(blk_mq_submit_bio);
 
+static void blk_mq_trigger_softirq(struct request *rq)
+{
+    panic("%s: !", __func__);
+}
+
+bool blk_mq_complete_request_remote(struct request *rq)
+{
+    WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
+
+    /*
+     * For a polled request, always complete locallly, it's pointless
+     * to redirect the completion.
+     */
+    if (rq->cmd_flags & REQ_HIPRI)
+        return false;
+
+    if (rq->q->nr_hw_queues > 1)
+        return false;
+
+    blk_mq_trigger_softirq(rq);
+    return true;
+}
+EXPORT_SYMBOL(blk_mq_complete_request_remote);
+
+void blk_mq_complete_request(struct request *rq)
+{
+    BUG_ON(!blk_mq_complete_request_remote(rq));
+}
+EXPORT_SYMBOL(blk_mq_complete_request);
+
 static int
 init_module(void)
 {

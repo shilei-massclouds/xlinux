@@ -212,4 +212,16 @@ kblockd_mod_delayed_work_on(int cpu,
                             struct delayed_work *dwork,
                             unsigned long delay);
 
+static inline struct request *blk_mq_rq_from_pdu(void *pdu)
+{
+    return pdu - sizeof(struct request);
+}
+
+static inline bool blk_should_fake_timeout(struct request_queue *q)
+{
+    return false;
+}
+
+void blk_mq_complete_request(struct request *rq);
+
 #endif /* BLK_MQ_H */

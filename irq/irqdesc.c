@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <bitmap.h>
 #include <export.h>
+#include <hardirq.h>
 #include <irqdesc.h>
 #include <irq_regs.h>
 #include <radix-tree.h>
@@ -44,6 +45,8 @@ __handle_domain_irq(struct irq_domain *domain,
     unsigned int irq = hwirq;
     struct pt_regs *old_regs = set_irq_regs(regs);
 
+    irq_enter();
+
     /*
      * Some hardware gives randomly wrong interrupts.  Rather
      * than crashing, do something sensible.
@@ -54,6 +57,7 @@ __handle_domain_irq(struct irq_domain *domain,
         generic_handle_irq(irq);
     }
 
+    irq_exit();
     set_irq_regs(old_regs);
     return 0;
 }

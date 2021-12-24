@@ -161,6 +161,7 @@ __vring_new_virtqueue(unsigned int index,
 
     vq->indirect = virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC) && !context;
     vq->event = virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX);
+    BUG_ON(!(vq->event));
 
     if (virtio_has_feature(vdev, VIRTIO_F_ORDER_PLATFORM))
         vq->weak_barriers = false;
@@ -175,8 +176,6 @@ __vring_new_virtqueue(unsigned int index,
     /* No callback?  Tell other side not to bother us. */
     if (!callback) {
         vq->split.avail_flags_shadow |= VRING_AVAIL_F_NO_INTERRUPT;
-        if (!vq->event)
-            vq->split.vring.avail->flags = (u16)(vq->split.avail_flags_shadow);
     }
 
     vq->split.desc_state =
@@ -457,6 +456,13 @@ virtqueue_add_split(struct virtqueue *_vq,
     else
         vq->free_head = i;
 
+    /* Store token and indirect buffer state. */
+    vq->split.desc_state[head].data = data;
+    if (indirect)
+        vq->split.desc_state[head].indir_desc = desc;
+    else
+        vq->split.desc_state[head].indir_desc = ctx;
+
     /* Put entry in available array
      * (but don't update avail->idx until they do sync). */
     avail = vq->split.avail_idx_shadow & (vq->split.vring.num - 1);
@@ -552,3 +558,179 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
     return IRQ_HANDLED;
 }
 EXPORT_SYMBOL(vring_interrupt);
+
+static void virtqueue_disable_cb_split(struct virtqueue *_vq)
+{
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    if (!(vq->split.avail_flags_shadow & VRING_AVAIL_F_NO_INTERRUPT)) {
+        vq->split.avail_flags_shadow |= VRING_AVAIL_F_NO_INTERRUPT;
+    }
+}
+
+void virtqueue_disable_cb(struct virtqueue *_vq)
+{
+    virtqueue_disable_cb_split(_vq);
+}
+EXPORT_SYMBOL(virtqueue_disable_cb);
+
+static unsigned virtqueue_enable_cb_prepare_split(struct virtqueue *_vq)
+{
+    u16 last_used_idx;
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    /* We optimistically turn back on interrupts, then check if there was
+     * more to do. */
+    /* Depending on the VIRTIO_RING_F_EVENT_IDX feature, we need to
+     * either clear the flags bit or point the event index at the next
+     * entry. Always do both to keep code simple. */
+    if (vq->split.avail_flags_shadow & VRING_AVAIL_F_NO_INTERRUPT)
+        vq->split.avail_flags_shadow &= ~VRING_AVAIL_F_NO_INTERRUPT;
+
+    last_used_idx = vq->last_used_idx;
+    vring_used_event(&vq->split.vring) = last_used_idx;
+    return last_used_idx;
+}
+
+unsigned virtqueue_enable_cb_prepare(struct virtqueue *_vq)
+{
+    return virtqueue_enable_cb_prepare_split(_vq);
+}
+EXPORT_SYMBOL(virtqueue_enable_cb_prepare);
+
+static bool
+virtqueue_poll_split(struct virtqueue *_vq, unsigned last_used_idx)
+{
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    return (u16)last_used_idx != vq->split.vring.used->idx;
+}
+
+bool virtqueue_poll(struct virtqueue *_vq, unsigned last_used_idx)
+{
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    if (unlikely(vq->broken))
+        return false;
+
+    return virtqueue_poll_split(_vq, last_used_idx);
+}
+EXPORT_SYMBOL(virtqueue_poll);
+
+bool virtqueue_enable_cb(struct virtqueue *_vq)
+{
+    unsigned last_used_idx = virtqueue_enable_cb_prepare(_vq);
+
+    return !virtqueue_poll(_vq, last_used_idx);
+}
+EXPORT_SYMBOL(virtqueue_enable_cb);
+
+static void
+vring_unmap_one_split(const struct vring_virtqueue *vq,
+                      struct vring_desc *desc)
+{
+    u16 flags;
+
+    if (!vq->use_dma_api)
+        return;
+
+    panic("use dma api!");
+}
+
+static void
+detach_buf_split(struct vring_virtqueue *vq, unsigned int head,
+                 void **ctx)
+{
+    unsigned int i, j;
+    __virtio16 nextflag = VRING_DESC_F_NEXT;
+
+    /* Clear data ptr. */
+    vq->split.desc_state[head].data = NULL;
+
+    /* Put back on free list: unmap first-level descriptors and find end */
+    i = head;
+
+    while (vq->split.vring.desc[i].flags & nextflag) {
+        vring_unmap_one_split(vq, &vq->split.vring.desc[i]);
+        i = vq->split.vring.desc[i].next;
+        vq->vq.num_free++;
+    }
+
+    vring_unmap_one_split(vq, &vq->split.vring.desc[i]);
+    vq->split.vring.desc[i].next = vq->free_head;
+    vq->free_head = head;
+
+    /* Plus final descriptor */
+    vq->vq.num_free++;
+
+    if (vq->indirect) {
+        u32 len;
+        struct vring_desc *indir_desc =
+            vq->split.desc_state[head].indir_desc;
+
+        /* Free the indirect table, if any, now that it's unmapped. */
+        if (!indir_desc)
+            return;
+
+        len = vq->split.vring.desc[head].len;
+
+        BUG_ON(!(vq->split.vring.desc[head].flags & VRING_DESC_F_INDIRECT));
+        BUG_ON(len == 0 || len % sizeof(struct vring_desc));
+
+        for (j = 0; j < len / sizeof(struct vring_desc); j++)
+            vring_unmap_one_split(vq, &indir_desc[j]);
+
+        kfree(indir_desc);
+        vq->split.desc_state[head].indir_desc = NULL;
+    } else {
+        panic("not indirect!");
+    }
+}
+
+static void *
+virtqueue_get_buf_ctx_split(struct virtqueue *_vq, unsigned int *len,
+                            void **ctx)
+{
+    void *ret;
+    unsigned int i;
+    u16 last_used;
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    if (unlikely(vq->broken)) {
+        return NULL;
+    }
+
+    if (!more_used_split(vq)) {
+        return NULL;
+    }
+
+    last_used = (vq->last_used_idx & (vq->split.vring.num - 1));
+    i = vq->split.vring.used->ring[last_used].id;
+    *len = vq->split.vring.used->ring[last_used].len;
+
+    if (unlikely(i >= vq->split.vring.num))
+        panic("id %u out of range\n", i);
+
+    if (unlikely(!vq->split.desc_state[i].data))
+        panic("id %u is not a head!\n", i);
+
+    /* detach_buf_split clears data, so grab it now. */
+    ret = vq->split.desc_state[i].data;
+    detach_buf_split(vq, i, ctx);
+    vq->last_used_idx++;
+
+    return ret;
+}
+
+void *virtqueue_get_buf_ctx(struct virtqueue *_vq, unsigned int *len,
+                            void **ctx)
+{
+    return virtqueue_get_buf_ctx_split(_vq, len, ctx);
+}
+EXPORT_SYMBOL(virtqueue_get_buf_ctx);
+
+void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
+{
+    return virtqueue_get_buf_ctx(_vq, len, NULL);
+}
+EXPORT_SYMBOL(virtqueue_get_buf);

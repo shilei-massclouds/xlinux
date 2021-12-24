@@ -75,6 +75,22 @@ static unsigned int features[] = {
 static void
 virtblk_done(struct virtqueue *vq)
 {
+    unsigned int len;
+    struct virtblk_req *vbr;
+    int qid = vq->index;
+    struct virtio_blk *vblk = vq->vdev->priv;
+
+    do {
+        virtqueue_disable_cb(vq);
+        while ((vbr = virtqueue_get_buf(vblk->vqs[qid].vq, &len)) != NULL) {
+            struct request *req = blk_mq_rq_from_pdu(vbr);
+
+            if (likely(!blk_should_fake_timeout(req->q)))
+                blk_mq_complete_request(req);
+        }
+        panic("%s: !", __func__);
+    } while(!virtqueue_enable_cb(vq));
+
     panic("Implement it!");
 }
 
@@ -396,7 +412,6 @@ virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 static const struct blk_mq_ops virtio_mq_ops = {
     .queue_rq   = virtio_queue_rq,
     /*
-    .commit_rqs = virtio_commit_rqs,
     .complete   = virtblk_request_done,
     */
     .init_request   = virtblk_init_request,

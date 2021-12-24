@@ -299,7 +299,6 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
             ret |= vring_interrupt(irq, info->vq);
     }
 
-    panic("%s: irq(%d) status(%lx)!", __func__, irq, status);
     return ret;
 }
 

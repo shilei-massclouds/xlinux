@@ -48,6 +48,8 @@
  * optimization.  */
 #define VRING_AVAIL_F_NO_INTERRUPT  1
 
+#define vring_used_event(vr) ((vr)->avail->ring[(vr)->num])
+
 /* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
 struct vring_desc {
     /* Address (guest-physical). */
@@ -149,5 +151,11 @@ virtqueue_add_sgs(struct virtqueue *_vq, struct scatterlist *sgs[],
 bool virtqueue_notify(struct virtqueue *_vq);
 
 irqreturn_t vring_interrupt(int irq, void *_vq);
+
+void virtqueue_disable_cb(struct virtqueue *_vq);
+
+bool virtqueue_enable_cb(struct virtqueue *_vq);
+
+void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len);
 
 #endif /* _UAPI_LINUX_VIRTIO_RING_H */
