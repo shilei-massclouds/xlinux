@@ -523,3 +523,32 @@ virtqueue_add_sgs(struct virtqueue *_vq,
                          data, NULL, gfp);
 }
 EXPORT_SYMBOL(virtqueue_add_sgs);
+
+static inline bool more_used_split(const struct vring_virtqueue *vq)
+{
+    return vq->last_used_idx != vq->split.vring.used->idx;
+}
+
+static inline bool more_used(const struct vring_virtqueue *vq)
+{
+    return more_used_split(vq);
+}
+
+irqreturn_t vring_interrupt(int irq, void *_vq)
+{
+    struct vring_virtqueue *vq = to_vvq(_vq);
+
+    if (!more_used(vq)) {
+        return IRQ_NONE;
+    }
+
+    if (unlikely(vq->broken))
+        return IRQ_HANDLED;
+
+    printk("%s: irq(%d)\n", __func__, irq);
+    if (vq->vq.callback)
+        vq->vq.callback(&vq->vq);
+
+    return IRQ_HANDLED;
+}
+EXPORT_SYMBOL(vring_interrupt);

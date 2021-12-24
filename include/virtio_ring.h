@@ -74,6 +74,15 @@ struct vring_used_elem {
     __virtio32 len;
 };
 
+typedef struct vring_used_elem
+__attribute__((aligned(VRING_USED_ALIGN_SIZE))) vring_used_elem_t;
+
+struct vring_used {
+    __virtio16 flags;
+    __virtio16 idx;
+    vring_used_elem_t ring[];
+};
+
 typedef struct vring_desc
 __attribute__((aligned(VRING_DESC_ALIGN_SIZE))) vring_desc_t;
 typedef struct vring_avail
@@ -138,5 +147,7 @@ virtqueue_add_sgs(struct virtqueue *_vq, struct scatterlist *sgs[],
                   void *data, gfp_t gfp);
 
 bool virtqueue_notify(struct virtqueue *_vq);
+
+irqreturn_t vring_interrupt(int irq, void *_vq);
 
 #endif /* _UAPI_LINUX_VIRTIO_RING_H */

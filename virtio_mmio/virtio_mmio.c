@@ -280,7 +280,27 @@ vm_del_vqs(struct virtio_device *vdev)
 
 static irqreturn_t vm_interrupt(int irq, void *opaque)
 {
-    panic("%s: !", __func__);
+    unsigned long status;
+    struct virtio_mmio_vq_info *info;
+    irqreturn_t ret = IRQ_NONE;
+    struct virtio_mmio_device *vm_dev = opaque;
+
+    /* Read and acknowledge interrupts */
+    status = readl(vm_dev->base + VIRTIO_MMIO_INTERRUPT_STATUS);
+    writel(status, vm_dev->base + VIRTIO_MMIO_INTERRUPT_ACK);
+
+    if (unlikely(status & VIRTIO_MMIO_INT_CONFIG)) {
+        panic("status & VIRTIO_MMIO_INT_CONFIG!");
+        ret = IRQ_HANDLED;
+    }
+
+    if (likely(status & VIRTIO_MMIO_INT_VRING)) {
+        list_for_each_entry(info, &vm_dev->virtqueues, node)
+            ret |= vring_interrupt(irq, info->vq);
+    }
+
+    panic("%s: irq(%d) status(%lx)!", __func__, irq, status);
+    return ret;
 }
 
 static int
