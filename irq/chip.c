@@ -13,10 +13,18 @@ struct irq_data *irq_get_irq_data(unsigned int irq)
 }
 EXPORT_SYMBOL(irq_get_irq_data);
 
+static void cond_unmask_eoi_irq(struct irq_desc *desc, struct irq_chip *chip)
+{
+    chip->irq_eoi(&desc->irq_data);
+}
+
 void handle_fasteoi_irq(struct irq_desc *desc)
 {
+    struct irq_chip *chip = desc->irq_data.chip;
+
     handle_irq_event(desc);
-    panic("%s: !", __func__);
+
+    cond_unmask_eoi_irq(desc, chip);
 }
 EXPORT_SYMBOL(handle_fasteoi_irq);
 
@@ -49,6 +57,9 @@ void handle_percpu_devid_irq(struct irq_desc *desc)
 {
     unsigned int irq = irq_desc_get_irq(desc);
     struct irqaction *action = desc->action;
+    struct irq_chip *chip = irq_desc_get_chip(desc);
+
+    printk("%s: irq(%u) (%s)\n", __func__, irq, chip->name);
 
     if (likely(action))
         action->handler(irq, action->percpu_dev_id);

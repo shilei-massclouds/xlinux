@@ -8,9 +8,13 @@
 #include <export.h>
 #include <kernel.h>
 #include <printk.h>
+#include <hardirq.h>
 #include <jiffies.h>
 #include <elevator.h>
+#include <interrupt.h>
 #include <blk-mq-sched.h>
+
+static struct list_head blk_cpu_done;
 
 static int blk_mq_hw_ctx_size(struct blk_mq_tag_set *tag_set)
 {
@@ -398,9 +402,38 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 }
 EXPORT_SYMBOL(blk_mq_submit_bio);
 
+/*
+ * Softirq action handler - move entries to local list and loop over them
+ * while passing them to the queue registered handler.
+ */
+static void blk_done_softirq(struct softirq_action *h)
+{
+    struct list_head local_list;
+
+    list_replace_init(&blk_cpu_done, &local_list);
+
+    while (!list_empty(&local_list)) {
+        struct request *rq;
+
+        rq = list_entry(local_list.next, struct request, ipi_list);
+        list_del_init(&rq->ipi_list);
+
+        panic("%s: !", __func__);
+        //rq->q->mq_ops->complete(rq);
+    }
+}
+
 static void blk_mq_trigger_softirq(struct request *rq)
 {
-    panic("%s: !", __func__);
+    list_add_tail(&rq->ipi_list, &blk_cpu_done);
+
+    /*
+     * If the list only contains our just added request, signal a raise of
+     * the softirq.  If there are already entries there, someone already
+     * raised the irq but it hasn't run yet.
+     */
+    if (blk_cpu_done.next == &rq->ipi_list)
+        raise_softirq_irqoff(BLOCK_SOFTIRQ);
 }
 
 bool blk_mq_complete_request_remote(struct request *rq)
@@ -417,7 +450,9 @@ bool blk_mq_complete_request_remote(struct request *rq)
     if (rq->q->nr_hw_queues > 1)
         return false;
 
+    printk("%s: 1\n", __func__);
     blk_mq_trigger_softirq(rq);
+    printk("%s: 2\n", __func__);
     return true;
 }
 EXPORT_SYMBOL(blk_mq_complete_request_remote);
@@ -428,10 +463,9 @@ void blk_mq_complete_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
-static int
-init_module(void)
+int blk_mq_init(void)
 {
-    printk("module[blk-mq]: init begin ...\n");
-    printk("module[blk-mq]: init end!\n");
+    INIT_LIST_HEAD(&blk_cpu_done);
+    open_softirq(BLOCK_SOFTIRQ, blk_done_softirq);
     return 0;
 }

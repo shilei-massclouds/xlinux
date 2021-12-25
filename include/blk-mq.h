@@ -224,4 +224,6 @@ static inline bool blk_should_fake_timeout(struct request_queue *q)
 
 void blk_mq_complete_request(struct request *rq);
 
+int blk_mq_init(void);
+
 #endif /* BLK_MQ_H */

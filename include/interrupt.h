@@ -10,6 +10,27 @@
 
 #define IRQF_SHARED 0x00000080
 
+#define local_softirq_pending_ref irq_stat.__softirq_pending
+
+#define local_softirq_pending() local_softirq_pending_ref
+#define or_softirq_pending(x)   (local_softirq_pending_ref |= (x))
+
+enum
+{
+    HI_SOFTIRQ = 0,
+    TIMER_SOFTIRQ,
+    NET_TX_SOFTIRQ,
+    NET_RX_SOFTIRQ,
+    BLOCK_SOFTIRQ,
+    IRQ_POLL_SOFTIRQ,
+    TASKLET_SOFTIRQ,
+    SCHED_SOFTIRQ,
+    HRTIMER_SOFTIRQ,
+    RCU_SOFTIRQ,
+
+    NR_SOFTIRQS
+};
+
 typedef irqreturn_t (*irq_handler_t)(int, void *);
 
 /**
@@ -54,6 +75,11 @@ struct irqaction {
     void *dev_id;
 };
 
+struct softirq_action
+{
+    void (*action)(struct softirq_action *);
+};
+
 int
 request_threaded_irq(unsigned int irq, irq_handler_t handler,
                      irq_handler_t thread_fn,
@@ -82,6 +108,15 @@ static inline int
 irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 {
     return __irq_set_affinity(irq, cpumask, false);
+}
+
+void raise_softirq_irqoff(unsigned int nr);
+
+void __do_softirq(void);
+
+static inline void do_softirq_own_stack(void)
+{
+    __do_softirq();
 }
 
 #endif /* _LINUX_INTERRUPT_H */

@@ -80,6 +80,7 @@ virtblk_done(struct virtqueue *vq)
     int qid = vq->index;
     struct virtio_blk *vblk = vq->vdev->priv;
 
+    printk("%s: 1\n", __func__);
     do {
         virtqueue_disable_cb(vq);
         while ((vbr = virtqueue_get_buf(vblk->vqs[qid].vq, &len)) != NULL) {
@@ -88,10 +89,8 @@ virtblk_done(struct virtqueue *vq)
             if (likely(!blk_should_fake_timeout(req->q)))
                 blk_mq_complete_request(req);
         }
-        panic("%s: !", __func__);
+        printk("%s: 2\n", __func__);
     } while(!virtqueue_enable_cb(vq));
-
-    panic("Implement it!");
 }
 
 static int

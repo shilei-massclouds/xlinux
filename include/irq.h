@@ -48,6 +48,7 @@ struct irq_chip {
     const char *name;
     void (*irq_mask)(struct irq_data *data);
     void (*irq_unmask)(struct irq_data *data);
+    void (*irq_eoi)(struct irq_data *data);
     int (*irq_set_affinity)(struct irq_data *data,
                             const struct cpumask *dest,
                             bool force);

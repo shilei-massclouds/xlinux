@@ -46,6 +46,7 @@ init_module(void)
 {
     printk("module[block]: init begin ...\n");
 
+    blk_mq_init();
     deadline_init();
     blk_dev_init();
 

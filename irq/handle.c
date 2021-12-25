@@ -30,12 +30,23 @@ __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags)
         irqreturn_t res;
 
         res = action->handler(irq, action->dev_id);
-        panic("res: %x\n", res);
+        switch (res) {
+        case IRQ_HANDLED:
+            *flags |= action->flags;
+            break;
+
+        case IRQ_WAKE_THREAD:
+            panic("bad handler IRQ_WAKE_THREAD");
+            break;
+
+        default:
+            break;
+        }
 
         retval |= res;
     }
 
-    panic("res: %x\n", retval);
+    return retval;
 }
 
 irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)

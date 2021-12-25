@@ -70,11 +70,19 @@ plic_set_affinity(struct irq_data *d,
 {
     plic_irq_toggle(NULL, d, 0);
     plic_irq_toggle(NULL, d, 1);
+    printk("%s: \n", __func__);
     return IRQ_SET_MASK_OK_DONE;
+}
+
+static void plic_irq_eoi(struct irq_data *d)
+{
+    printk("%s: hwirq(%d)\n", __func__, d->hwirq);
+    writel(d->hwirq, plic_handler.hart_base + CONTEXT_CLAIM);
 }
 
 static struct irq_chip plic_chip = {
     .name = "SiFive PLIC",
+    .irq_eoi = plic_irq_eoi,
     .irq_set_affinity = plic_set_affinity,
 };
 
@@ -84,11 +92,12 @@ plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 {
     struct plic_priv *priv = d->host_data;
 
-    printk("######### %s: 0 irq(%u)\n", __func__, irq);
+    printk("######### %s: 1 irq(%u)\n", __func__, irq);
     irq_domain_set_info(d, irq, hwirq, &plic_chip, d->host_data,
                         handle_fasteoi_irq, NULL, NULL);
 
     irq_set_affinity(irq, NULL);
+    printk("######### %s: 2 irq(%u)\n", __func__, irq);
     return 0;
 }
 
@@ -146,6 +155,8 @@ static void plic_handle_irq(struct irq_desc *desc)
 
     while ((hwirq = readl(claim))) {
         int irq = irq_find_mapping(handler->priv->irqdomain, hwirq);
+
+        printk("%s: hwirq(%x)\n", __func__, hwirq);
 
         if (unlikely(irq <= 0))
             panic("can't find mapping for hwirq %lu", hwirq);

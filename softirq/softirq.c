@@ -3,6 +3,12 @@
 #include <bug.h>
 #include <export.h>
 #include <printk.h>
+#include <hardirq.h>
+
+irq_cpustat_t irq_stat;
+EXPORT_SYMBOL(irq_stat);
+
+static struct softirq_action softirq_vec[NR_SOFTIRQS];
 
 /**
  * irq_enter - Enter an interrupt context including RCU update
@@ -13,13 +19,17 @@ void irq_enter(void)
 }
 EXPORT_SYMBOL(irq_enter);
 
+static inline void invoke_softirq(void)
+{
+    do_softirq_own_stack();
+}
+
 static inline void __irq_exit_rcu(void)
 {
-    panic("%s: !", __func__);
-    /*
-    if (!in_interrupt() && local_softirq_pending())
+    if (local_softirq_pending())
         invoke_softirq();
-        */
+
+    panic("%s: !", __func__);
 }
 
 /**
@@ -32,6 +42,29 @@ void irq_exit(void)
     __irq_exit_rcu();
 }
 EXPORT_SYMBOL(irq_exit);
+
+void open_softirq(int nr, void (*action)(struct softirq_action *))
+{
+    softirq_vec[nr].action = action;
+}
+EXPORT_SYMBOL(open_softirq);
+
+void __raise_softirq_irqoff(unsigned int nr)
+{
+    or_softirq_pending(1UL << nr);
+}
+
+inline void raise_softirq_irqoff(unsigned int nr)
+{
+    __raise_softirq_irqoff(nr);
+}
+EXPORT_SYMBOL(raise_softirq_irqoff);
+
+void __do_softirq(void)
+{
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(__do_softirq);
 
 static int
 init_module(void)

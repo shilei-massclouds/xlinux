@@ -108,6 +108,8 @@ struct request {
     struct bio *bio;
     struct bio *biotail;
 
+    struct list_head ipi_list;
+
     unsigned short ioprio;
 
     enum mq_rq_state state;

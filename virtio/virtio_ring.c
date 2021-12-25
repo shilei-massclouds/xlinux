@@ -603,6 +603,8 @@ virtqueue_poll_split(struct virtqueue *_vq, unsigned last_used_idx)
 {
     struct vring_virtqueue *vq = to_vvq(_vq);
 
+    printk("%s: (%x : %x)\n",
+           __func__, last_used_idx, vq->split.vring.used->idx);
     return (u16)last_used_idx != vq->split.vring.used->idx;
 }
 

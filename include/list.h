@@ -187,6 +187,36 @@ list_splice(const struct list_head *list, struct list_head *head)
 }
 
 /**
+ * list_replace - replace old entry by new one
+ * @old : the element to be replaced
+ * @new : the new element to insert
+ *
+ * If @old was empty, it will be overwritten.
+ */
+static inline void
+list_replace(struct list_head *old, struct list_head *new)
+{
+    new->next = old->next;
+    new->next->prev = new;
+    new->prev = old->prev;
+    new->prev->next = new;
+}
+
+/**
+ * list_replace_init - replace old entry by new one and initialize the old one
+ * @old : the element to be replaced
+ * @new : the new element to insert
+ *
+ * If @old was empty, it will be overwritten.
+ */
+static inline void
+list_replace_init(struct list_head *old, struct list_head *new)
+{
+    list_replace(old, new);
+    INIT_LIST_HEAD(old);
+}
+
+/**
  * list_empty_careful - tests whether a list is empty and not being modified
  * @head: the list to test
  *
