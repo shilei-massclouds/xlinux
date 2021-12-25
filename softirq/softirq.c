@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <bug.h>
+#include <ffs.h>
 #include <export.h>
 #include <printk.h>
 #include <hardirq.h>
@@ -62,6 +63,27 @@ EXPORT_SYMBOL(raise_softirq_irqoff);
 
 void __do_softirq(void)
 {
+    __u32 pending;
+    int softirq_bit;
+    struct softirq_action *h;
+
+    pending = local_softirq_pending();
+
+    /* Reset the pending bitmask before enabling irqs */
+    set_softirq_pending(0);
+
+    h = softirq_vec;
+
+    while ((softirq_bit = ffs(pending))) {
+        h += softirq_bit - 1;
+        h->action(h);
+        h++;
+
+        pending >>= softirq_bit;
+
+        panic("%s: 1 softirq_bit(%x)", __func__, softirq_bit);
+    }
+
     panic("%s: !", __func__);
 }
 EXPORT_SYMBOL(__do_softirq);

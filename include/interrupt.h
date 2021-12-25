@@ -13,6 +13,7 @@
 #define local_softirq_pending_ref irq_stat.__softirq_pending
 
 #define local_softirq_pending() local_softirq_pending_ref
+#define set_softirq_pending(x)  (local_softirq_pending_ref = (x))
 #define or_softirq_pending(x)   (local_softirq_pending_ref |= (x))
 
 enum
