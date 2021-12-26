@@ -408,11 +408,28 @@ virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
     return BLK_STS_OK;
 }
 
+static inline blk_status_t virtblk_result(struct virtblk_req *vbr)
+{
+    switch (vbr->status) {
+    case VIRTIO_BLK_S_OK:
+        return BLK_STS_OK;
+    case VIRTIO_BLK_S_UNSUPP:
+        return BLK_STS_NOTSUPP;
+    default:
+        return BLK_STS_IOERR;
+    }
+}
+
+static inline void virtblk_request_done(struct request *req)
+{
+    struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
+
+    blk_mq_end_request(req, virtblk_result(vbr));
+}
+
 static const struct blk_mq_ops virtio_mq_ops = {
-    .queue_rq   = virtio_queue_rq,
-    /*
-    .complete   = virtblk_request_done,
-    */
+    .queue_rq       = virtio_queue_rq,
+    .complete       = virtblk_request_done,
     .init_request   = virtblk_init_request,
     /*
     .map_queues = virtblk_map_queues,

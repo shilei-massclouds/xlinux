@@ -199,5 +199,9 @@ blk_rq_map_sg(struct request_queue *q, struct request *rq,
 #define for_each_bio(_bio) \
     for (; _bio; _bio = _bio->bi_next)
 
+static inline unsigned int blk_rq_bytes(const struct request *rq)
+{
+    return rq->__data_len;
+}
 
 #endif /* _LINUX_BLKDEV_H */

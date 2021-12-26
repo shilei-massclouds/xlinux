@@ -132,6 +132,18 @@ bio_add_page(struct bio *bio, struct page *page,
 }
 EXPORT_SYMBOL(bio_add_page);
 
+void bio_advance(struct bio *bio, unsigned bytes)
+{
+    bio_advance_iter(bio, &bio->bi_iter, bytes);
+}
+EXPORT_SYMBOL(bio_advance);
+
+void bio_endio(struct bio *bio)
+{
+    /* Todo */
+}
+EXPORT_SYMBOL(bio_endio);
+
 static int init_bio(void)
 {
     bio_slab_max = 2;

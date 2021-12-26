@@ -20,4 +20,7 @@ blk_rq_bio_prep(struct request *rq, struct bio *bio,
         rq->rq_disk = bio->bi_disk;
 }
 
+bool blk_update_request(struct request *req, blk_status_t error,
+                        unsigned int nr_bytes);
+
 #endif /* BLK_INTERNAL_H */

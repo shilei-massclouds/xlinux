@@ -96,4 +96,8 @@ int
 bio_add_page(struct bio *bio, struct page *page,
              unsigned int len, unsigned int offset);
 
+void bio_advance(struct bio *bio, unsigned bytes);
+
+void bio_endio(struct bio *bio);
+
 #endif /* __LINUX_BIO_H */

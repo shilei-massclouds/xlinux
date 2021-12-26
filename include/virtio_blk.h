@@ -104,6 +104,9 @@ struct virtio_blk_config {
     __u8 unused1[3];
 } __attribute__((packed));
 
-
+/* And this is the final byte of the write scatter-gather list. */
+#define VIRTIO_BLK_S_OK     0
+#define VIRTIO_BLK_S_IOERR  1
+#define VIRTIO_BLK_S_UNSUPP 2
 
 #endif /* _LINUX_VIRTIO_BLK_H */

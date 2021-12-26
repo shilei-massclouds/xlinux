@@ -418,8 +418,8 @@ static void blk_done_softirq(struct softirq_action *h)
         rq = list_entry(local_list.next, struct request, ipi_list);
         list_del_init(&rq->ipi_list);
 
+        rq->q->mq_ops->complete(rq);
         panic("%s: !", __func__);
-        //rq->q->mq_ops->complete(rq);
     }
 }
 
@@ -462,6 +462,15 @@ void blk_mq_complete_request(struct request *rq)
     BUG_ON(!blk_mq_complete_request_remote(rq));
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
+
+void blk_mq_end_request(struct request *rq, blk_status_t error)
+{
+    if (blk_update_request(rq, error, blk_rq_bytes(rq)))
+        BUG();
+    __blk_mq_end_request(rq, error);
+    panic("%s: !\n", __func__);
+}
+EXPORT_SYMBOL(blk_mq_end_request);
 
 int blk_mq_init(void)
 {

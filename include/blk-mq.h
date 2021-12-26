@@ -114,6 +114,11 @@ struct blk_mq_ops {
                              const struct blk_mq_queue_data *);
 
     /**
+     * @complete: Mark the request as complete.
+     */
+    void (*complete)(struct request *);
+
+    /**
      * @init_request: Called for every command allocated by the block layer
      * to allow the driver to set up driver specific data.
      *
@@ -223,6 +228,8 @@ static inline bool blk_should_fake_timeout(struct request_queue *q)
 }
 
 void blk_mq_complete_request(struct request *rq);
+
+void blk_mq_end_request(struct request *rq, blk_status_t error);
 
 int blk_mq_init(void);
 

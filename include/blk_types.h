@@ -117,6 +117,8 @@ struct bio {
     unsigned short bi_flags;    /* status, etc and bvec pool number */
     unsigned short bi_ioprio;
 
+    blk_status_t bi_status;
+
     struct bvec_iter bi_iter;
 
     u8 bi_partno;
