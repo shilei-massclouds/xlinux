@@ -159,11 +159,7 @@ try_to_grab_pending(struct work_struct *work, bool is_dwork,
 {
     BUG_ON(!is_dwork);
 
-    /* try to claim PENDING the normal way */
-    if (!test_and_set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work)))
-        return 0;
-
-    panic("no pending!");
+    return 0;
 }
 
 static inline void

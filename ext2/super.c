@@ -33,10 +33,21 @@ get_sb_block(void **data)
     return 1;   /* Default location */
 }
 
+static unsigned long
+descriptor_loc(struct super_block *sb,
+               unsigned long logic_sb_block,
+               int nr)
+{
+    return (logic_sb_block + nr + 1);
+}
+
 static int
 ext2_fill_super(struct super_block *sb, void *data, int silent)
 {
+    int i, j;
+    int db_count;
     struct inode *root;
+    unsigned long block;
     struct buffer_head *bh;
     struct ext2_sb_info *sbi;
     struct ext2_super_block *es;
@@ -63,13 +74,40 @@ ext2_fill_super(struct super_block *sb, void *data, int silent)
         logic_sb_block = sb_block;
     }
 
-    printk("############### %s: (%d) ...\n", __func__, logic_sb_block);
     if (!(bh = sb_bread_unmovable(sb, logic_sb_block)))
         panic("error: unable to read superblock");
-    printk("############### %s: (%d) ok!\n", __func__, logic_sb_block);
 
     es = (struct ext2_super_block *) (((char *)bh->b_data) + offset);
     sbi->s_inodes_per_group = es->s_inodes_per_group;
+    sbi->s_blocks_per_group = es->s_blocks_per_group;
+    sbi->s_desc_per_block = sb->s_blocksize
+        / sizeof (struct ext2_group_desc);
+    sbi->s_desc_per_block_bits = ilog2(EXT2_DESC_PER_BLOCK(sb));
+
+    if (EXT2_BLOCKS_PER_GROUP(sb) == 0)
+        panic("can not find blocks per group!");
+
+    sbi->s_groups_count =
+        ((es->s_blocks_count - es->s_first_data_block - 1)
+         / EXT2_BLOCKS_PER_GROUP(sb)) + 1;
+
+    db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
+        EXT2_DESC_PER_BLOCK(sb);
+
+    sbi->s_group_desc = kmalloc_array(db_count,
+                                      sizeof(struct buffer_head *),
+                                      GFP_KERNEL);
+    if (sbi->s_group_desc == NULL)
+        panic("no memory!");
+
+    for (i = 0; i < db_count; i++) {
+        block = descriptor_loc(sb, logic_sb_block, i);
+        printk("### %s: sb_bread_unmovable block(%u)\n",
+               __func__, block);
+        sbi->s_group_desc[i] = sb_bread_unmovable(sb, block);
+        if (!sbi->s_group_desc[i])
+            panic("unable to read group descriptors");
+    }
 
     printk("%s: step1\n", __func__);
     sb->s_op = &ext2_sops;
