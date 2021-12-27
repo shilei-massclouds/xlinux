@@ -7,6 +7,9 @@
 #define REQ_OP_BITS 8
 #define REQ_OP_MASK ((1 << REQ_OP_BITS) - 1)
 
+struct bio;
+typedef void (bio_end_io_t)(struct bio *);
+
 enum req_opf {
     /* read sectors from the device */
     REQ_OP_READ     = 0,
@@ -116,6 +119,9 @@ struct bio {
 
     unsigned short bi_flags;    /* status, etc and bvec pool number */
     unsigned short bi_ioprio;
+
+    bio_end_io_t *bi_end_io;
+    void *bi_private;
 
     blk_status_t bi_status;
 

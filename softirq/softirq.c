@@ -29,8 +29,6 @@ static inline void __irq_exit_rcu(void)
 {
     if (local_softirq_pending())
         invoke_softirq();
-
-    panic("%s: !", __func__);
 }
 
 /**
@@ -80,11 +78,7 @@ void __do_softirq(void)
         h++;
 
         pending >>= softirq_bit;
-
-        panic("%s: 1 softirq_bit(%x)", __func__, softirq_bit);
     }
-
-    panic("%s: !", __func__);
 }
 EXPORT_SYMBOL(__do_softirq);
 

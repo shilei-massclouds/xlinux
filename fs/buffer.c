@@ -342,6 +342,13 @@ void end_buffer_read_sync(struct buffer_head *bh, int uptodate)
 }
 EXPORT_SYMBOL(end_buffer_read_sync);
 
+static void end_bio_bh_io_sync(struct bio *bio)
+{
+    struct buffer_head *bh = bio->bi_private;
+
+    bh->b_end_io(bh, !bio->bi_status);
+}
+
 static int
 submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
               enum rw_hint write_hint, struct writeback_control *wbc)
@@ -354,6 +361,11 @@ submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
     bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
     bio_set_dev(bio, bh->b_bdev);
     bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+    BUG_ON(bio->bi_iter.bi_size != bh->b_size);
+
+    bio->bi_end_io = end_bio_bh_io_sync;
+    bio->bi_private = bh;
+
     bio_set_op_attrs(bio, op, op_flags);
 
     submit_bio(bio);
@@ -409,8 +421,8 @@ EXPORT_SYMBOL(__lock_buffer);
 void unlock_buffer(struct buffer_head *bh)
 {
     clear_bit_unlock(BH_Lock, &bh->b_state);
-    panic("Todo: wake_up_bit!");
-    //wake_up_bit(&bh->b_state, BH_Lock);
+    /* Todo */
+    // wake_up_bit(&bh->b_state, BH_Lock);
 }
 EXPORT_SYMBOL(unlock_buffer);
 

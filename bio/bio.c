@@ -114,8 +114,6 @@ __bio_add_page(struct bio *bio,
     bv->bv_offset = off;
     bv->bv_len = len;
 
-    printk("%s: bi_size(%u) len(%u)\n",
-           __func__, bio->bi_iter.bi_size, len);
     bio->bi_iter.bi_size += len;
     bio->bi_vcnt++;
 }
@@ -140,7 +138,8 @@ EXPORT_SYMBOL(bio_advance);
 
 void bio_endio(struct bio *bio)
 {
-    /* Todo */
+    if (bio->bi_end_io)
+        bio->bi_end_io(bio);
 }
 EXPORT_SYMBOL(bio_endio);
 

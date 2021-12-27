@@ -63,6 +63,10 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
         bio->bi_status = error;
 
     bio_advance(bio, nbytes);
+
+    /* don't actually finish bio if it's part of flush sequence */
+    if (bio->bi_iter.bi_size == 0)
+        bio_endio(bio);
 }
 
 bool blk_update_request(struct request *req, blk_status_t error,
