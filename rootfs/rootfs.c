@@ -206,6 +206,14 @@ prepare_namespace(void)
            __func__, ROOT_DEV, root_device_name);
 
     mount_root();
+
+    /*
+    devtmpfs_mount();
+    init_mount(".", "/", NULL, MS_MOVE, NULL);
+    init_chroot(".");
+    */
+
+    panic("%s: !", __func__);
 }
 
 static struct kernel_param kernel_params[] = {
