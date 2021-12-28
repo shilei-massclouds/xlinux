@@ -9,8 +9,33 @@
 #include <kernel.h>
 #include <printk.h>
 #include <string.h>
+#include <hashtable.h>
 
 static struct kmem_cache *mnt_cache;
+
+static unsigned int m_hash_mask;
+static unsigned int m_hash_shift;
+static unsigned int mp_hash_mask;
+static unsigned int mp_hash_shift;
+
+static struct hlist_head *mount_hashtable;
+static struct hlist_head *mountpoint_hashtable;
+
+static inline struct hlist_head *
+m_hash(struct vfsmount *mnt, struct dentry *dentry)
+{
+    unsigned long tmp = ((unsigned long)mnt / L1_CACHE_BYTES);
+    tmp += ((unsigned long)dentry / L1_CACHE_BYTES);
+    tmp = tmp + (tmp >> m_hash_shift);
+    return &mount_hashtable[tmp & m_hash_mask];
+}
+
+static inline struct hlist_head *mp_hash(struct dentry *dentry)
+{
+    unsigned long tmp = ((unsigned long)dentry / L1_CACHE_BYTES);
+    tmp = tmp + (tmp >> mp_hash_shift);
+    return &mountpoint_hashtable[tmp & mp_hash_mask];
+}
 
 int
 vfs_parse_fs_string(struct fs_context *fc,
@@ -46,10 +71,170 @@ vfs_get_tree(struct fs_context *fc)
 }
 EXPORT_SYMBOL(vfs_get_tree);
 
+struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
+{
+    struct mount *p;
+    struct hlist_head *head = m_hash(mnt, dentry);
+
+    hlist_for_each_entry(p, head, mnt_hash)
+        if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
+            return p;
+    return NULL;
+}
+
+/*
+ * lookup_mnt - Return the first child mount mounted at path
+ *
+ * "First" means first mounted chronologically.  If you create the
+ * following mounts:
+ *
+ * mount /dev/sda1 /mnt
+ * mount /dev/sda2 /mnt
+ * mount /dev/sda3 /mnt
+ *
+ * Then lookup_mnt() on the base /mnt dentry in the root mount will
+ * return successively the root dentry and vfsmount of /dev/sda1, then
+ * /dev/sda2, then /dev/sda3, then NULL.
+ *
+ * lookup_mnt takes a reference to the found vfsmount.
+ */
+struct vfsmount *lookup_mnt(const struct path *path)
+{
+    struct mount *child_mnt;
+
+    child_mnt = __lookup_mnt(path->mnt, path->dentry);
+    return child_mnt ? &child_mnt->mnt : NULL;
+}
+
+static struct mountpoint *lookup_mountpoint(struct dentry *dentry)
+{
+    struct mountpoint *mp;
+    struct hlist_head *chain = mp_hash(dentry);
+
+    hlist_for_each_entry(mp, chain, m_hash) {
+        if (mp->m_dentry == dentry) {
+            mp->m_count++;
+            return mp;
+        }
+    }
+    return NULL;
+}
+
+static struct mountpoint *get_mountpoint(struct dentry *dentry)
+{
+    int ret;
+    struct mountpoint *mp;
+    struct mountpoint *new = NULL;
+
+    if (d_mountpoint(dentry)) {
+        /* might be worth a WARN_ON() */
+        if (d_unlinked(dentry))
+            return ERR_PTR(-ENOENT);
+
+        mp = lookup_mountpoint(dentry);
+        if (mp)
+            return mp;
+    }
+
+    if (!new)
+        new = kmalloc(sizeof(struct mountpoint), GFP_KERNEL);
+
+    if (!new)
+        return ERR_PTR(-ENOMEM);
+
+    /* Add the new mountpoint to the hash table */
+    new->m_dentry = dget(dentry);
+    new->m_count = 1;
+    hlist_add_head(&new->m_hash, mp_hash(dentry));
+    INIT_HLIST_HEAD(&new->m_list);
+
+    mp = new;
+    new = NULL;
+    return mp;
+}
+
+static struct mountpoint *lock_mount(struct path *path)
+{
+    struct vfsmount *mnt;
+    struct dentry *dentry = path->dentry;
+
+    mnt = lookup_mnt(path);
+    if (likely(!mnt)) {
+        struct mountpoint *mp = get_mountpoint(dentry);
+        if (IS_ERR(mp))
+            panic("bad mount point!");
+
+        return mp;
+    }
+
+    panic("%s: !", __func__);
+}
+
+static int attach_recursive_mnt(struct mount *source_mnt,
+            struct mount *dest_mnt,
+            struct mountpoint *dest_mp,
+            bool moving)
+{
+    panic("%s: !", __func__);
+}
+
+static void unlock_mount(struct mountpoint *where)
+{
+    /* Todo */
+}
+
+static int
+graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
+{
+    if (mnt->mnt.mnt_sb->s_flags & SB_NOUSER)
+        return -EINVAL;
+
+    return attach_recursive_mnt(mnt, p, mp, false);
+}
+
+/*
+ * add a mount into a namespace's mount tree
+ */
+static int do_add_mount(struct mount *newmnt, struct mountpoint *mp,
+                        struct path *path, int mnt_flags)
+{
+    struct mount *parent = real_mount(path->mnt);
+
+    /* Refuse the same filesystem on the same mount point */
+    if (path->mnt->mnt_sb == newmnt->mnt.mnt_sb &&
+        path->mnt->mnt_root == path->dentry)
+        return -EBUSY;
+
+    return graft_tree(newmnt, parent, mp);
+}
+
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
  */
+static int
+do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
+                unsigned int mnt_flags)
+{
+    int error;
+    struct vfsmount *mnt;
+    struct mountpoint *mp;
+
+    mnt = vfs_create_mount(fc);
+    if (IS_ERR(mnt))
+        return PTR_ERR(mnt);
+
+    mp = lock_mount(mountpoint);
+    if (IS_ERR(mp))
+        return PTR_ERR(mp);
+
+    error = do_add_mount(real_mount(mnt), mp, mountpoint, mnt_flags);
+    unlock_mount(mp);
+
+    panic("%s: !", __func__);
+    return error;
+}
+
 static int
 do_new_mount(struct path *path,
              const char *fstype,
@@ -80,7 +265,14 @@ do_new_mount(struct path *path,
     if (!err)
         err = vfs_get_tree(fc);
 
-    panic("%s: type(%s) source(%s)\n", __func__, type->name, fc->source);
+    printk("%s: type(%s) path(%s) source(%s)\n",
+           __func__, type->name, path->dentry->d_name.name, fc->source);
+    if (!err)
+        err = do_new_mount_fc(fc, path, mnt_flags);
+
+    panic("%s: type(%s) source(%s)", __func__, type->name, fc->source);
+    put_fs_context(fc);
+    return err;
 }
 
 int
@@ -193,4 +385,13 @@ mnt_init(void)
 {
     mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct mount),0,
                                   SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+
+    mount_hashtable =
+        alloc_large_system_hash("Mount-cache", sizeof(struct hlist_head),
+                                19, &m_hash_shift, &m_hash_mask);
+
+    mountpoint_hashtable =
+        alloc_large_system_hash("Mountpoint-cache",
+                                sizeof(struct hlist_head),
+                                19, &mp_hash_shift, &mp_hash_mask);
 }

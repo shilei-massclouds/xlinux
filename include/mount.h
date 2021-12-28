@@ -18,7 +18,17 @@ struct vfsmount {
     struct super_block *mnt_sb; /* pointer to superblock */
 };
 
+struct mountpoint {
+    struct hlist_node m_hash;
+    struct dentry *m_dentry;
+    struct hlist_head m_list;
+    int m_count;
+};
+
 struct mount {
+    struct hlist_node mnt_hash;
+    struct mount *mnt_parent;
+    struct dentry *mnt_mountpoint;
     struct vfsmount mnt;
 };
 
@@ -49,5 +59,8 @@ real_mount(struct vfsmount *mnt)
 {
     return container_of(mnt, struct mount, mnt);
 }
+
+struct vfsmount *
+vfs_create_mount(struct fs_context *fc);
 
 #endif /* _LINUX_MOUNT_H */

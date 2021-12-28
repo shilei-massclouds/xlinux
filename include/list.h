@@ -235,6 +235,8 @@ static inline int list_empty_careful(const struct list_head *head)
     return (next == head) && (next == head->prev);
 }
 
+#define INIT_HLIST_HEAD(ptr) ((ptr)->first = NULL)
+
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)
 
 #define hlist_entry_safe(ptr, type, member) \

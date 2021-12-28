@@ -5,7 +5,11 @@
 #include <fs.h>
 #include <list_bl.h>
 
+#define IS_ROOT(x) ((x) == (x)->d_parent)
+
 #define DNAME_INLINE_LEN 32 /* 192 bytes */
+
+#define DCACHE_MOUNTED  0x00010000 /* is a mountpoint */
 
 #define HASH_LEN_DECLARE u32 hash; u32 len
 #define bytemask_from_count(cnt)   (~(~0ul << (cnt)*8))
@@ -23,8 +27,9 @@ struct qstr {
 #define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
 
 struct dentry {
+    unsigned int d_flags;           /* protected by d_lock */
     struct hlist_bl_node d_hash;    /* lookup hash list */
-    struct dentry *d_parent;    /* parent directory */
+    struct dentry *d_parent;        /* parent directory */
     struct qstr d_name;
     struct inode *d_inode;  /* Where the name belongs to - NULL is negative */
 
@@ -63,5 +68,27 @@ d_backing_inode(const struct dentry *upper)
 
 void
 d_add(struct dentry *entry, struct inode *inode);
+
+static inline bool d_mountpoint(const struct dentry *dentry)
+{
+    return dentry->d_flags & DCACHE_MOUNTED;
+}
+
+/**
+ *  d_unhashed -    is dentry hashed
+ *  @dentry: entry to check
+ *
+ *  Returns true if the dentry passed is not currently hashed.
+ */
+static inline int
+d_unhashed(const struct dentry *dentry)
+{
+    return hlist_bl_unhashed(&dentry->d_hash);
+}
+
+static inline int d_unlinked(const struct dentry *dentry)
+{
+    return d_unhashed(dentry) && !IS_ROOT(dentry);
+}
 
 #endif /* _LINUX_DCACHE_H */

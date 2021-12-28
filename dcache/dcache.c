@@ -127,18 +127,6 @@ d_lookup(const struct dentry *parent, const struct qstr *name)
 }
 EXPORT_SYMBOL(d_lookup);
 
-/**
- *  d_unhashed -    is dentry hashed
- *  @dentry: entry to check
- *
- *  Returns true if the dentry passed is not currently hashed.
- */
-static inline int
-d_unhashed(const struct dentry *dentry)
-{
-    return hlist_bl_unhashed(&dentry->d_hash);
-}
-
 static inline int
 dentry_string_cmp(const unsigned char *cs,
                   const unsigned char *ct,
