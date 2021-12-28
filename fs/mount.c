@@ -170,12 +170,59 @@ static struct mountpoint *lock_mount(struct path *path)
     panic("%s: !", __func__);
 }
 
-static int attach_recursive_mnt(struct mount *source_mnt,
-            struct mount *dest_mnt,
-            struct mountpoint *dest_mp,
-            bool moving)
+static inline void mnt_add_count(struct mount *mnt, int n)
 {
-    panic("%s: !", __func__);
+    /* Todo */
+}
+
+void mnt_set_mountpoint(struct mount *mnt,
+                        struct mountpoint *mp, struct mount *child_mnt)
+{
+    mp->m_count++;
+    mnt_add_count(mnt, 1);  /* essentially, that's mntget */
+    child_mnt->mnt_mountpoint = mp->m_dentry;
+    child_mnt->mnt_parent = mnt;
+    child_mnt->mnt_mp = mp;
+    hlist_add_head(&child_mnt->mnt_mp_list, &mp->m_list);
+}
+
+static void __attach_mnt(struct mount *mnt, struct mount *parent)
+{
+    hlist_add_head(&mnt->mnt_hash, m_hash(&parent->mnt, mnt->mnt_mountpoint));
+    list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
+}
+
+static void commit_tree(struct mount *mnt)
+{
+    struct mount *parent = mnt->mnt_parent;
+
+    BUG_ON(parent == mnt);
+
+    __attach_mnt(mnt, parent);
+}
+
+static int attach_recursive_mnt(struct mount *source_mnt,
+                                struct mount *dest_mnt,
+                                struct mountpoint *dest_mp,
+                                bool moving)
+{
+    struct mountpoint *smp;
+
+    /* Preallocate a mountpoint in case the new mounts need
+     * to be tucked under other mounts.
+     */
+    smp = get_mountpoint(source_mnt->mnt.mnt_root);
+    if (IS_ERR(smp))
+        return PTR_ERR(smp);
+
+    if (moving) {
+        panic("can not be moving!");
+    } else {
+        mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
+        commit_tree(source_mnt);
+    }
+
+    return 0;
 }
 
 static void unlock_mount(struct mountpoint *where)
@@ -189,6 +236,7 @@ graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
     if (mnt->mnt.mnt_sb->s_flags & SB_NOUSER)
         return -EINVAL;
 
+    printk("%s: !\n", __func__);
     return attach_recursive_mnt(mnt, p, mp, false);
 }
 
@@ -231,7 +279,6 @@ do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
     error = do_add_mount(real_mount(mnt), mp, mountpoint, mnt_flags);
     unlock_mount(mp);
 
-    panic("%s: !", __func__);
     return error;
 }
 
@@ -270,16 +317,13 @@ do_new_mount(struct path *path,
     if (!err)
         err = do_new_mount_fc(fc, path, mnt_flags);
 
-    panic("%s: type(%s) source(%s)", __func__, type->name, fc->source);
     put_fs_context(fc);
     return err;
 }
 
 int
-path_mount(const char *dev_name,
-           struct path *path,
-           const char *type_page,
-           unsigned long flags)
+path_mount(const char *dev_name, struct path *path,
+           const char *type_page, unsigned long flags)
 {
     unsigned int sb_flags;
     unsigned int mnt_flags = 0;
@@ -320,6 +364,12 @@ alloc_vfsmnt(const char *name)
 {
     struct mount *mnt;
     mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
+    if (mnt) {
+        INIT_HLIST_NODE(&mnt->mnt_hash);
+        INIT_LIST_HEAD(&mnt->mnt_child);
+        INIT_LIST_HEAD(&mnt->mnt_mounts);
+        INIT_HLIST_NODE(&mnt->mnt_mp_list);
+    }
     return mnt;
 }
 

@@ -29,7 +29,14 @@ struct mount {
     struct hlist_node mnt_hash;
     struct mount *mnt_parent;
     struct dentry *mnt_mountpoint;
+    struct list_head mnt_mounts;    /* list of children, anchored here */
+    struct list_head mnt_child;     /* and going through their mnt_child */
     struct vfsmount mnt;
+    struct mountpoint *mnt_mp;      /* where is it mounted */
+    union {
+        struct hlist_node mnt_mp_list;  /* list mounts with the same mountpoint */
+        struct hlist_node mnt_umount;
+    };
 };
 
 void

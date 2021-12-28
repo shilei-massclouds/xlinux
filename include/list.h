@@ -236,6 +236,11 @@ static inline int list_empty_careful(const struct list_head *head)
 }
 
 #define INIT_HLIST_HEAD(ptr) ((ptr)->first = NULL)
+static inline void INIT_HLIST_NODE(struct hlist_node *h)
+{
+    h->next = NULL;
+    h->pprev = NULL;
+}
 
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)
 
@@ -286,5 +291,17 @@ hlist_add_head(struct hlist_node *n, struct hlist_head *h)
     WRITE_ONCE(h->first, n);
     WRITE_ONCE(n->pprev, &h->first);
 }
+
+/**
+ * hlist_for_each_entry_safe - iterate over list of given type safe against removal of list entry
+ * @pos:    the type * to use as a loop cursor.
+ * @n:      a &struct hlist_node to use as temporary storage
+ * @head:   the head for your list.
+ * @member: the name of the hlist_node within the struct.
+ */
+#define hlist_for_each_entry_safe(pos, n, head, member) \
+    for (pos = hlist_entry_safe((head)->first, typeof(*pos), member);\
+         pos && ({ n = pos->member.next; 1; });         \
+         pos = hlist_entry_safe(n, typeof(*pos), member))
 
 #endif /* _LIST_H_ */
