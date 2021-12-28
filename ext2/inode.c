@@ -25,8 +25,11 @@ ext2_get_inode(struct super_block *sb, ino_t ino, struct buffer_head **p)
      */
     offset = ((ino - 1) % EXT2_INODES_PER_GROUP(sb)) * EXT2_INODE_SIZE(sb);
     block = gdp->bg_inode_table + (offset >> EXT2_BLOCK_SIZE_BITS(sb));
-    if (!(bh = sb_bread(sb, block)))
+    if (!(bh = sb_bread_unmovable(sb, block)))
         panic("bad io!");
+
+    printk("%s: ino(%u) bg_inode_table(%lu) offset(%lu) block(%lu)\n",
+           __func__, ino, gdp->bg_inode_table, offset, block);
 
     *p = bh;
     offset &= (EXT2_BLOCK_SIZE(sb) - 1);
@@ -48,6 +51,10 @@ struct inode *ext2_iget(struct super_block *sb, unsigned long ino)
     raw_inode = ext2_get_inode(inode->i_sb, ino, &bh);
     if (IS_ERR(raw_inode))
         panic("bad inode!");
+
+    inode->i_mode = raw_inode->i_mode;
+    inode->i_size = raw_inode->i_size;
+    inode->i_blocks = raw_inode->i_blocks;
 
     return inode;
 }

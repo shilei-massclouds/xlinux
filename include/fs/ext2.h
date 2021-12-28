@@ -6,11 +6,25 @@
 #include <types.h>
 #include <buffer_head.h>
 
+#define EXT2_SUPER_MAGIC    0xEF53
+
 /*
  * Special inode numbers
  */
-#define EXT2_BAD_INO         1  /* Bad blocks inode */
-#define EXT2_ROOT_INO        2  /* Root inode */
+#define EXT2_BAD_INO    1  /* Bad blocks inode */
+#define EXT2_ROOT_INO   2  /* Root inode */
+
+/*
+ * Constants relative to the data blocks
+ */
+#define EXT2_NDIR_BLOCKS    12
+#define EXT2_IND_BLOCK  EXT2_NDIR_BLOCKS
+#define EXT2_DIND_BLOCK (EXT2_IND_BLOCK + 1)
+#define EXT2_TIND_BLOCK (EXT2_DIND_BLOCK + 1)
+#define EXT2_N_BLOCKS   (EXT2_TIND_BLOCK + 1)
+
+#define EXT2_GOOD_OLD_REV   0   /* The good old (original) format */
+#define EXT2_GOOD_OLD_INODE_SIZE 128
 
 /*
  * Structure of the super block
@@ -34,7 +48,7 @@ struct ext2_super_block {
 	u16	s_magic;		/* Magic signature */
 	u16	s_state;		/* File system state */
 	u16	s_errors;		/* Behaviour when detecting errors */
-	u16	s_minor_rev_level; 	/* minor revision level */
+	u16	s_minor_rev_level;  /* minor revision level */
 	u32	s_lastcheck;		/* time of last check */
 	u32	s_checkinterval;	/* max. time between checks */
 	u32	s_creator_os;		/* OS */
@@ -48,21 +62,21 @@ struct ext2_super_block {
 	 * the incompatible feature set is that if there is a bit set
 	 * in the incompatible feature set that the kernel doesn't
 	 * know about, it should refuse to mount the filesystem.
-	 * 
+	 *
 	 * e2fsck's requirements are more strict; if it doesn't know
 	 * about a feature in either the compatible or incompatible
 	 * feature set, it must abort and not try to meddle with
 	 * things it doesn't understand...
 	 */
-	u32	s_first_ino; 		/* First non-reserved inode */
-	u16 s_inode_size; 		/* size of inode structure */
-	u16	s_block_group_nr; 	/* block group # of this superblock */
-	u32	s_feature_compat; 	/* compatible feature set */
-	u32	s_feature_incompat; 	/* incompatible feature set */
-	u32	s_feature_ro_compat; 	/* readonly-compatible feature set */
-	__u8	s_uuid[16];		/* 128-bit uuid for volume */
-	char	s_volume_name[16]; 	/* volume name */
-	char	s_last_mounted[64]; 	/* directory where last mounted */
+	u32	s_first_ino;        /* First non-reserved inode */
+	u16 s_inode_size;       /* size of inode structure */
+	u16	s_block_group_nr;   /* block group # of this superblock */
+	u32	s_feature_compat;   /* compatible feature set */
+	u32	s_feature_incompat; /* incompatible feature set */
+	u32	s_feature_ro_compat;    /* readonly-compatible feature set */
+	__u8	s_uuid[16];		    /* 128-bit uuid for volume */
+	char	s_volume_name[16];  /* volume name */
+	char	s_last_mounted[64]; /* directory where last mounted */
 	u32	s_algorithm_usage_bitmap; /* For compression */
 	/*
 	 * Performance hints.  Directory preallocation should only
@@ -99,6 +113,7 @@ struct ext2_sb_info {
     unsigned long s_blocks_per_group;   /* Number of blocks in a group */
     unsigned long s_desc_per_block;     /* #group-desc per block */
     unsigned long s_groups_count;       /* Number of groups in the fs */
+    struct ext2_super_block *s_es;      /* To super block in the buf */
     int s_desc_per_block_bits;
     int s_inode_size;
     struct buffer_head ** s_group_desc;
@@ -117,6 +132,63 @@ struct ext2_group_desc
     u16  bg_used_dirs_count;    /* Directories count */
     u16  bg_pad;
     u32  bg_reserved[3];
+};
+
+/*
+ * Structure of an inode on the disk
+ */
+struct ext2_inode {
+    u16  i_mode;     /* File mode */
+    u16  i_uid;      /* Low 16 bits of Owner Uid */
+    u32  i_size;     /* Size in bytes */
+    u32  i_atime;    /* Access time */
+    u32  i_ctime;    /* Creation time */
+    u32  i_mtime;    /* Modification time */
+    u32  i_dtime;    /* Deletion Time */
+    u16  i_gid;      /* Low 16 bits of Group Id */
+    u16  i_links_count;  /* Links count */
+    u32  i_blocks;   /* Blocks count */
+    u32  i_flags;    /* File flags */
+    union {
+        struct {
+            u32  l_i_reserved1;
+        } linux1;
+        struct {
+            u32  h_i_translator;
+        } hurd1;
+        struct {
+            u32  m_i_reserved1;
+        } masix1;
+    } osd1;             /* OS dependent 1 */
+    u32  i_block[EXT2_N_BLOCKS];/* Pointers to blocks */
+    u32  i_generation;   /* File version (for NFS) */
+    u32  i_file_acl; /* File ACL */
+    u32  i_dir_acl;  /* Directory ACL */
+    u32  i_faddr;    /* Fragment address */
+    union {
+        struct {
+            __u8    l_i_frag;   /* Fragment number */
+            __u8    l_i_fsize;  /* Fragment size */
+            __u16   i_pad1;
+            u16  l_i_uid_high;   /* these 2 fields    */
+            u16  l_i_gid_high;   /* were reserved2[0] */
+            __u32   l_i_reserved2;
+        } linux2;
+        struct {
+            __u8    h_i_frag;   /* Fragment number */
+            __u8    h_i_fsize;  /* Fragment size */
+            u16  h_i_mode_high;
+            u16  h_i_uid_high;
+            u16  h_i_gid_high;
+            u32  h_i_author;
+        } hurd2;
+        struct {
+            __u8    m_i_frag;   /* Fragment number */
+            __u8    m_i_fsize;  /* Fragment size */
+            __u16   m_pad1;
+            __u32   m_i_reserved2[2];
+        } masix2;
+    } osd2;             /* OS dependent 2 */
 };
 
 /*

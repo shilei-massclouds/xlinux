@@ -167,8 +167,18 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
             shift = XA_CHUNK_SHIFT;
         entry = xa_head_locked(xa);
         slot = &xa->xa_head;
+    } else if (xas_error(xas)) {
+        return NULL;
+    } else if (node) {
+        unsigned int offset = xas->xa_offset;
+
+        shift = node->shift;
+        entry = xa_entry_locked(xa, node, offset);
+        slot = &node->slots[offset];
     } else {
-        panic("%s: not top node!", __func__);
+        shift = 0;
+        entry = xa_head_locked(xa);
+        slot = &xa->xa_head;
     }
 
     while (shift > order) {

@@ -70,14 +70,49 @@ ext2_fill_super(struct super_block *sb, void *data, int silent)
     if (blocksize != BLOCK_SIZE) {
         logic_sb_block = (sb_block*BLOCK_SIZE) / blocksize;
         offset = (sb_block*BLOCK_SIZE) % blocksize;
+        printk("%s: 1 logic_sb_block(%lu, %lu)\n", __func__, logic_sb_block, BLOCK_SIZE);
     } else {
         logic_sb_block = sb_block;
+        printk("%s: 2 logic_sb_block(%lu, %lu)\n", __func__, logic_sb_block, BLOCK_SIZE);
     }
 
     if (!(bh = sb_bread_unmovable(sb, logic_sb_block)))
         panic("error: unable to read superblock");
 
     es = (struct ext2_super_block *) (((char *)bh->b_data) + offset);
+    sbi->s_es = es;
+
+    blocksize = BLOCK_SIZE << sbi->s_es->s_log_block_size;
+
+    if (sb->s_blocksize != blocksize) {
+        if (!sb_set_blocksize(sb, blocksize))
+            panic("bad blocksize %d", blocksize);
+
+        logic_sb_block = (sb_block * BLOCK_SIZE) / blocksize;
+        printk("%s: logic_sb_block(%lu) blocksize(%lu) sb_block(%lu)\n",
+               __func__, logic_sb_block, blocksize, sb_block);
+        offset = (sb_block*BLOCK_SIZE) % blocksize;
+        bh = sb_bread_unmovable(sb, logic_sb_block);
+        if(!bh)
+            panic("couldn't readsuperblock on 2nd try");
+
+        es = (struct ext2_super_block *) (((char *)bh->b_data) + offset);
+        sbi->s_es = es;
+        if (es->s_magic != EXT2_SUPER_MAGIC)
+            panic("magic mismatch");
+    }
+
+    if (es->s_rev_level == EXT2_GOOD_OLD_REV) {
+        panic("bad s_rev_level!");
+    } else {
+        sbi->s_inode_size = es->s_inode_size;
+        if ((sbi->s_inode_size < EXT2_GOOD_OLD_INODE_SIZE) ||
+            !is_power_of_2(sbi->s_inode_size) ||
+            (sbi->s_inode_size > blocksize)) {
+            panic("unsupported inode size: %d", sbi->s_inode_size);
+        }
+    }
+
     sbi->s_inodes_per_group = es->s_inodes_per_group;
     sbi->s_blocks_per_group = es->s_blocks_per_group;
     sbi->s_desc_per_block = sb->s_blocksize
@@ -102,20 +137,19 @@ ext2_fill_super(struct super_block *sb, void *data, int silent)
 
     for (i = 0; i < db_count; i++) {
         block = descriptor_loc(sb, logic_sb_block, i);
-        printk("### %s: sb_bread_unmovable block(%u)\n",
-               __func__, block);
         sbi->s_group_desc[i] = sb_bread_unmovable(sb, block);
         if (!sbi->s_group_desc[i])
             panic("unable to read group descriptors");
     }
 
-    printk("%s: step1\n", __func__);
     sb->s_op = &ext2_sops;
 
     root = ext2_iget(sb, EXT2_ROOT_INO);
-    printk("%s: step2\n", __func__);
     if (IS_ERR(root))
         panic("can not get root inode! (%d)!", PTR_ERR(root));
+
+    printk("%s: isdir(%d) i_blocks(%lu) i_size(%lu)\n",
+           __func__, S_ISDIR(root->i_mode), root->i_blocks, root->i_size);
 
     if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size)
         panic("error: corrupt root inode, run e2fsck");
@@ -131,7 +165,7 @@ ext2_fill_super(struct super_block *sb, void *data, int silent)
     ext2_write_super(sb);
     */
 
-    panic("%s: ", __func__);
+    return 0;
 }
 
 static struct dentry *

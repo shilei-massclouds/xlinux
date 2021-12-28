@@ -74,6 +74,15 @@ xa_entry(const struct xarray *xa,
     return node->slots[offset];
 }
 
+static inline void *
+xa_entry_locked(const struct xarray *xa,
+                const struct xa_node *node,
+                unsigned int offset)
+{
+    BUG_ON(offset >= XA_CHUNK_SIZE);
+    return node->slots[offset];
+}
+
 static inline void *xa_mk_internal(unsigned long v)
 {
     return (void *)((v << 2) | 2);
