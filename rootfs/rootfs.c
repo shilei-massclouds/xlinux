@@ -222,9 +222,7 @@ prepare_namespace(void)
 
     //devtmpfs_mount();
     init_mount(".", "/", NULL, MS_MOVE);
-    //init_chroot(".");
-
-    panic("%s: !", __func__);
+    init_chroot(".");
 }
 
 static struct kernel_param kernel_params[] = {

@@ -420,10 +420,6 @@ init_mount(const char *dev_name, const char *dir_name,
         return ret;
 
     ret = path_mount(dev_name, &path, type_page, flags);
-
-    printk("### %s: dev(%s) dir(%s) fs(%s) ret(%d)\n",
-           __func__, dev_name, dir_name, type_page, ret);
-
     path_put(&path);
     return ret;
 }
