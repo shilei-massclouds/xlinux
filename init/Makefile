@@ -3,3 +3,4 @@
 target_y := ko
 
 obj_y := init.o
+obj_y += main.o

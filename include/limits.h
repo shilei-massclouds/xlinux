@@ -8,4 +8,6 @@
 #define UINT_MAX    (~0U)
 #define LONG_MAX    ((long)(~0UL >> 1))
 
+#define CONFIG_INIT_ENV_ARG_LIMIT 32
+
 #endif /* __LIMITS_H */

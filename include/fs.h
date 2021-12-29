@@ -304,4 +304,7 @@ int init_chdir(const char *filename);
 
 int init_chroot(const char *filename);
 
+int kernel_execve(const char *kernel_filename,
+                  const char *const *argv, const char *const *envp);
+
 #endif /* _LINUX_FS_H */
