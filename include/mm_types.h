@@ -2,7 +2,18 @@
 #ifndef _LINUX_MM_TYPES_H
 #define _LINUX_MM_TYPES_H
 
+#include <page.h>
+
+/* NEW_AUX_ENT entries in auxiliary table */
+#define AT_VECTOR_SIZE_BASE 20  /* from "include/linux/auxvec.h" */
+#define AT_VECTOR_SIZE (2 * (AT_VECTOR_SIZE_BASE + 1))
+
 #define page_private(page)  ((page)->private)
+
+struct mm_struct {
+    pgd_t *pgd;
+    unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+};
 
 static inline void
 set_page_private(struct page *page, unsigned long private)

@@ -8,6 +8,7 @@
 #include <kernel.h>
 #include <string.h>
 #include <pgtable.h>
+#include <mm_types.h>
 
 static phys_alloc_t phys_alloc_fn;
 

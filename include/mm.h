@@ -45,10 +45,6 @@ struct alloc_context {
     enum zone_type highest_zoneidx;
 };
 
-struct mm_struct {
-    pgd_t *pgd;
-};
-
 extern unsigned long max_mapnr;
 
 static inline void set_max_mapnr(unsigned long limit)
