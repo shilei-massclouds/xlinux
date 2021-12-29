@@ -4,8 +4,10 @@
 
 #include <page.h>
 #include <atomic.h>
+#include <string.h>
 #include <mmzone.h>
 #include <memblock.h>
+#include <mm_types.h>
 #include <page-flags.h>
 
 /* Page flags: | ZONE | [LAST_CPUPID] | ... | FLAGS | */
@@ -148,5 +150,23 @@ static inline struct page *virt_to_head_page(const void *x)
 
     return compound_head(page);
 }
+
+static inline void
+vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
+{
+    static const struct vm_operations_struct dummy_vm_ops = {};
+
+    memset(vma, 0, sizeof(*vma));
+    vma->vm_mm = mm;
+    vma->vm_ops = &dummy_vm_ops;
+    //INIT_LIST_HEAD(&vma->anon_vma_chain);
+}
+
+static inline void vma_set_anonymous(struct vm_area_struct *vma)
+{
+    vma->vm_ops = NULL;
+}
+
+int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma);
 
 #endif /* _RISCV_MM_H_ */

@@ -58,12 +58,12 @@
  * root(39) -> pgd(30) -> pmd(21) -> pt(12) -> phy_page(3)
  */
 
-#define PGD_SHIFT       (30)
-#define PGD_SIZE        (_AC(1, UL) << PGD_SHIFT)
-#define PGD_MASK        (~(PGD_SIZE - 1))
+#define PGDIR_SHIFT     30
+#define PGDIR_SIZE      (_AC(1, UL) << PGDIR_SHIFT)
+#define PGDIR_MASK      (~(PGDIR_SIZE - 1))
 
 #define PTRS_PER_PGD    (PAGE_SIZE / sizeof(pgd_t))
-#define pgd_index(a)    (((a) >> PGD_SHIFT) & (PTRS_PER_PGD - 1))
+#define pgd_index(a)    (((a) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
 #define pgd_val(x)      ((x).pgd)
 #define __pgd(x)        ((pgd_t) { (x) })
 

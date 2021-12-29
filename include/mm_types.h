@@ -13,6 +13,22 @@
 struct mm_struct {
     pgd_t *pgd;
     unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+    unsigned long total_vm;    /* Total pages mapped */
+    unsigned long stack_vm;    /* VM_STACK */
+};
+
+struct vm_operations_struct {
+};
+
+struct vm_area_struct {
+    unsigned long vm_start; /* Our start address within vm_mm. */
+    unsigned long vm_end;   /* The first byte after our end address
+                               within vm_mm. */
+
+    struct mm_struct *vm_mm;    /* The address space we belong to. */
+
+    /* Function pointers to deal with this struct. */
+    const struct vm_operations_struct *vm_ops;
 };
 
 static inline void

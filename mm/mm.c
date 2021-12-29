@@ -119,7 +119,7 @@ create_pgd_mapping(pgd_t *pgdp,
 	phys_addr_t next_phys;
 	uintptr_t pgd_idx = pgd_index(va);
 
-	if (sz == PGD_SIZE) {
+	if (sz == PGDIR_SIZE) {
 		if (pgd_none(pgdp[pgd_idx]))
 			pgdp[pgd_idx] = pfn_pgd(PFN_DOWN(pa), prot);
 		return;
@@ -155,7 +155,7 @@ setup_vm_final(struct memblock_region *regions,
 	/* Setup swapper PGD for fixmap */
 	create_pgd_mapping(swapper_pg_dir,
                        FIXADDR_START, __pa(fixmap_pmd),
-                       PGD_SIZE, PAGE_TABLE);
+                       PGDIR_SIZE, PAGE_TABLE);
 
 	/* Map all memory banks */
     for (reg = regions; reg < (regions + regions_cnt); reg++) {

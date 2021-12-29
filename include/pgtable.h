@@ -40,7 +40,7 @@
 #define FLASH_PA        0x0000000020000000UL
 
 #define FLASH_VA \
-    _ALIGN_DOWN((FIXADDR_START - FLASH_SIZE - PGD_SIZE), FLASH_PA)
+    _ALIGN_DOWN((FIXADDR_START - FLASH_SIZE - PGDIR_SIZE), FLASH_PA)
 
 #define FLASH_HEAD_SIZE 0x100
 
@@ -55,6 +55,8 @@
 #define     PGTBL_PUD_MODIFIED  BIT(__PGTBL_PUD_MODIFIED)
 #define     PGTBL_PMD_MODIFIED  BIT(__PGTBL_PMD_MODIFIED)
 #define     PGTBL_PTE_MODIFIED  BIT(__PGTBL_PTE_MODIFIED)
+
+#define TASK_SIZE (PGDIR_SIZE * PTRS_PER_PGD / 2)
 
 #define pmd_addr_end(addr, end)                     \
 ({  unsigned long __boundary = ((addr) + PMD_SIZE) & PMD_MASK;  \
@@ -99,7 +101,7 @@ pmd_offset(pgd_t *pgd, unsigned long address)
 #define pgd_offset_k(address)   pgd_offset(&init_mm, (address))
 
 #define pgd_addr_end(addr, end) \
-({  unsigned long __boundary = ((addr) + PGD_SIZE) & PGD_MASK; \
+({  unsigned long __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK; \
     (__boundary - 1 < (end) - 1)? __boundary: (end);           \
 })
 

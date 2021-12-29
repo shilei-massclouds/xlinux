@@ -2,15 +2,29 @@
 
 #include <bug.h>
 #include <slab.h>
+#include <sched.h>
 #include <export.h>
 #include <printk.h>
+#include <string.h>
+#include <current.h>
 #include <cpumask.h>
 #include <mm_types.h>
+#include <user_namespace.h>
 
 #define allocate_mm()   (kmem_cache_alloc(mm_cachep, GFP_KERNEL))
 
+/* SLAB cache for vm_area_struct structures */
+static struct kmem_cache *vm_area_cachep;
+
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
+
+static struct mm_struct *
+mm_init(struct mm_struct *mm, struct task_struct *p)
+{
+    /* Todo: */
+    return mm;
+}
 
 /*
  * Allocate and initialize an mm_struct.
@@ -23,13 +37,21 @@ struct mm_struct *mm_alloc(void)
     if (!mm)
         return NULL;
 
-    panic("%s: !", __func__);
-    /*
     memset(mm, 0, sizeof(*mm));
-    return mm_init(mm, current, current_user_ns());
-    */
+    return mm_init(mm, current);
 }
 EXPORT_SYMBOL(mm_alloc);
+
+struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
+{
+    struct vm_area_struct *vma;
+
+    vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+    if (vma)
+        vma_init(vma, mm);
+    return vma;
+}
+EXPORT_SYMBOL(vm_area_alloc);
 
 #define ARCH_MIN_MMSTRUCT_ALIGN 0
 
@@ -51,6 +73,8 @@ void proc_caches_init(void)
                                    offsetof(struct mm_struct, saved_auxv),
                                    sizeof_field(struct mm_struct, saved_auxv),
                                    NULL);
+
+    vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACCOUNT);
 }
 
 static int

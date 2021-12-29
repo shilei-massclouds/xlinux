@@ -8,6 +8,33 @@
 #include <export.h>
 #include <string.h>
 #include <binfmts.h>
+#include <processor.h>
+
+static int __bprm_mm_init(struct linux_binprm *bprm)
+{
+    int err;
+    struct mm_struct *mm = bprm->mm;
+    struct vm_area_struct *vma = NULL;
+
+    bprm->vma = vma = vm_area_alloc(mm);
+    if (!vma)
+        return -ENOMEM;
+    vma_set_anonymous(vma);
+
+    vma->vm_end = STACK_TOP_MAX;
+    vma->vm_start = vma->vm_end - PAGE_SIZE;
+    //vma->vm_flags = VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
+    //vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+
+    err = insert_vm_struct(mm, vma);
+    if (err)
+        panic("can not insert vma!");
+
+    mm->stack_vm = mm->total_vm = 1;
+    bprm->p = vma->vm_end - sizeof(void *);
+    panic("%s: !", __func__);
+    return 0;
+}
 
 /*
  * Create a new mm_struct and populate it with a temporary stack
@@ -25,11 +52,9 @@ static int bprm_mm_init(struct linux_binprm *bprm)
     if (!mm)
         panic("no memory!");
 
-    /*
     err = __bprm_mm_init(bprm);
     if (err)
         panic("bad mm for bprm!");
-        */
 
     panic("%s: !", __func__);
     return 0;
