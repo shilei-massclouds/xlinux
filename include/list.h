@@ -292,6 +292,30 @@ hlist_add_head(struct hlist_node *n, struct hlist_head *h)
     WRITE_ONCE(n->pprev, &h->first);
 }
 
+static inline void __hlist_del(struct hlist_node *n)
+{
+    struct hlist_node *next = n->next;
+    struct hlist_node **pprev = n->pprev;
+
+    WRITE_ONCE(*pprev, next);
+    if (next)
+        WRITE_ONCE(next->pprev, pprev);
+}
+
+/**
+ * hlist_del_init - Delete the specified hlist_node from its list and initialize
+ * @n: Node to delete.
+ *
+ * Note that this function leaves the node in unhashed state.
+ */
+static inline void hlist_del_init(struct hlist_node *n)
+{
+    if (!hlist_unhashed(n)) {
+        __hlist_del(n);
+        INIT_HLIST_NODE(n);
+    }
+}
+
 /**
  * hlist_for_each_entry_safe - iterate over list of given type safe against removal of list entry
  * @pos:    the type * to use as a loop cursor.

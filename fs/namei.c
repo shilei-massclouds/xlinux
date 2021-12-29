@@ -173,11 +173,27 @@ step_into(struct nameidata *nd, struct dentry *dentry, struct inode *inode)
     return NULL;
 }
 
+static const char *handle_dots(struct nameidata *nd, int type)
+{
+    if (type == LAST_DOTDOT) {
+        panic("no support for dotdot!");
+    }
+    return NULL;
+}
+
 static const char *
 walk_component(struct nameidata *nd)
 {
     struct inode *inode;
     struct dentry *dentry;
+
+    /*
+     * "." and ".." are special - ".." especially so because it has
+     * to be able to know about the current root directory and
+     * parent relationships.
+     */
+    if (unlikely(nd->last_type != LAST_NORM))
+        return handle_dots(nd, nd->last_type);
 
     dentry = lookup_fast(nd, &inode);
     if (IS_ERR(dentry))
@@ -202,13 +218,26 @@ link_path_walk(const char *name, struct nameidata *nd)
         return 0;
 
     for (;;) {
+        int type;
         u64 hash_len;
 
         hash_len = hash_name(nd->path.dentry, name);
+        type = LAST_NORM;
+
+        if (name[0] == '.') switch (hashlen_len(hash_len)) {
+            case 2:
+                if (name[1] == '.') {
+                    type = LAST_DOTDOT;
+                    nd->flags |= LOOKUP_JUMPED;
+                }
+                break;
+            case 1:
+                type = LAST_DOT;
+        }
 
         nd->last.hash_len = hash_len;
         nd->last.name = name;
-        nd->last_type = LAST_NORM;
+        nd->last_type = type;
 
         name += hashlen_len(hash_len);
         if (!*name) {

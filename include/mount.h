@@ -71,4 +71,9 @@ real_mount(struct vfsmount *mnt)
 struct vfsmount *
 vfs_create_mount(struct fs_context *fc);
 
+static inline int mnt_has_parent(struct mount *mnt)
+{
+    return mnt != mnt->mnt_parent;
+}
+
 #endif /* _LINUX_MOUNT_H */

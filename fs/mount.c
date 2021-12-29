@@ -201,10 +201,32 @@ static void commit_tree(struct mount *mnt)
     __attach_mnt(mnt, parent);
 }
 
-static int attach_recursive_mnt(struct mount *source_mnt,
-                                struct mount *dest_mnt,
-                                struct mountpoint *dest_mp,
-                                bool moving)
+static struct mountpoint *unhash_mnt(struct mount *mnt)
+{
+    struct mountpoint *mp;
+    mnt->mnt_parent = mnt;
+    mnt->mnt_mountpoint = mnt->mnt.mnt_root;
+    list_del_init(&mnt->mnt_child);
+    hlist_del_init(&mnt->mnt_hash);
+    hlist_del_init(&mnt->mnt_mp_list);
+    mp = mnt->mnt_mp;
+    mnt->mnt_mp = NULL;
+    return mp;
+}
+
+static void attach_mnt(struct mount *mnt,
+            struct mount *parent,
+            struct mountpoint *mp)
+{
+    mnt_set_mountpoint(parent, mp, mnt);
+    __attach_mnt(mnt, parent);
+}
+
+static int
+attach_recursive_mnt(struct mount *source_mnt,
+                     struct mount *dest_mnt,
+                     struct mountpoint *dest_mp,
+                     bool moving)
 {
     struct mountpoint *smp;
 
@@ -216,7 +238,8 @@ static int attach_recursive_mnt(struct mount *source_mnt,
         return PTR_ERR(smp);
 
     if (moving) {
-        panic("can not be moving!");
+        unhash_mnt(source_mnt);
+        attach_mnt(source_mnt, dest_mnt, dest_mp);
     } else {
         mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
         commit_tree(source_mnt);
@@ -323,7 +346,30 @@ do_new_mount(struct path *path,
 
 static int do_move_mount(struct path *old_path, struct path *new_path)
 {
-    panic("%s: !", __func__);
+    int err;
+    bool attached;
+    struct mount *p;
+    struct mount *old;
+    struct mount *parent;
+    struct mountpoint *mp, *old_mp;
+
+    mp = lock_mount(new_path);
+    if (IS_ERR(mp))
+        return PTR_ERR(mp);
+
+    old = real_mount(old_path->mnt);
+    p = real_mount(new_path->mnt);
+    parent = old->mnt_parent;
+    attached = mnt_has_parent(old);
+    old_mp = old->mnt_mp;
+
+    err = attach_recursive_mnt(old, real_mount(new_path->mnt),
+                               mp, attached);
+    if (err)
+        return err;
+
+    unlock_mount(mp);
+    return err;
 }
 
 static int do_move_mount_old(struct path *path, const char *old_name)
@@ -369,12 +415,10 @@ init_mount(const char *dev_name, const char *dir_name,
     struct path path;
     int ret;
 
-    printk("%s: 1\n", __func__);
     ret = kern_path(dir_name, LOOKUP_FOLLOW, &path);
     if (ret)
         return ret;
 
-    printk("%s: 2\n", __func__);
     ret = path_mount(dev_name, &path, type_page, flags);
 
     printk("### %s: dev(%s) dir(%s) fs(%s) ret(%d)\n",
