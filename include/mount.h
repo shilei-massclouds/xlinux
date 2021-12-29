@@ -8,6 +8,7 @@
 #include <kdev_t.h>
 
 #define MS_RDONLY   1       /* Mount read-only */
+#define MS_MOVE     8192
 #define MS_SILENT   32768
 
 #define MNT_READONLY    0x40    /* does the user want this to be r/o? */

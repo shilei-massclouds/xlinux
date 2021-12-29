@@ -3,6 +3,7 @@
 target_y := ko
 
 obj_y := fs.o
+obj_y += init.o
 obj_y += inode.o
 obj_y += super.o
 obj_y += mount.o

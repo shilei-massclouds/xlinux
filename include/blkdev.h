@@ -9,6 +9,7 @@
 #include <blk_types.h>
 #include <scatterlist.h>
 
+#define BDEVNAME_SIZE   32  /* Largest string for a blockdev identifier */
 #define BLKDEV_MAX_RQ   128 /* Default maximum */
 
 #define BLKDEV_MAJOR_MAX    512

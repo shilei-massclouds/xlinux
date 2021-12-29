@@ -321,6 +321,28 @@ do_new_mount(struct path *path,
     return err;
 }
 
+static int do_move_mount(struct path *old_path, struct path *new_path)
+{
+    panic("%s: !", __func__);
+}
+
+static int do_move_mount_old(struct path *path, const char *old_name)
+{
+    struct path old_path;
+    int err;
+
+    if (!old_name || !*old_name)
+        return -EINVAL;
+
+    err = kern_path(old_name, LOOKUP_FOLLOW, &old_path);
+    if (err)
+        return err;
+
+    err = do_move_mount(&old_path, path);
+    path_put(&old_path);
+    return err;
+}
+
 int
 path_mount(const char *dev_name, struct path *path,
            const char *type_page, unsigned long flags)
@@ -334,6 +356,9 @@ path_mount(const char *dev_name, struct path *path,
     sb_flags = flags & (SB_RDONLY | SB_SYNCHRONOUS | SB_MANDLOCK | SB_DIRSYNC |
                         SB_SILENT | SB_POSIXACL | SB_LAZYTIME | SB_I_VERSION);
 
+    if (flags & MS_MOVE)
+        return do_move_mount_old(path, dev_name);
+
     return do_new_mount(path, type_page, sb_flags, mnt_flags, dev_name);
 }
 
@@ -344,17 +369,18 @@ init_mount(const char *dev_name, const char *dir_name,
     struct path path;
     int ret;
 
+    printk("%s: 1\n", __func__);
     ret = kern_path(dir_name, LOOKUP_FOLLOW, &path);
     if (ret)
         return ret;
 
+    printk("%s: 2\n", __func__);
     ret = path_mount(dev_name, &path, type_page, flags);
 
     printk("### %s: dev(%s) dir(%s) fs(%s) ret(%d)\n",
            __func__, dev_name, dir_name, type_page, ret);
 
     path_put(&path);
-    panic("Reach here!");
     return ret;
 }
 EXPORT_SYMBOL(init_mount);

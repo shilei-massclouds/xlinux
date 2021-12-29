@@ -86,6 +86,8 @@ sget_fc(struct fs_context *fc,
     if (set(s, fc))
         panic("cannot set!");
 
+    fc->s_fs_info = NULL;
+    s->s_type = fc->fs_type;
     return s;
 }
 

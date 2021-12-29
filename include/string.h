@@ -79,4 +79,6 @@ strcpy(char *dest, const char *src);
 int
 sprintf(char *buf, const char *fmt, ...);
 
+int scnprintf(char *buf, size_t size, const char *fmt, ...);
+
 #endif /* _LINUX_STRING_H */

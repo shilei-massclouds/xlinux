@@ -300,4 +300,6 @@ static inline loff_t i_size_read(const struct inode *inode)
     return inode->i_size;
 }
 
+int init_chdir(const char *filename);
+
 #endif /* _LINUX_FS_H */

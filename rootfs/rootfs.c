@@ -9,6 +9,7 @@
 #include <mount.h>
 #include <namei.h>
 #include <ramfs.h>
+#include <blkdev.h>
 #include <export.h>
 #include <kernel.h>
 #include <params.h>
@@ -141,20 +142,32 @@ static int
 do_mount_root(const char *name, const char *fs, const int flags)
 {
     int ret;
+    struct super_block *s;
 
     ret = init_mount(name, "/root", fs, flags);
     if (ret)
         panic("bad init mount /root");
 
-    panic("%s: Todo:", __func__);
+    init_chdir("/root");
+    s = current->fs->pwd.dentry->d_sb;
+    ROOT_DEV = s->s_dev;
+    printk("VFS: Mounted root (%s filesystem) on device %u:%u.\n",
+           s->s_type->name,
+           MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
+
+    return ret;
 }
 
 void
 mount_block_root(char *name, int flags)
 {
     char *p;
+    char b[BDEVNAME_SIZE];
     struct page *page = alloc_page(GFP_KERNEL);
     char *fs_names = page_address(page);
+
+    scnprintf(b, BDEVNAME_SIZE, "unknown-block(%u,%u)",
+              MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 
     get_fs_names(fs_names);
     for (p = fs_names; *p; p += strlen(p)+1) {
@@ -176,7 +189,7 @@ mount_block_root(char *name, int flags)
 
         panic("VFS: Unable to mount root fs");
     }
-    panic("%s: Todo: [%s]", __func__, fs_names);
+    panic("VFS: Unable to mount root fs on %s", b);
 }
 
 void
@@ -207,11 +220,9 @@ prepare_namespace(void)
 
     mount_root();
 
-    /*
-    devtmpfs_mount();
-    init_mount(".", "/", NULL, MS_MOVE, NULL);
-    init_chroot(".");
-    */
+    //devtmpfs_mount();
+    init_mount(".", "/", NULL, MS_MOVE);
+    //init_chroot(".");
 
     panic("%s: !", __func__);
 }
