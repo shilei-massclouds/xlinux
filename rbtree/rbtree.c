@@ -509,6 +509,54 @@ __rb_erase_color(struct rb_node *parent,
 }
 EXPORT_SYMBOL(__rb_erase_color);
 
+/*
+ * This function returns the first node (in sort order) of the tree.
+ */
+struct rb_node *rb_first(const struct rb_root *root)
+{
+    struct rb_node  *n;
+
+    n = root->rb_node;
+    if (!n)
+        return NULL;
+    while (n->rb_left)
+        n = n->rb_left;
+    return n;
+}
+EXPORT_SYMBOL(rb_first);
+
+struct rb_node *rb_next(const struct rb_node *node)
+{
+    struct rb_node *parent;
+
+    if (RB_EMPTY_NODE(node))
+        return NULL;
+
+    /*
+     * If we have a right-hand child, go down and then left as far
+     * as we can.
+     */
+    if (node->rb_right) {
+        node = node->rb_right;
+        while (node->rb_left)
+            node = node->rb_left;
+        return (struct rb_node *)node;
+    }
+
+    /*
+     * No right-hand children. Everything down and left is smaller than us,
+     * so any 'next' node must be in the general direction of our parent.
+     * Go up the tree; any time the ancestor is a right-hand child of its
+     * parent, keep going up. First time it's a left-hand child of its
+     * parent, said parent is our 'next' node.
+     */
+    while ((parent = rb_parent(node)) && node == parent->rb_right)
+        node = parent;
+
+    return parent;
+}
+EXPORT_SYMBOL(rb_next);
+
 static int
 init_module(void)
 {

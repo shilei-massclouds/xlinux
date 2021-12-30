@@ -28,6 +28,14 @@
 
 #define ALLOC_WMARK_LOW     WMARK_LOW
 
+/*
+ * vm_flags in vm_area_struct, see mm_types.h.
+ * When changing, update also include/trace/events/mmflags.h
+ */
+#define VM_NONE         0x00000000
+#define VM_GROWSDOWN    0x00000100  /* general info on the segment */
+#define VM_GROWSUP      VM_NONE
+
 extern struct mm_struct init_mm;
 
 struct alloc_context {
@@ -168,5 +176,39 @@ static inline void vma_set_anonymous(struct vm_area_struct *vma)
 }
 
 int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma);
+
+static inline bool vma_is_anonymous(struct vm_area_struct *vma)
+{
+    return !vma->vm_ops;
+}
+
+void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+                     struct vm_area_struct *prev);
+
+extern unsigned long stack_guard_gap;
+
+static inline unsigned long vm_start_gap(struct vm_area_struct *vma)
+{
+    unsigned long vm_start = vma->vm_start;
+
+    if (vma->vm_flags & VM_GROWSDOWN) {
+        vm_start -= stack_guard_gap;
+        if (vm_start > vma->vm_start)
+            vm_start = 0;
+    }
+    return vm_start;
+}
+
+static inline unsigned long vm_end_gap(struct vm_area_struct *vma)
+{
+    unsigned long vm_end = vma->vm_end;
+
+    if (vma->vm_flags & VM_GROWSUP) {
+        vm_end += stack_guard_gap;
+        if (vm_end < vma->vm_end)
+            vm_end = -PAGE_SIZE;
+    }
+    return vm_end;
+}
 
 #endif /* _RISCV_MM_H_ */

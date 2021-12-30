@@ -218,5 +218,7 @@ static inline bool RBNAME ## _compute_max(RBSTRUCT *node, bool exit)          \
 RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME,                        \
              RBSTRUCT, RBFIELD, RBAUGMENTED, RBNAME ## _compute_max)
 
+struct rb_node *rb_first(const struct rb_root *root);
+struct rb_node *rb_next(const struct rb_node *node);
 
 #endif /* _LINUX_RBTREE_H_ */
