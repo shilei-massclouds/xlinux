@@ -2,12 +2,14 @@
 
 #include <bug.h>
 #include <slab.h>
+#include <errno.h>
 #include <sched.h>
 #include <export.h>
 #include <printk.h>
 #include <string.h>
 #include <current.h>
 #include <cpumask.h>
+#include <pgalloc.h>
 #include <mm_types.h>
 #include <user_namespace.h>
 
@@ -19,10 +21,20 @@ static struct kmem_cache *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
 
+static inline int mm_alloc_pgd(struct mm_struct *mm)
+{
+    mm->pgd = pgd_alloc(mm);
+    if (unlikely(!mm->pgd))
+        return -ENOMEM;
+    return 0;
+}
+
 static struct mm_struct *
 mm_init(struct mm_struct *mm, struct task_struct *p)
 {
-    /* Todo: */
+    if (mm_alloc_pgd(mm))
+        panic("bad memory!");
+
     return mm;
 }
 

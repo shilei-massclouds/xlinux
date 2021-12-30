@@ -11,6 +11,34 @@
 
 #define page_private(page)  ((page)->private)
 
+/**
+ * typedef vm_fault_t - Return type for page fault handlers.
+ *
+ * Page fault handlers return a bitmask of %VM_FAULT values.
+ */
+typedef unsigned int vm_fault_t;
+
+enum vm_fault_reason {
+    VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
+    VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
+    VM_FAULT_MAJOR          = (__force vm_fault_t)0x000004,
+    VM_FAULT_WRITE          = (__force vm_fault_t)0x000008,
+    VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
+    VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
+    VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
+    VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
+    VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
+    VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
+    VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
+    VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
+    VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
+    VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
+};
+
+#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS | \
+                        VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON | \
+                        VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
+
 struct mm_struct {
     struct vm_area_struct *mmap;    /* list of VMAs */
     struct rb_root mm_rb;

@@ -2,7 +2,6 @@
 #ifndef _LINUX_PGTABLE_H
 #define _LINUX_PGTABLE_H
 
-#include <mm.h>
 #include <gfp.h>
 #include <bits.h>
 #include <page.h>
@@ -57,6 +56,9 @@
 #define     PGTBL_PTE_MODIFIED  BIT(__PGTBL_PTE_MODIFIED)
 
 #define TASK_SIZE (PGDIR_SIZE * PTRS_PER_PGD / 2)
+
+/* Number of PGD entries that a user-mode program can use */
+#define USER_PTRS_PER_PGD   (TASK_SIZE / PGDIR_SIZE)
 
 #define pmd_addr_end(addr, end)                     \
 ({  unsigned long __boundary = ((addr) + PMD_SIZE) & PMD_MASK;  \

@@ -6,9 +6,13 @@
 #include <atomic.h>
 #include <string.h>
 #include <mmzone.h>
+#include <ptrace.h>
+#include <pgtable.h>
 #include <memblock.h>
 #include <mm_types.h>
 #include <page-flags.h>
+
+#define untagged_addr(addr) (addr)
 
 /* Page flags: | ZONE | [LAST_CPUPID] | ... | FLAGS | */
 #define NODES_PGOFF     (sizeof(unsigned long)*8)
@@ -36,7 +40,20 @@
 #define VM_GROWSDOWN    0x00000100  /* general info on the segment */
 #define VM_GROWSUP      VM_NONE
 
+#define FOLL_WRITE  0x01    /* check pte is writable */
+#define FOLL_TOUCH  0x02    /* mark page accessed */
+#define FOLL_GET    0x04    /* do get_page on page */
+#define FOLL_FORCE  0x10    /* get_user_pages read/write w/o permission */
+#define FOLL_REMOTE 0x2000  /* we are working on non-current tsk/mm */
+
+#define FOLL_LONGTERM   0x10000 /* mapping lifetime is indefinite: see below */
+#define FOLL_PIN        0x40000 /* pages must be released via unpin_user_page */
+
 extern struct mm_struct init_mm;
+
+struct vm_fault {
+    pmd_t *pmd; /* Pointer to pmd entry matching the 'address' */
+};
 
 struct alloc_context {
     struct zonelist *zonelist;
@@ -210,5 +227,31 @@ static inline unsigned long vm_end_gap(struct vm_area_struct *vma)
     }
     return vm_end;
 }
+
+long get_user_pages_remote(struct mm_struct *mm,
+                           unsigned long start, unsigned long nr_pages,
+                           unsigned int gup_flags, struct page **pages,
+                           struct vm_area_struct **vmas, int *locked);
+
+static inline unsigned long vma_pages(struct vm_area_struct *vma)
+{
+    return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+}
+
+struct vm_area_struct *
+find_extend_vma(struct mm_struct *mm, unsigned long addr);
+
+int __pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
+
+static inline pmd_t *
+pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+{
+    return (unlikely(pgd_none(*pgd)) && __pmd_alloc(mm, pgd, address)) ?
+        NULL: pmd_offset(pgd, address);
+}
+
+vm_fault_t
+handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+                unsigned int flags, struct pt_regs *regs);
 
 #endif /* _RISCV_MM_H_ */

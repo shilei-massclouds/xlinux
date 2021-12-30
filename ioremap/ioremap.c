@@ -5,21 +5,8 @@
 #include <errno.h>
 #include <export.h>
 #include <ioremap.h>
+#include <pgalloc.h>
 #include <pgtable.h>
-
-static inline pmd_t *
-pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
-{
-    struct page *page;
-    gfp_t gfp = GFP_PGTABLE_USER;
-
-    if (mm == &init_mm)
-        gfp = GFP_PGTABLE_KERNEL;
-    page = alloc_pages(gfp, 0);
-    if (!page)
-        return NULL;
-    return (pmd_t *)page_address(page);
-}
 
 int
 __pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)

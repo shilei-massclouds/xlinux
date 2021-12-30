@@ -124,4 +124,14 @@ static inline void local_flush_tlb_all(void)
 
 #define struct_size(p, member, count) (count * sizeof(*(p)->member))
 
+/**
+ * min_not_zero - return the minimum that is _not_ zero, unless both are zero
+ * @x: value1
+ * @y: value2
+ */
+#define min_not_zero(x, y) ({   \
+    typeof(x) __x = (x);        \
+    typeof(y) __y = (y);        \
+    __x == 0 ? __y : ((__y == 0) ? __x : min(__x, __y)); })
+
 #endif /* _UAPI_LINUX_KERNEL_H */

@@ -152,3 +152,48 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
     return 0;
 }
 EXPORT_SYMBOL(insert_vm_struct);
+
+/* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+struct vm_area_struct *
+find_vma(struct mm_struct *mm, unsigned long addr)
+{
+    struct rb_node *rb_node;
+    struct vm_area_struct *vma;
+
+    rb_node = mm->mm_rb.rb_node;
+
+    while (rb_node) {
+        struct vm_area_struct *tmp;
+
+        tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+
+        if (tmp->vm_end > addr) {
+            vma = tmp;
+            if (tmp->vm_start <= addr)
+                break;
+            rb_node = rb_node->rb_left;
+        } else
+            rb_node = rb_node->rb_right;
+    }
+
+    return vma;
+}
+EXPORT_SYMBOL(find_vma);
+
+struct vm_area_struct *
+find_extend_vma(struct mm_struct *mm, unsigned long addr)
+{
+    unsigned long start;
+    struct vm_area_struct *vma;
+
+    addr &= PAGE_MASK;
+    vma = find_vma(mm, addr);
+    if (!vma)
+        return NULL;
+    if (vma->vm_start <= addr)
+        return vma;
+
+    panic("%s: (%lx <= %lx)!",
+          __func__, vma->vm_start, addr);
+}
+EXPORT_SYMBOL(find_extend_vma);

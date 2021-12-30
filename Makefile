@@ -6,7 +6,7 @@ PHONY := all clean
 
 SUBDIRS := startup lib early_dt \
 	rbtree radix_tree hashtable bitmap xarray scatterlist \
-	mm memblock buddy slab kalloc filemap \
+	mm pgalloc gup memblock buddy slab kalloc filemap \
 	vma ioremap devres \
 	of of_irq platform kobject \
 	dcache fs ramfs rootfs ext2 \
