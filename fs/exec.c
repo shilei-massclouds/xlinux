@@ -241,12 +241,25 @@ copy_strings_kernel(int argc, const char *const *argv,
     return 0;
 }
 
+static struct file *do_open_execat(int fd, struct filename *name, int flags)
+{
+    panic("%s: !", __func__);
+}
+
 /*
  * sys_execve() executes a new program.
  */
 static int bprm_execve(struct linux_binprm *bprm,
                        int fd, struct filename *filename, int flags)
 {
+    int retval;
+    struct file *file;
+
+    file = do_open_execat(fd, filename, flags);
+    retval = PTR_ERR(file);
+    if (IS_ERR(file))
+        panic("bad file!");
+
     panic("%s: !", __func__);
 }
 
