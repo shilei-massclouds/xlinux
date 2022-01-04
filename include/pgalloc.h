@@ -40,4 +40,50 @@ pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
     return (pmd_t *)page_address(page);
 }
 
+static inline bool pgtable_pte_page_ctor(struct page *page)
+{
+    __SetPageTable(page);
+    return true;
+}
+
+static inline pgtable_t __pte_alloc_one(struct mm_struct *mm, gfp_t gfp)
+{
+    struct page *pte;
+
+    pte = alloc_page(gfp);
+    if (!pte)
+        return NULL;
+    if (!pgtable_pte_page_ctor(pte)) {
+        panic("set pte error!");
+        return NULL;
+    }
+
+    return pte;
+}
+
+/**
+ * pte_alloc_one - allocate a page for PTE-level user page table
+ * @mm: the mm_struct of the current context
+ *
+ * Allocates a page and runs the pgtable_pte_page_ctor().
+ *
+ * Return: `struct page` initialized as page table or %NULL on error
+ */
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
+{
+    return __pte_alloc_one(mm, GFP_PGTABLE_USER);
+}
+
+static inline void
+pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t pte)
+{
+    unsigned long pfn = virt_to_pfn(page_address(pte));
+
+    set_pmd(pmd, __pmd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
+}
+
+struct page *
+vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+               pte_t pte);
+
 #endif /* _ASM_RISCV_PGALLOC_H */

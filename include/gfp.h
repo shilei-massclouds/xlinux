@@ -81,6 +81,8 @@
 #define GFP_NOIO    (__GFP_RECLAIM)
 #define GFP_NOFS    (__GFP_RECLAIM | __GFP_IO)
 
+#define GFP_HIGHUSER    (GFP_USER | __GFP_HIGHMEM)
+
 #define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
 
 struct page *
@@ -95,6 +97,12 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order)
 #define alloc_pages(gfp_mask, order) __alloc_pages(gfp_mask, order)
 
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+
+#define alloc_pages_vma(gfp_mask, order, vma, addr, node, false) \
+    alloc_pages(gfp_mask, order)
+
+#define alloc_page_vma(gfp_mask, vma, addr) \
+    alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id(), false)
 
 void __free_pages(struct page *page, unsigned int order);
 

@@ -11,6 +11,7 @@
 #include <string.h>
 #include <binfmts.h>
 #include <current.h>
+#include <highmem.h>
 #include <resource.h>
 #include <processor.h>
 
@@ -27,8 +28,8 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 
     vma->vm_end = STACK_TOP_MAX;
     vma->vm_start = vma->vm_end - PAGE_SIZE;
-    //vma->vm_flags = VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
-    //vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+    vma->vm_flags = VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
+    vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 
     err = insert_vm_struct(mm, vma);
     if (err)
@@ -220,19 +221,11 @@ int copy_string_kernel(const char *arg, struct linux_binprm *bprm)
 
         page = get_arg_page(bprm, pos, 1);
         if (!page)
-            return -E2BIG;
-        /*
+            panic("out of memory!");
         kaddr = kmap_atomic(page);
-        flush_arg_page(bprm, pos & PAGE_MASK, page);
         memcpy(kaddr + offset_in_page(pos), arg, bytes_to_copy);
-        flush_kernel_dcache_page(page);
-        kunmap_atomic(kaddr);
-        put_arg_page(page);
-        */
-        panic("%s: 1", __func__);
     }
 
-    panic("%s: !", __func__);
     return 0;
 }
 
@@ -246,6 +239,15 @@ copy_strings_kernel(int argc, const char *const *argv,
             return ret;
     }
     return 0;
+}
+
+/*
+ * sys_execve() executes a new program.
+ */
+static int bprm_execve(struct linux_binprm *bprm,
+                       int fd, struct filename *filename, int flags)
+{
+    panic("%s: !", __func__);
 }
 
 int kernel_execve(const char *kernel_filename,
@@ -291,6 +293,9 @@ int kernel_execve(const char *kernel_filename,
     if (retval < 0)
         panic("out of memory!");
 
+    retval = bprm_execve(bprm, fd, filename, 0);
+
     panic("%s: kernel_filename(%s)!", __func__, kernel_filename);
+    return retval;
 }
 EXPORT_SYMBOL(kernel_execve);

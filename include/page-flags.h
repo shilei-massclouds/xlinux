@@ -153,6 +153,14 @@ static __always_inline void __SetPage##uname(struct page *page) \
     __SETPAGEFLAG(uname, lname, policy)     \
     __CLEARPAGEFLAG(uname, lname, policy)
 
+#define TESTSETFLAG(uname, lname, policy)               \
+static __always_inline int TestSetPage##uname(struct page *page)    \
+    { return test_and_set_bit(PG_##lname, &policy(page, 1)->flags); }
+
+#define TESTSCFLAG(uname, lname, policy)    \
+    TESTSETFLAG(uname, lname, policy)       \
+    TESTCLEARFLAG(uname, lname, policy)
+
 __PAGEFLAG(Slab, slab, PF_NO_TAIL)
 
 PAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
@@ -170,6 +178,10 @@ PAGEFLAG(Private, private, PF_ANY)
 PAGEFLAG(Active, active, PF_HEAD)
     __CLEARPAGEFLAG(Active, active, PF_HEAD)
     TESTCLEARFLAG(Active, active, PF_HEAD)
+
+PAGEFLAG(Dirty, dirty, PF_HEAD)
+    __CLEARPAGEFLAG(Dirty, dirty, PF_HEAD)
+    TESTSCFLAG(Dirty, dirty, PF_HEAD)
 
 #define PAGE_TYPE_BASE  0xf0000000
 /* Reserve      0x0000007f to catch underflows of page_mapcount */
@@ -207,12 +219,23 @@ static __always_inline void __ClearPage##uname(struct page *page)   \
  */
 PAGE_TYPE_OPS(Buddy, buddy)
 
+/*
+ * Marks pages in use as page tables.
+ */
+PAGE_TYPE_OPS(Table, table)
+
 static inline int PageUptodate(struct page *page)
 {
     int ret;
     page = compound_head(page);
     ret = test_bit(PG_uptodate, &(page)->flags);
     return ret;
+}
+
+static __always_inline void __SetPageUptodate(struct page *page)
+{
+    BUG_ON(PageTail(page));
+    __set_bit(PG_uptodate, &page->flags);
 }
 
 #endif /* PAGE_FLAGS_H */

@@ -8,18 +8,6 @@
 #include <pgalloc.h>
 #include <pgtable.h>
 
-int
-__pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
-{
-    pmd_t *new = pmd_alloc_one(mm, address);
-    if (!new)
-        return -ENOMEM;
-
-    BUG_ON(pgd_present(*pgd));
-    pgd_populate(mm, pgd, new);
-    return 0;
-}
-
 static inline pmd_t *
 pmd_alloc_track(struct mm_struct *mm, pgd_t *pgd,
                 unsigned long address, pgtbl_mod_mask *mod_mask)

@@ -14,11 +14,59 @@ no_page_table(struct vm_area_struct *vma, unsigned int flags)
 }
 
 static struct page *
+follow_page_pte(struct vm_area_struct *vma,
+                unsigned long address, pmd_t *pmd, unsigned int flags)
+{
+    struct page *page;
+    pte_t *ptep, pte;
+
+    printk("%s: 1 pmd(%lx) address(%lx)\n",
+           __func__, pmd->pmd, address);
+
+    ptep = pte_offset_map_lock(mm, pmd, address);
+    pte = *ptep;
+    if (!pte_present(pte))
+        panic("pte NOT present!");
+
+    page = vm_normal_page(vma, address, pte);
+    if (!page)
+        panic("bad page!");
+
+    if (flags & FOLL_TOUCH) {
+        if ((flags & FOLL_WRITE) && !pte_dirty(pte) && !PageDirty(page))
+            set_page_dirty(page);
+
+        /*
+         * pte_mkyoung() would be more correct here, but atomic care
+         * is needed to avoid losing the dirty bit: it is easier to use
+         * mark_page_accessed().
+         */
+        //mark_page_accessed(page);
+    }
+
+    return page;
+}
+
+static struct page *
 follow_pmd_mask(struct vm_area_struct *vma,
                 unsigned long address, pgd_t *pgdp,
                 unsigned int flags)
 {
-    panic("%s: !", __func__);
+    pmd_t *pmd, pmdval;
+
+    pmd = pmd_offset(pgdp, address);
+    /*
+     * The READ_ONCE() will stabilize the pmdval in a register or
+     * on the stack so that it will stop changing under the code.
+     */
+    pmdval = READ_ONCE(*pmd);
+    if (pmd_none(pmdval))
+        return no_page_table(vma, flags);
+
+    if (!pmd_present(pmdval))
+        panic("pmd not present!");
+
+    return follow_page_pte(vma, address, pmd, flags);
 }
 
 static struct page *
@@ -43,11 +91,30 @@ static int faultin_page(struct vm_area_struct *vma,
     vm_fault_t ret;
     unsigned int fault_flags = 0;
 
+    /* mlock all present pages, but do not fault in new pages */
+    if ((*flags & (FOLL_POPULATE | FOLL_MLOCK)) == FOLL_MLOCK)
+        return -ENOENT;
+    if (*flags & FOLL_WRITE)
+        fault_flags |= FAULT_FLAG_WRITE;
+    if (*flags & FOLL_REMOTE)
+        fault_flags |= FAULT_FLAG_REMOTE;
+    if (locked)
+        fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+    if (*flags & FOLL_NOWAIT)
+        fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+    if (*flags & FOLL_TRIED) {
+        /*
+         * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
+         * can co-exist
+         */
+        fault_flags |= FAULT_FLAG_TRIED;
+    }
+
     ret = handle_mm_fault(vma, address, fault_flags, NULL);
     if (ret & VM_FAULT_ERROR)
         panic("handle mm fault error!");
 
-    panic("%s: !", __func__);
+    return 0;
 }
 
 static long
@@ -79,6 +146,9 @@ __get_user_pages(struct mm_struct *mm,
         }
 
  retry:
+        printk("%s: start(%lx) vma(%lx, %lx)\n",
+               __func__, start, vma->vm_start, vma->vm_end);
+
         page = follow_page_mask(vma, start, foll_flags);
         if (!page) {
             ret = faultin_page(vma, start, &foll_flags, locked);
@@ -98,11 +168,23 @@ __get_user_pages(struct mm_struct *mm,
             panic("follow page error: %d", PTR_ERR(page));
         }
 
+        if (pages) {
+            pages[i] = page;
+        }
  next_page:
-        panic("%s: page(%lx)", __func__, page);
+        if (vmas)
+            vmas[i] = vma;
+
+        page_increm = 1 + (~(start >> PAGE_SHIFT));
+        if (page_increm > nr_pages)
+            page_increm = nr_pages;
+        i += page_increm;
+        start += page_increm * PAGE_SIZE;
+        nr_pages -= page_increm;
     } while (nr_pages);
 
-    panic("%s: !", __func__);
+    printk("%s: !(%d) nr_pages(%u)\n", __func__, i, nr_pages);
+    return i ? i : ret;
 }
 
 static inline long

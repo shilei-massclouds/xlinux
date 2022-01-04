@@ -37,22 +37,66 @@
  * When changing, update also include/trace/events/mmflags.h
  */
 #define VM_NONE         0x00000000
+#define VM_READ         0x00000001  /* currently active flags */
+#define VM_WRITE        0x00000002
+#define VM_EXEC         0x00000004
+#define VM_SHARED       0x00000008
+
+#define VM_MAYREAD      0x00000010  /* limits for mprotect() etc */
+#define VM_MAYWRITE     0x00000020
+#define VM_MAYEXEC      0x00000040
+#define VM_MAYSHARE     0x00000080
+
 #define VM_GROWSDOWN    0x00000100  /* general info on the segment */
 #define VM_GROWSUP      VM_NONE
+#define VM_SEQ_READ     0x00008000  /* App will access data sequentially */
+#define VM_RAND_READ    0x00010000  /* App will not benefit from clustered reads */
+#define VM_ACCOUNT      0x00100000  /* Is a VM accounted object */
+
+/* Bits set in the VMA until the stack is in its final location */
+#define VM_STACK_INCOMPLETE_SETUP   (VM_RAND_READ | VM_SEQ_READ)
+
+#define VM_DATA_FLAGS_NON_EXEC \
+    (VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+#define VM_DATA_DEFAULT_FLAGS   VM_DATA_FLAGS_NON_EXEC
+#define VM_STACK_DEFAULT_FLAGS  VM_DATA_DEFAULT_FLAGS
+
+#define VM_STACK        VM_GROWSDOWN
+
+#define VM_STACK_FLAGS  (VM_STACK | VM_STACK_DEFAULT_FLAGS | VM_ACCOUNT)
 
 #define FOLL_WRITE  0x01    /* check pte is writable */
 #define FOLL_TOUCH  0x02    /* mark page accessed */
 #define FOLL_GET    0x04    /* do get_page on page */
 #define FOLL_FORCE  0x10    /* get_user_pages read/write w/o permission */
+#define FOLL_NOWAIT 0x20    /* if a disk transfer is needed, start the IO
+                             * and return without waiting upon it */
+#define FOLL_POPULATE   0x40    /* fault in page */
+#define FOLL_TRIED  0x800   /* a retry, previous pass started an IO */
+
+#define FOLL_MLOCK  0x1000  /* lock present pages */
+
 #define FOLL_REMOTE 0x2000  /* we are working on non-current tsk/mm */
 
 #define FOLL_LONGTERM   0x10000 /* mapping lifetime is indefinite: see below */
 #define FOLL_PIN        0x40000 /* pages must be released via unpin_user_page */
 
+#define FAULT_FLAG_WRITE        0x01
+#define FAULT_FLAG_ALLOW_RETRY  0x04
+#define FAULT_FLAG_RETRY_NOWAIT 0x08
+#define FAULT_FLAG_KILLABLE     0x10
+#define FAULT_FLAG_TRIED        0x20
+#define FAULT_FLAG_REMOTE       0x80
+
 extern struct mm_struct init_mm;
 
 struct vm_fault {
+    struct vm_area_struct *vma; /* Target VMA */
+    unsigned long address;      /* Faulting virtual address */
     pmd_t *pmd; /* Pointer to pmd entry matching the 'address' */
+    pte_t *pte; /* Pointer to pte entry matching the 'address'.
+                   NULL if the page table hasn't been allocated. */
 };
 
 struct alloc_context {
@@ -246,6 +290,7 @@ int __pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
 static inline pmd_t *
 pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 {
+    printk("%s: ! (%d)\n", __func__, pgd_none(*pgd));
     return (unlikely(pgd_none(*pgd)) && __pmd_alloc(mm, pgd, address)) ?
         NULL: pmd_offset(pgd, address);
 }
@@ -253,5 +298,23 @@ pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 vm_fault_t
 handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
                 unsigned int flags, struct pt_regs *regs);
+
+int __pte_alloc(struct mm_struct *mm, pmd_t *pmd);
+
+#define pte_alloc(mm, pmd) \
+    (unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, pmd))
+
+#define pte_offset_map(dir, address) \
+    pte_offset_kernel((dir), (address))
+
+#define pte_offset_map_lock(mm, pmd, address) \
+({                          \
+    pte_t *__pte = pte_offset_map(pmd, address);    \
+    __pte;                      \
+})
+
+pgprot_t vm_get_page_prot(unsigned long vm_flags);
+
+int set_page_dirty(struct page *page);
 
 #endif /* _RISCV_MM_H_ */

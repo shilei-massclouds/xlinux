@@ -197,3 +197,24 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
           __func__, vma->vm_start, addr);
 }
 EXPORT_SYMBOL(find_extend_vma);
+
+pgprot_t protection_map[16] = {
+    __P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,
+    __S000, __S001, __S010, __S011, __S100, __S101, __S110, __S111
+};
+
+static inline pgprot_t arch_filter_pgprot(pgprot_t prot)
+{
+    return prot;
+}
+
+pgprot_t vm_get_page_prot(unsigned long vm_flags)
+{
+    pgprot_t ret =
+        __pgprot(pgprot_val(protection_map[vm_flags &
+                            (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
+                 pgprot_val(arch_vm_get_page_prot(vm_flags)));
+
+    return arch_filter_pgprot(ret);
+}
+EXPORT_SYMBOL(vm_get_page_prot);

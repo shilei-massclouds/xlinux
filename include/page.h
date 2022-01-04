@@ -84,6 +84,8 @@
 #define pgprot_val(x)   ((x).pgprot)
 #define __pgprot(x)     ((pgprot_t) { (x) })
 
+#define arch_vm_get_page_prot(vm_flags) __pgprot(0)
+
 #define pfn_pgd(pfn, prot) \
     __pgd(((pfn) << _PAGE_PFN_SHIFT) | pgprot_val((prot)))
 
