@@ -66,4 +66,19 @@ hlist_bl_add_head(struct hlist_bl_node *n, struct hlist_bl_head *h)
          ({ tpos = hlist_bl_entry(pos, typeof(*tpos), member); 1;}); \
          pos = pos->next)
 
+static inline void __hlist_bl_del(struct hlist_bl_node *n)
+{
+    struct hlist_bl_node *next = n->next;
+    struct hlist_bl_node **pprev = n->pprev;
+
+    BUG_ON((unsigned long)n & LIST_BL_LOCKMASK);
+
+    /* pprev may be `first`, so be careful not to lose the lock bit */
+    WRITE_ONCE(*pprev, (struct hlist_bl_node *)
+               ((unsigned long)next |
+                ((unsigned long)*pprev & LIST_BL_LOCKMASK)));
+    if (next)
+        next->pprev = pprev;
+}
+
 #endif /* _LINUX_LIST_BL_H */

@@ -4,6 +4,7 @@
 #include <fork.h>
 #include <slab.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <namei.h>
 #include <export.h>
 #include <kernel.h>
@@ -241,8 +242,22 @@ copy_strings_kernel(int argc, const char *const *argv,
     return 0;
 }
 
-static struct file *do_open_execat(int fd, struct filename *name, int flags)
+static struct file *
+do_open_execat(int fd, struct filename *name, int flags)
 {
+    int err;
+    struct file *file;
+    struct open_flags open_exec_flags = {
+        .open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
+        .acc_mode = MAY_EXEC,
+        .intent = LOOKUP_OPEN,
+        .lookup_flags = LOOKUP_FOLLOW,
+    };
+
+    file = do_filp_open(fd, name, &open_exec_flags);
+    if (IS_ERR(file))
+        panic("bad file!");
+
     panic("%s: !", __func__);
 }
 

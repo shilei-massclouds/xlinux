@@ -148,7 +148,14 @@ do_mount_root(const char *name, const char *fs, const int flags)
     if (ret)
         panic("bad init mount /root");
 
+    printk("%s 1: >>>>> dir(%s)\n",
+           __func__, current->fs->pwd.dentry->d_name.name);
+
     init_chdir("/root");
+
+    printk("%s 2: >>>>> dir(%s)\n",
+           __func__, current->fs->pwd.dentry->d_name.name);
+
     s = current->fs->pwd.dentry->d_sb;
     ROOT_DEV = s->s_dev;
     printk("VFS: Mounted root (%s filesystem) on device %u:%u.\n",

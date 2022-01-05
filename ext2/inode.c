@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <fs.h>
+#include <stat.h>
 #include <errno.h>
 #include <kernel.h>
 #include <fs/ext2.h>
@@ -55,6 +56,15 @@ struct inode *ext2_iget(struct super_block *sb, unsigned long ino)
     inode->i_mode = raw_inode->i_mode;
     inode->i_size = raw_inode->i_size;
     inode->i_blocks = raw_inode->i_blocks;
+
+    if (S_ISREG(inode->i_mode)) {
+        panic("Regular file!");
+    } else if (S_ISDIR(inode->i_mode)) {
+        printk("%s: ino(%lu)\n", __func__, ino);
+        inode->i_op = &ext2_dir_inode_operations;
+    } else {
+        panic("unknown file!");
+    }
 
     return inode;
 }

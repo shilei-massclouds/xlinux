@@ -2,8 +2,10 @@
 #ifndef _LINUX_FS_H
 #define _LINUX_FS_H
 
+#include <cred.h>
 #include <list.h>
 #include <path.h>
+#include <fcntl.h>
 #include <types.h>
 #include <xarray.h>
 
@@ -45,8 +47,27 @@
 #define FMODE_READ      ((__force fmode_t)0x1)
 /* file is open for writing */
 #define FMODE_WRITE     ((__force fmode_t)0x2)
+/* File is opened for execution with sys_execve / sys_uselib */
+#define FMODE_EXEC      ((__force fmode_t)0x20)
 /* File is opened with O_EXCL (only set for block devices) */
 #define FMODE_EXCL      ((__force fmode_t)0x80)
+/* File was opened by fanotify and shouldn't generate fanotify events */
+#define FMODE_NONOTIFY  ((__force fmode_t)0x4000000)
+
+#define __FMODE_NONOTIFY    ((__force int) FMODE_NONOTIFY)
+
+#define OPEN_FMODE(flag) \
+    ((fmode_t)(((flag + 1) & O_ACCMODE) | (flag & __FMODE_NONOTIFY)))
+
+#define __FMODE_EXEC    ((__force int) FMODE_EXEC)
+
+#define MAY_EXEC        0x00000001
+#define MAY_WRITE       0x00000002
+#define MAY_READ        0x00000004
+#define MAY_APPEND      0x00000008
+#define MAY_ACCESS      0x00000010
+#define MAY_OPEN        0x00000020
+#define MAY_CHDIR       0x00000040
 
 /*
  * Inode state bits.  Protected by inode->i_lock
@@ -190,6 +211,22 @@ struct fs_struct {
     struct path pwd;
 };
 
+/*
+ * open.c
+ */
+struct open_flags {
+    int open_flag;
+    umode_t mode;
+    int acc_mode;
+    int intent;
+    int lookup_flags;
+};
+
+struct file {
+    unsigned int    f_flags;
+    fmode_t         f_mode;
+};
+
 extern bool rootfs_initialized;
 
 struct fs_context *
@@ -306,5 +343,12 @@ int init_chroot(const char *filename);
 
 int kernel_execve(const char *kernel_filename,
                   const char *const *argv, const char *const *envp);
+
+struct file *do_filp_open(int dfd, struct filename *pathname,
+                          const struct open_flags *op);
+
+struct file *alloc_empty_file(int flags, const struct cred *cred);
+
+struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry);
 
 #endif /* _LINUX_FS_H */

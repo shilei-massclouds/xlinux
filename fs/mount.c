@@ -10,6 +10,7 @@
 #include <printk.h>
 #include <string.h>
 #include <hashtable.h>
+#include <current.h>
 
 static struct kmem_cache *mnt_cache;
 
@@ -142,6 +143,9 @@ static struct mountpoint *get_mountpoint(struct dentry *dentry)
     if (!new)
         return ERR_PTR(-ENOMEM);
 
+    /* Exactly one processes may set d_mounted */
+    ret = d_set_mounted(dentry);
+
     /* Add the new mountpoint to the hash table */
     new->m_dentry = dget(dentry);
     new->m_count = 1;
@@ -188,6 +192,8 @@ void mnt_set_mountpoint(struct mount *mnt,
 
 static void __attach_mnt(struct mount *mnt, struct mount *parent)
 {
+    printk("<<<<<<<<< %s: (%lx, %lx)!\n",
+           __func__, &parent->mnt, mnt->mnt_mountpoint);
     hlist_add_head(&mnt->mnt_hash, m_hash(&parent->mnt, mnt->mnt_mountpoint));
     list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 }

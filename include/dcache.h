@@ -9,7 +9,13 @@
 
 #define DNAME_INLINE_LEN 32 /* 192 bytes */
 
-#define DCACHE_MOUNTED  0x00010000 /* is a mountpoint */
+#define DCACHE_OP_COMPARE       0x00000002
+#define DCACHE_MOUNTED          0x00010000 /* is a mountpoint */
+#define DCACHE_NEED_AUTOMOUNT   0x00020000 /* handle automount on this dir */
+#define DCACHE_PAR_LOOKUP       0x10000000 /* being looked up (with parent locked shared) */
+#define DCACHE_MANAGE_TRANSIT   0x00040000 /* manage transit from this dirent */
+#define DCACHE_MANAGED_DENTRY \
+    (DCACHE_MOUNTED|DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT)
 
 #define HASH_LEN_DECLARE u32 hash; u32 len
 #define bytemask_from_count(cnt)   (~(~0ul << (cnt)*8))
@@ -37,6 +43,7 @@ struct dentry {
     struct super_block *d_sb;   /* The root of the dentry tree */
     struct list_head d_child;   /* child of parent list */
     struct list_head d_subdirs; /* our children */
+    struct hlist_bl_node d_in_lookup_hash;  /* only for in-lookup ones */
 };
 
 static inline struct dentry *
@@ -90,5 +97,23 @@ static inline int d_unlinked(const struct dentry *dentry)
 {
     return d_unhashed(dentry) && !IS_ROOT(dentry);
 }
+
+struct dentry *
+d_alloc_parallel(struct dentry *parent, const struct qstr *name);
+
+static inline int d_in_lookup(const struct dentry *dentry)
+{
+    return dentry->d_flags & DCACHE_PAR_LOOKUP;
+}
+
+extern void __d_lookup_done(struct dentry *);
+
+static inline void d_lookup_done(struct dentry *dentry)
+{
+    if (unlikely(d_in_lookup(dentry)))
+        __d_lookup_done(dentry);
+}
+
+int d_set_mounted(struct dentry *dentry);
 
 #endif /* _LINUX_DCACHE_H */

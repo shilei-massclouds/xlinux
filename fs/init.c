@@ -13,6 +13,9 @@ int init_chdir(const char *filename)
     if (error)
         return error;
 
+    printk("%s: >>>>> dir(%s)\n",
+           __func__, path.dentry->d_name.name);
+
     set_fs_pwd(current->fs, &path);
     path_put(&path);
     return error;
@@ -28,6 +31,7 @@ int init_chroot(const char *filename)
     if (error)
         return error;
 
+    printk("%s: %s root(%s)\n", __func__, filename, path.dentry->d_name.name);
     set_fs_root(current->fs, &path);
     path_put(&path);
     return error;

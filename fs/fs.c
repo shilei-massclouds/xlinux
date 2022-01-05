@@ -10,6 +10,7 @@
 #include <printk.h>
 #include <string.h>
 
+extern void files_init(void);
 extern void buffer_init(void);
 
 struct file_system_type *file_systems;
@@ -263,6 +264,7 @@ init_module(void)
     BUG_ON(!names_cachep);
     bdev_cache_init();
     buffer_init();
+    files_init();
     printk("module[fs]: init end!\n");
     return 0;
 }

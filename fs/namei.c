@@ -3,6 +3,7 @@
 #include <slab.h>
 #include <stat.h>
 #include <errno.h>
+#include <mount.h>
 #include <namei.h>
 #include <dcache.h>
 #include <export.h>
@@ -79,6 +80,7 @@ set_root(struct nameidata *nd)
     struct fs_struct *fs = current->fs;
 
     if (nd->flags & LOOKUP_RCU) {
+        printk("%s: 1\n", __func__);
         nd->root = fs->root;
     } else {
         get_fs_root(fs, &nd->root);
@@ -98,6 +100,8 @@ nd_jump_root(struct nameidata *nd)
     nd->path = nd->root;
     nd->inode = nd->path.dentry->d_inode;
     nd->flags |= LOOKUP_JUMPED;
+    printk("%s: dir(%s)\n",
+           __func__, nd->root.dentry->d_name.name);
     return 0;
 }
 
@@ -112,9 +116,13 @@ path_init(struct nameidata *nd, unsigned flags)
     if (flags & LOOKUP_ROOT)
         panic("no LOOKUP_ROOT!");
 
+    nd->flags = flags | LOOKUP_JUMPED;
+
     nd->root.mnt = NULL;
     nd->path.mnt = NULL;
     nd->path.dentry = NULL;
+
+    printk("%s: 0 flags(%x)\n", __func__, flags);
 
     if (*s == '/' && !(flags & LOOKUP_IN_ROOT)) {
         int error = nd_jump_root(nd);
@@ -128,6 +136,9 @@ path_init(struct nameidata *nd, unsigned flags)
         if (flags & LOOKUP_RCU) {
             struct fs_struct *fs = current->fs;
             nd->path = fs->pwd;
+            printk("%s: >>>>> dir(%s)\n",
+                   __func__, fs->pwd.dentry->d_name.name);
+
             nd->inode = nd->path.dentry->d_inode;
         } else {
             panic("no LOOKUP_RCU!");
@@ -146,10 +157,49 @@ lookup_fast(struct nameidata *nd, struct inode **inode)
     struct dentry *parent = nd->path.dentry;
 
     dentry = __d_lookup(parent, &nd->last);
-    BUG_ON(dentry == NULL);
+    if (unlikely(!dentry))
+        return NULL;
 
     *inode = d_backing_inode(dentry);
     return dentry;
+}
+
+static bool
+__follow_mount_rcu(struct nameidata *nd, struct path *path,
+                   struct inode **inode)
+{
+    struct dentry *dentry = path->dentry;
+    unsigned int flags = dentry->d_flags;
+
+    if (likely(!(flags & DCACHE_MANAGED_DENTRY)))
+        return true;
+
+    if (unlikely(nd->flags & LOOKUP_NO_XDEV))
+        return false;
+
+    for (;;) {
+        if (flags & DCACHE_MOUNTED) {
+            struct mount *mounted = __lookup_mnt(path->mnt, dentry);
+            if (mounted) {
+                path->mnt = &mounted->mnt;
+                dentry = path->dentry = mounted->mnt.mnt_root;
+                nd->flags |= LOOKUP_JUMPED;
+                *inode = dentry->d_inode;
+                /*
+                 * We don't need to re-check ->d_seq after this
+                 * ->d_inode read - there will be an RCU delay
+                 * between mount hash removal and ->mnt_root
+                 * becoming unpinned.
+                 */
+                flags = dentry->d_flags;
+                continue;
+            }
+        } else {
+            panic("no DCACHE_MOUNTED!");
+        }
+        return !(flags & DCACHE_NEED_AUTOMOUNT);
+    }
+    panic("%s: !", __func__);
 }
 
 static inline int
@@ -158,6 +208,14 @@ handle_mounts(struct nameidata *nd, struct dentry *dentry,
 {
     path->mnt = nd->path.mnt;
     path->dentry = dentry;
+    if (nd->flags & LOOKUP_RCU) {
+        if (unlikely(!*inode))
+            return -ENOENT;
+        if (likely(__follow_mount_rcu(nd, path, inode)))
+            return 0;
+    } else {
+        panic("no flag LOOKUP_RCU!");
+    }
     *inode = d_backing_inode(path->dentry);
     return 0;
 }
@@ -181,11 +239,50 @@ static const char *handle_dots(struct nameidata *nd, int type)
     return NULL;
 }
 
+/* Fast lookup failed, do it the slow way */
+static struct dentry *
+__lookup_slow(const struct qstr *name, struct dentry *dir,
+              unsigned int flags)
+{
+    struct dentry *dentry, *old;
+    struct inode *inode = dir->d_inode;
+
+    printk("%s: 0 qstr(%s) dir(%s)\n",
+           __func__, name->name, dir->d_name.name);
+
+    dentry = d_alloc_parallel(dir, name);
+    if (IS_ERR(dentry))
+        return dentry;
+
+    if (unlikely(!d_in_lookup(dentry))) {
+        panic("not in lookup!");
+    } else {
+        printk("%s: 1 dir(%s)\n", __func__, dir->d_name.name);
+        old = inode->i_op->lookup(inode, dentry, flags);
+        printk("%s: 2\n", __func__);
+        d_lookup_done(dentry);
+        if (unlikely(old))
+            dentry = old;
+    }
+    return dentry;
+}
+
+static struct dentry *
+lookup_slow(const struct qstr *name, struct dentry *dir,
+            unsigned int flags)
+{
+    return __lookup_slow(name, dir, flags);
+}
+
 static const char *
 walk_component(struct nameidata *nd)
 {
     struct inode *inode;
     struct dentry *dentry;
+
+    printk("%s: filename(%s) last(%s) dir(%s)\n",
+           __func__, nd->name->name, nd->last.name,
+           nd->path.dentry->d_name.name);
 
     /*
      * "." and ".." are special - ".." especially so because it has
@@ -198,7 +295,15 @@ walk_component(struct nameidata *nd)
     dentry = lookup_fast(nd, &inode);
     if (IS_ERR(dentry))
         return ERR_CAST(dentry);
+    if (unlikely(!dentry)) {
+        dentry = lookup_slow(&nd->last, nd->path.dentry, nd->flags);
+        if (IS_ERR(dentry))
+            return ERR_CAST(dentry);
+    }
 
+    printk("%s 2: filename(%s) last(%s) dir(%s)\n",
+           __func__, nd->name->name, nd->last.name,
+           dentry->d_name.name);
     return step_into(nd, dentry, inode);
 }
 
@@ -404,9 +509,15 @@ path_lookupat(struct nameidata *nd, unsigned flags, struct path *path)
     int err;
     const char *s = path_init(nd, flags);
 
+    printk(">>>>>>>>>>>>>>>>>> %s 1: name(%s) dir(%s)\n",
+           __func__, s, nd->path.dentry->d_name.name);
+
     while (!(err = link_path_walk(s, nd)) &&
            (s = lookup_last(nd)) != NULL)
         ;
+
+    printk(">>>>>>>>>>>>>>>>>> %s 2: name(%s) dir(%s)\n",
+           __func__, s, nd->path.dentry->d_name.name);
 
     if (!err) {
         *path = nd->path;
@@ -430,6 +541,7 @@ filename_lookup(int dfd, struct filename *name, unsigned flags,
     }
     set_nameidata(&nd, dfd, name);
     retval = path_lookupat(&nd, flags | LOOKUP_RCU, path);
+    printk("%s: %s root(%s)\n", __func__, name->name, path->dentry->d_name.name);
     BUG_ON(retval);
     return retval;
 }
@@ -441,3 +553,66 @@ kern_path(const char *name, unsigned int flags, struct path *path)
                            flags, path, NULL);
 }
 EXPORT_SYMBOL(kern_path);
+
+static const char *
+open_last_lookups(struct nameidata *nd,
+                  struct file *file, const struct open_flags *op)
+{
+    nd->flags |= op->intent;
+
+    if (nd->last_type != LAST_NORM) {
+        panic("NOT NORM!");
+        return handle_dots(nd, nd->last_type);
+    }
+
+    panic("%s: !", __func__);
+}
+
+/*
+ * Handle the last step of open()
+ */
+static int do_open(struct nameidata *nd,
+                   struct file *file, const struct open_flags *op)
+{
+    panic("%s: !", __func__);
+}
+
+static struct file *
+path_openat(struct nameidata *nd,
+            const struct open_flags *op, unsigned flags)
+{
+    int error;
+    struct file *file;
+
+    file = alloc_empty_file(op->open_flag, NULL);
+    if (IS_ERR(file))
+        return file;
+
+    if (unlikely(file->f_flags & __O_TMPFILE)) {
+        panic("__O_TMPFILE");
+    } else if (unlikely(file->f_flags & O_PATH)) {
+        panic("O_PATH");
+    } else {
+        const char *s = path_init(nd, flags);
+        while (!(error = link_path_walk(s, nd)) &&
+               (s = open_last_lookups(nd, file, op)) != NULL)
+            ;
+        if (!error)
+            error = do_open(nd, file, op);
+    }
+
+    panic("%s: !", __func__);
+}
+
+struct file *do_filp_open(int dfd, struct filename *pathname,
+                          const struct open_flags *op)
+{
+    struct file *filp;
+    struct nameidata nd;
+    int flags = op->lookup_flags;
+
+    set_nameidata(&nd, dfd, pathname);
+    filp = path_openat(&nd, op, flags | LOOKUP_RCU);
+    return filp;
+}
+EXPORT_SYMBOL(do_filp_open);

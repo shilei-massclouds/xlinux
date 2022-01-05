@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <slab.h>
+#include <errno.h>
 #include <dcache.h>
 #include <export.h>
 #include <limits.h>
@@ -234,6 +235,85 @@ d_add(struct dentry *entry, struct inode *inode)
     __d_add(entry, inode);
 }
 EXPORT_SYMBOL(d_add);
+
+#define IN_LOOKUP_SHIFT 10
+static struct hlist_bl_head in_lookup_hashtable[1 << IN_LOOKUP_SHIFT];
+
+static inline struct hlist_bl_head *
+in_lookup_hash(const struct dentry *parent, unsigned int hash)
+{
+    hash += (unsigned long) parent / L1_CACHE_BYTES;
+    return in_lookup_hashtable + hash_32(hash, IN_LOOKUP_SHIFT);
+}
+
+static inline bool
+d_same_name(const struct dentry *dentry,
+            const struct dentry *parent,
+            const struct qstr *name)
+{
+    if (likely(!(parent->d_flags & DCACHE_OP_COMPARE))) {
+        if (dentry->d_name.len != name->len)
+            return false;
+        return dentry_cmp(dentry, name->name, name->len) == 0;
+    }
+
+    panic("with DCACHE_OP_COMPARE!");
+}
+
+struct dentry *
+d_alloc_parallel(struct dentry *parent, const struct qstr *name)
+{
+    struct dentry *dentry;
+    struct hlist_bl_node *node;
+    unsigned int hash = name->hash;
+    struct hlist_bl_head *b = in_lookup_hash(parent, hash);
+    struct dentry *new = d_alloc(parent, name);
+
+    hlist_bl_for_each_entry(dentry, node, b, d_in_lookup_hash) {
+        if (dentry->d_name.hash != hash)
+            continue;
+        if (dentry->d_parent != parent)
+            continue;
+        if (!d_same_name(dentry, parent, name))
+            continue;
+
+        return dentry;
+    }
+
+    /* we can't take ->d_lock here; it's OK, though. */
+    new->d_flags |= DCACHE_PAR_LOOKUP;
+    hlist_bl_add_head(&new->d_in_lookup_hash, b);
+    return new;
+}
+EXPORT_SYMBOL(d_alloc_parallel);
+
+void __d_lookup_done(struct dentry *dentry)
+{
+    dentry->d_flags &= ~DCACHE_PAR_LOOKUP;
+    __hlist_bl_del(&dentry->d_in_lookup_hash);
+}
+EXPORT_SYMBOL(__d_lookup_done);
+
+int d_set_mounted(struct dentry *dentry)
+{
+    struct dentry *p;
+    int ret = -ENOENT;
+    for (p = dentry->d_parent; !IS_ROOT(p); p = p->d_parent) {
+        if (unlikely(d_unhashed(p))) {
+            goto out;
+        }
+    }
+    if (!d_unlinked(dentry)) {
+        ret = -EBUSY;
+        if (!d_mountpoint(dentry)) {
+            dentry->d_flags |= DCACHE_MOUNTED;
+            ret = 0;
+        }
+    }
+out:
+    return ret;
+}
+EXPORT_SYMBOL(d_set_mounted);
 
 static void
 dcache_init(void)

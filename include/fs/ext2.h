@@ -191,6 +191,8 @@ struct ext2_inode {
     } osd2;             /* OS dependent 2 */
 };
 
+extern const struct inode_operations ext2_dir_inode_operations;
+
 /*
  * Macro-instructions used to manage group descriptors
  */
