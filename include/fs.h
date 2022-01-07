@@ -4,6 +4,7 @@
 
 #include <cred.h>
 #include <list.h>
+#include <page.h>
 #include <path.h>
 #include <fcntl.h>
 #include <types.h>
@@ -37,6 +38,9 @@
 #define SB_SUBMOUNT (1<<26)
 #define SB_NOSEC    (1<<28)
 #define SB_NOUSER   (1<<31)
+
+struct super_block;
+struct buffer_head;
 
 /*
  * flags in file.f_mode.  Note that FMODE_READ and FMODE_WRITE must correspond
@@ -76,9 +80,18 @@
 #define I_NEW           (1 << __I_NEW)
 #define I_CREATING      (1 << 15)
 
+struct file;
+
+struct address_space_operations {
+    int (*readpage)(struct file *, struct page *);
+};
+
 struct address_space {
     struct xarray   i_pages;
     unsigned long   nrpages;
+    gfp_t           gfp_mask;
+
+    const struct address_space_operations *a_ops;
 } __attribute__((aligned(sizeof(long))));
 
 /*
@@ -121,8 +134,6 @@ struct fs_context {
     const char *source;         /* The source name (eg. dev path) */
     enum fs_context_purpose purpose:8;
 };
-
-struct super_block;
 
 struct super_operations {
     struct inode *(*alloc_inode)(struct super_block *sb);
@@ -350,5 +361,10 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
 struct file *alloc_empty_file(int flags, const struct cred *cred);
 
 struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry);
+
+typedef int (get_block_t)(struct inode *inode, sector_t iblock,
+                          struct buffer_head *bh_result, int create);
+
+int mpage_readpage(struct page *page, get_block_t get_block);
 
 #endif /* _LINUX_FS_H */

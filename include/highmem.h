@@ -2,6 +2,7 @@
 #ifndef _LINUX_HIGHMEM_H
 #define _LINUX_HIGHMEM_H
 
+#include <mm.h>
 #include <mm_types.h>
 
 static inline struct page *
@@ -36,5 +37,10 @@ static inline void *kmap_atomic(struct page *page)
     return page_address(page);
 }
 #define kmap_atomic_prot(page, prot)    kmap_atomic(page)
+
+static inline void *kmap(struct page *page)
+{
+    return page_address(page);
+}
 
 #endif /* _LINUX_HIGHMEM_H */

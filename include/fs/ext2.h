@@ -4,9 +4,12 @@
 
 #include <fs.h>
 #include <types.h>
+#include <dcache.h>
 #include <buffer_head.h>
 
 #define EXT2_SUPER_MAGIC    0xEF53
+
+#define EXT2_NAME_LEN 255
 
 /*
  * Special inode numbers
@@ -103,6 +106,8 @@ struct ext2_super_block {
 
 struct ext2_inode_info {
     u32 i_data[15];
+
+    u32 i_dir_start_lookup;
 
     struct inode vfs_inode;
 };
@@ -206,6 +211,11 @@ extern const struct inode_operations ext2_dir_inode_operations;
 #define EXT2_BLOCK_SIZE(s)      ((s)->s_blocksize)
 #define EXT2_BLOCK_SIZE_BITS(s) ((s)->s_blocksize_bits)
 
+static inline struct ext2_inode_info *EXT2_I(struct inode *inode)
+{
+    return container_of(inode, struct ext2_inode_info, vfs_inode);
+}
+
 struct inode *ext2_iget(struct super_block *sb, unsigned long ino);
 
 static inline struct ext2_sb_info *EXT2_SB(struct super_block *sb)
@@ -217,5 +227,8 @@ struct ext2_group_desc *
 ext2_get_group_desc(struct super_block * sb,
                     unsigned int block_group,
                     struct buffer_head **bh);
+
+int ext2_inode_by_name(struct inode *dir, const struct qstr *child,
+                       ino_t *ino);
 
 #endif /* _EXT2_H_ */

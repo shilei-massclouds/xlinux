@@ -2,6 +2,7 @@
 #ifndef _LINUX_BUFFER_HEAD_H
 #define _LINUX_BUFFER_HEAD_H
 
+#include <fs.h>
 #include <gfp.h>
 
 #define bh_offset(bh)   ((unsigned long)(bh)->b_data & ~PAGE_MASK)
@@ -88,6 +89,8 @@ BUFFER_FNS(Mapped, mapped)
 struct buffer_head *
 __bread_gfp(struct block_device *bdev,
             sector_t block, unsigned size, gfp_t gfp);
+
+struct super_block;
 
 static inline struct buffer_head *
 sb_bread(struct super_block *sb, sector_t block)

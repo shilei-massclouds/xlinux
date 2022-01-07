@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <errno.h>
+#include <dcache.h>
 #include <fs/ext2.h>
 
 static struct dentry *
@@ -9,11 +11,11 @@ ext2_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
     ino_t ino;
     struct inode * inode;
 
-    /*
     if (dentry->d_name.len > EXT2_NAME_LEN)
         return ERR_PTR(-ENAMETOOLONG);
 
     res = ext2_inode_by_name(dir, &dentry->d_name, &ino);
+    /*
     if (res) {
         if (res != -ENOENT)
             return ERR_PTR(res);

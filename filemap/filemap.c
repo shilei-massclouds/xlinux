@@ -38,6 +38,7 @@ add_to_page_cache_lru(struct page *page,
 {
     int ret;
 
+    printk("%s: page(%lx)\n", __func__, page);
     ret = __add_to_page_cache_locked(page, mapping, offset, gfp_mask);
     BUG_ON(ret);
     BUG_ON(PageActive(page));
@@ -58,9 +59,8 @@ find_get_entry(struct address_space *mapping, pgoff_t offset)
 }
 
 struct page *
-pagecache_get_page(struct address_space *mapping,
-                   pgoff_t index,
-                   gfp_t gfp_mask)
+pagecache_get_page(struct address_space *mapping, pgoff_t index,
+                   int fgp_flags, gfp_t gfp_mask)
 {
     int err;
     struct page *page;
@@ -69,17 +69,65 @@ pagecache_get_page(struct address_space *mapping,
     if (page)
         return page;
 
-    page = __page_cache_alloc(gfp_mask);
-    if (!page)
-        return NULL;
+    if (!page && (fgp_flags & FGP_CREAT)) {
+        page = __page_cache_alloc(gfp_mask);
+        if (!page)
+            return NULL;
 
-    err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
-    if (unlikely(err))
-        panic("add page to cache lru error!");
+        err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
+        if (unlikely(err))
+            panic("add page to cache lru error!");
+    }
 
     return page;
 }
 EXPORT_SYMBOL(pagecache_get_page);
+
+static struct page *
+do_read_cache_page(struct address_space *mapping,
+                   pgoff_t index,
+                   int (*filler)(void *, struct page *),
+                   void *data,
+                   gfp_t gfp)
+{
+    int err;
+    struct page *page;
+
+    printk("%s: 1 index(%lu)\n", __func__, index);
+    page = find_get_page(mapping, index);
+    printk("%s: page(%lx)\n", __func__, page);
+    if (!page) {
+        page = __page_cache_alloc(gfp);
+        if (!page)
+            panic("out of memory!");
+        err = add_to_page_cache_lru(page, mapping, index, gfp);
+        if (unlikely(err))
+            panic("add to page cache error!");
+
+        if (filler)
+            err = filler(data, page);
+        else
+            err = mapping->a_ops->readpage(data, page);
+
+        panic("%s: 1", __func__);
+    }
+
+    if (PageUptodate(page))
+        return page;
+
+    panic("%s: !", __func__);
+}
+
+struct page *
+read_cache_page(struct address_space *mapping,
+                pgoff_t index,
+                int (*filler)(void *, struct page *),
+                void *data)
+{
+    return do_read_cache_page(mapping, index, filler, data,
+                              mapping_gfp_mask(mapping));
+}
+EXPORT_SYMBOL(read_cache_page);
 
 static int
 init_module(void)

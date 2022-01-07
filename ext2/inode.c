@@ -37,6 +37,50 @@ ext2_get_inode(struct super_block *sb, ino_t ino, struct buffer_head **p)
     return (struct ext2_inode *) (bh->b_data + offset);
 }
 
+int ext2_get_block(struct inode *inode, sector_t iblock,
+                   struct buffer_head *bh_result, int create)
+{
+    /*
+    unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
+    bool new = false, boundary = false;
+    u32 bno;
+    int ret;
+
+    ret = ext2_get_blocks(inode, iblock, max_blocks, &bno, &new, &boundary,
+            create);
+    if (ret <= 0)
+        return ret;
+
+    map_bh(bh_result, inode->i_sb, bno);
+    bh_result->b_size = (ret << inode->i_blkbits);
+    if (new)
+        set_buffer_new(bh_result);
+    if (boundary)
+        set_buffer_boundary(bh_result);
+    return 0;
+    */
+    panic("%s: !", __func__);
+}
+
+static int ext2_readpage(struct file *file, struct page *page)
+{
+    return mpage_readpage(page, ext2_get_block);
+}
+
+const struct address_space_operations ext2_aops = {
+    .readpage   = ext2_readpage,
+};
+
+void ext2_set_file_ops(struct inode *inode)
+{
+    /*
+    inode->i_op = &ext2_file_inode_operations;
+    inode->i_fop = &ext2_file_operations;
+    inode->i_mapping->a_ops = &ext2_aops;
+    */
+    panic("%s: not support!", __func__);
+}
+
 struct inode *ext2_iget(struct super_block *sb, unsigned long ino)
 {
     struct inode *inode;
@@ -58,10 +102,11 @@ struct inode *ext2_iget(struct super_block *sb, unsigned long ino)
     inode->i_blocks = raw_inode->i_blocks;
 
     if (S_ISREG(inode->i_mode)) {
-        panic("Regular file!");
+        ext2_set_file_ops(inode);
     } else if (S_ISDIR(inode->i_mode)) {
         printk("%s: ino(%lu)\n", __func__, ino);
         inode->i_op = &ext2_dir_inode_operations;
+        inode->i_mapping->a_ops = &ext2_aops;
     } else {
         panic("unknown file!");
     }

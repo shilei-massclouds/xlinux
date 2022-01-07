@@ -71,9 +71,9 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
     struct address_space *bd_mapping = bd_inode->i_mapping;
 
     index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
-    page = find_get_page_flags(bd_mapping, index);
+    page = find_get_page_flags(bd_mapping, index, FGP_ACCESSED);
     if (!page)
-        panic("%s: bad page(0x%p)!", __func__, page);
+        return NULL;
 
     if (!page_has_buffers(page))
         return NULL;
