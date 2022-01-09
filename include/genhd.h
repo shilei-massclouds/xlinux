@@ -16,8 +16,9 @@
 #define GENHD_FL_EXT_DEVT           0x0040
 
 struct hd_struct {
-    struct device __dev;
+    sector_t start_sect;
     sector_t nr_sects;
+    struct device __dev;
     int partno;
 };
 

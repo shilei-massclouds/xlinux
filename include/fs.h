@@ -87,6 +87,7 @@ struct address_space_operations {
 };
 
 struct address_space {
+    struct inode    *host;
     struct xarray   i_pages;
     unsigned long   nrpages;
     gfp_t           gfp_mask;
@@ -366,5 +367,8 @@ typedef int (get_block_t)(struct inode *inode, sector_t iblock,
                           struct buffer_head *bh_result, int create);
 
 int mpage_readpage(struct page *page, get_block_t get_block);
+
+int bdev_read_page(struct block_device *bdev, sector_t sector,
+                   struct page *page);
 
 #endif /* _LINUX_FS_H */

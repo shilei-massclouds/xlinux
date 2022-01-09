@@ -129,6 +129,25 @@ read_cache_page(struct address_space *mapping,
 }
 EXPORT_SYMBOL(read_cache_page);
 
+void page_endio(struct page *page, bool is_write, int err)
+{
+    if (!is_write) {
+        if (!err) {
+            SetPageUptodate(page);
+        } else {
+            ClearPageUptodate(page);
+            SetPageError(page);
+        }
+        //unlock_page(page);
+    } else {
+        if (err) {
+            panic("err: %d", err);
+        }
+        //end_page_writeback(page);
+    }
+}
+EXPORT_SYMBOL(page_endio);
+
 static int
 init_module(void)
 {

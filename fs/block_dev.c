@@ -374,3 +374,16 @@ struct block_device *I_BDEV(struct inode *inode)
     return &BDEV_I(inode)->bdev;
 }
 EXPORT_SYMBOL(I_BDEV);
+
+int bdev_read_page(struct block_device *bdev, sector_t sector,
+                   struct page *page)
+{
+    const struct block_device_operations *ops = bdev->bd_disk->fops;
+
+    if (!ops->rw_page)
+        return -EOPNOTSUPP;
+
+    return ops->rw_page(bdev, sector + get_start_sect(bdev),
+                        page, REQ_OP_READ);
+}
+EXPORT_SYMBOL(bdev_read_page);

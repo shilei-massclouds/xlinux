@@ -77,4 +77,10 @@ find_get_page(struct address_space *mapping, pgoff_t offset)
     return pagecache_get_page(mapping, offset, 0, 0);
 }
 
+static inline gfp_t
+mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_mask)
+{
+    return mapping_gfp_mask(mapping) & gfp_mask;
+}
+
 #endif /* _LINUX_PAGEMAP_H */

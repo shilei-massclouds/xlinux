@@ -5,6 +5,8 @@
 #include <fs.h>
 #include <gfp.h>
 
+#define MAX_BUF_PER_PAGE (PAGE_SIZE / 512)
+
 #define bh_offset(bh)   ((unsigned long)(bh)->b_data & ~PAGE_MASK)
 
 enum bh_state_bits {
@@ -76,6 +78,8 @@ static __always_inline int buffer_##name(const struct buffer_head *bh)  \
 BUFFER_FNS(Uptodate, uptodate)
 BUFFER_FNS(Lock, locked)
 BUFFER_FNS(Mapped, mapped)
+BUFFER_FNS(New, new)
+BUFFER_FNS(Boundary, boundary)
 
 /* If we *know* page->private refers to buffer_heads */
 #define page_buffers(page)      \
@@ -125,6 +129,15 @@ static inline void wait_on_buffer(struct buffer_head *bh)
 {
     if (buffer_locked(bh))
         __wait_on_buffer(bh);
+}
+
+static inline void
+map_bh(struct buffer_head *bh, struct super_block *sb, sector_t block)
+{
+    set_buffer_mapped(bh);
+    bh->b_bdev = sb->s_bdev;
+    bh->b_blocknr = block;
+    bh->b_size = sb->s_blocksize;
 }
 
 #endif /* _LINUX_BUFFER_HEAD_H */

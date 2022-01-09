@@ -183,6 +183,11 @@ PAGEFLAG(Dirty, dirty, PF_HEAD)
     __CLEARPAGEFLAG(Dirty, dirty, PF_HEAD)
     TESTSCFLAG(Dirty, dirty, PF_HEAD)
 
+PAGEFLAG(Error, error, PF_NO_TAIL)
+    TESTCLEARFLAG(Error, error, PF_NO_TAIL)
+
+PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_TAIL)
+
 #define PAGE_TYPE_BASE  0xf0000000
 /* Reserve      0x0000007f to catch underflows of page_mapcount */
 #define PAGE_MAPCOUNT_RESERVE   -128
@@ -237,5 +242,18 @@ static __always_inline void __SetPageUptodate(struct page *page)
     BUG_ON(PageTail(page));
     __set_bit(PG_uptodate, &page->flags);
 }
+
+static __always_inline void SetPageUptodate(struct page *page)
+{
+    BUG_ON(PageTail(page));
+    /*
+     * Memory barrier must be issued before setting the PG_uptodate bit,
+     * so that all previous stores issued in order to bring the page
+     * uptodate are actually visible before PageUptodate becomes true.
+     */
+    set_bit(PG_uptodate, &page->flags);
+}
+
+CLEARPAGEFLAG(Uptodate, uptodate, PF_NO_TAIL)
 
 #endif /* PAGE_FLAGS_H */

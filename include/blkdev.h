@@ -31,9 +31,9 @@ struct block_device {
 struct block_device_operations {
     blk_qc_t (*submit_bio) (struct bio *bio);
     int (*open)(struct block_device *, fmode_t);
+    int (*rw_page)(struct block_device *, sector_t, struct page *, unsigned int);
     /*
     void (*release) (struct gendisk *, fmode_t);
-    int (*rw_page)(struct block_device *, sector_t, struct page *, unsigned int);
     int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
     int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
     unsigned int (*check_events) (struct gendisk *disk,
@@ -203,6 +203,11 @@ blk_rq_map_sg(struct request_queue *q, struct request *rq,
 static inline unsigned int blk_rq_bytes(const struct request *rq)
 {
     return rq->__data_len;
+}
+
+static inline sector_t get_start_sect(struct block_device *bdev)
+{
+    return bdev->bd_part->start_sect;
 }
 
 #endif /* _LINUX_BLKDEV_H */

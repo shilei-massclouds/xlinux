@@ -9,6 +9,8 @@
 
 #define BIO_POOL_SIZE 2
 
+#define BIO_MAX_PAGES       256
+
 #define bio_prio(bio)   (bio)->bi_ioprio
 
 static inline bool bio_no_advance_iter(const struct bio *bio)
@@ -99,5 +101,22 @@ bio_add_page(struct bio *bio, struct page *page,
 void bio_advance(struct bio *bio, unsigned bytes);
 
 void bio_endio(struct bio *bio);
+
+static inline bool
+bio_next_segment(const struct bio *bio, struct bvec_iter_all *iter)
+{
+    if (iter->idx >= bio->bi_vcnt)
+        return false;
+
+    bvec_advance(&bio->bi_io_vec[iter->idx], iter);
+    return true;
+}
+
+/*
+ * drivers should _never_ use the all version - the bio may have been split
+ * before it got to the driver and the driver won't own all of it
+ */
+#define bio_for_each_segment_all(bvl, bio, iter) \
+    for (bvl = bvec_init_iter_all(&iter); bio_next_segment((bio), &iter); )
 
 #endif /* __LINUX_BIO_H */

@@ -16,4 +16,6 @@ add_to_page_cache_lru(struct page *page,
                       pgoff_t offset,
                       gfp_t gfp_mask);
 
+void page_endio(struct page *page, bool is_write, int err);
+
 #endif /* _LINUX_FILEMAP_H */

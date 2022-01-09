@@ -41,6 +41,9 @@ typedef u8 blk_status_t;
 #define BLK_STS_PROTECTION  ((__force blk_status_t)8)
 #define BLK_STS_RESOURCE    ((__force blk_status_t)9)
 #define BLK_STS_IOERR       ((__force blk_status_t)10)
+/* hack for device mapper, don't use elsewhere: */
+#define BLK_STS_DM_REQUEUE  ((__force blk_status_t)11)
+#define BLK_STS_AGAIN       ((__force blk_status_t)12)
 
 #define BLK_STS_DEV_RESOURCE    ((__force blk_status_t)13)
 #define BLK_STS_ZONE_RESOURCE   ((__force blk_status_t)14)

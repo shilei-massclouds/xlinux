@@ -198,6 +198,9 @@ struct ext2_inode {
 
 extern const struct inode_operations ext2_dir_inode_operations;
 
+/* data type for filesystem-wide blocks number */
+typedef unsigned long ext2_fsblk_t;
+
 /*
  * Macro-instructions used to manage group descriptors
  */
@@ -210,6 +213,7 @@ extern const struct inode_operations ext2_dir_inode_operations;
 
 #define EXT2_BLOCK_SIZE(s)      ((s)->s_blocksize)
 #define EXT2_BLOCK_SIZE_BITS(s) ((s)->s_blocksize_bits)
+#define EXT2_ADDR_PER_BLOCK(s)  (EXT2_BLOCK_SIZE(s) / sizeof (__u32))
 
 static inline struct ext2_inode_info *EXT2_I(struct inode *inode)
 {

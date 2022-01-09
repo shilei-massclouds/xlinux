@@ -42,13 +42,21 @@ hash(struct super_block *sb, unsigned long hashval)
     return tmp & i_hash_mask;
 }
 
+const struct address_space_operations empty_aops = {
+};
+EXPORT_SYMBOL(empty_aops);
+
 int
 inode_init_always(struct super_block *sb, struct inode *inode)
 {
     struct address_space *const mapping = &inode->i_data;
 
     inode->i_sb = sb;
+    inode->i_blkbits = sb->s_blocksize_bits;
     inode->i_mapping = mapping;
+
+    mapping->a_ops = &empty_aops;
+    mapping->host = inode;
     return 0;
 }
 

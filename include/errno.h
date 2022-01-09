@@ -40,6 +40,7 @@
 #define ENAMETOOLONG    36  /* File name too long */
 #define ENOSYS      38  /* Invalid system call number */
 
+#define EBADE       52  /* Invalid exchange */
 #define EBFONT      59  /* Bad font file format */
 #define ENOSTR      60  /* Device not a stream */
 #define ENODATA     61  /* No data available */
@@ -71,7 +72,11 @@
 #define EUSERS      87  /* Too many users */
 #define ENOTSOCK    88  /* Socket operation on non-socket */
 
+#define EOPNOTSUPP  95  /* Operation not supported on transport endpoint */
+
+#define ETIMEDOUT   110 /* Connection timed out */
 #define ESTALE      116 /* Stale file handle */
+#define EREMOTEIO   121 /* Remote I/O error */
 
 #define EPROBE_DEFER    517 /* Driver requests probe retry */
 
@@ -93,6 +98,5 @@ ERR_CAST(const void *ptr)
     /* cast away the const */
     return (void *) ptr;
 }
-
 
 #endif

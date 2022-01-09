@@ -101,10 +101,8 @@ bioset_init(struct bio_set *bs,
 }
 
 void
-__bio_add_page(struct bio *bio,
-               struct page *page,
-               unsigned int len,
-               unsigned int off)
+__bio_add_page(struct bio *bio, struct page *page,
+               unsigned int len, unsigned int off)
 {
     struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt];
 
