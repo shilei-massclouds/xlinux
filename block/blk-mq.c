@@ -40,7 +40,6 @@ blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx,
 
         rq = list_first_entry(list, struct request, queuelist);
 
-
         list_del_init(&rq->queuelist);
         bd.rq = rq;
 
@@ -377,7 +376,7 @@ blk_mq_bio_to_request(struct request *rq, struct bio *bio,
 blk_qc_t blk_mq_submit_bio(struct bio *bio)
 {
     struct request *rq;
-    unsigned int nr_segs;
+    unsigned int nr_segs = 1;
     struct request_queue *q = bio->bi_disk->queue;
     struct blk_mq_alloc_data data = {
         .q = q,

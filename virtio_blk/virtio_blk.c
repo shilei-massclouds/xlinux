@@ -340,10 +340,14 @@ virtblk_add_req(struct virtqueue *vq, struct virtblk_req *vbr,
     struct scatterlist hdr, status, *sgs[3];
     unsigned int num_out = 0, num_in = 0;
 
+    printk("%s: type(%u) ioprio(%u) sector(%lx)\n",
+           __func__, vbr->out_hdr.type, vbr->out_hdr.ioprio, vbr->out_hdr.sector);
     sg_init_one(&hdr, &vbr->out_hdr, sizeof(vbr->out_hdr));
     sgs[num_out++] = &hdr;
 
     if (have_data) {
+        printk("%s: page(%lx) offset(%x) length(%x)\n",
+               __func__, data_sg->page_link, data_sg->offset, data_sg->length);
         if (vbr->out_hdr.type & VIRTIO_BLK_T_OUT)
             sgs[num_out++] = data_sg;
         else

@@ -6,6 +6,7 @@
 #include <block.h>
 #include <blkdev.h>
 #include <export.h>
+#include <fs/ext2.h>
 #include <pagemap.h>
 #include <page-flags.h>
 #include <buffer_head.h>
@@ -99,8 +100,9 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
             }
             if (page_block == blocks_per_page)
                 break;
-            blocks[page_block] = map_bh->b_blocknr + map_offset +
-                        relative_block;
+            blocks[page_block] =
+                map_bh->b_blocknr + map_offset + relative_block;
+
             page_block++;
             block_in_file++;
         }
@@ -117,8 +119,12 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 
         if (block_in_file < last_block) {
             map_bh->b_size = (last_block-block_in_file) << blkbits;
+            printk("%s 1.1: host(%lx) key %x\n",
+                   __func__, inode, *(EXT2_I(inode)->i_data));
             if (args->get_block(inode, block_in_file, map_bh, 0))
                 panic("confused!");
+            printk("%s 1.2: b_blocknr(%lx)\n",
+                   __func__, map_bh->b_blocknr);
             args->first_logical_block = block_in_file;
         }
 
@@ -153,7 +159,11 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
                 break;
             } else if (page_block == blocks_per_page)
                 break;
-            blocks[page_block] = map_bh->b_blocknr+relative_block;
+            blocks[page_block] = map_bh->b_blocknr + relative_block;
+
+            printk("%s 1.6: block(%lx) page_block(%u) b_blocknr(%lx)\n",
+                   __func__, blocks[page_block], page_block, map_bh->b_blocknr);
+
             page_block++;
             block_in_file++;
         }
@@ -213,9 +223,9 @@ static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
 {
     bio->bi_end_io = mpage_end_io;
     bio_set_op_attrs(bio, op, op_flags);
-    panic("%s: 1", __func__);
+    printk("################## %s: 1\n", __func__);
     submit_bio(bio);
-    panic("%s: !", __func__);
+    printk("################## %s: 2\n", __func__);
     return NULL;
 }
 
@@ -230,7 +240,6 @@ int mpage_readpage(struct page *page, get_block_t get_block)
     args.bio = do_mpage_readpage(&args);
     if (args.bio)
         mpage_bio_submit(REQ_OP_READ, 0, args.bio);
-    panic("%s: !", __func__);
     return 0;
 }
 EXPORT_SYMBOL(mpage_readpage);

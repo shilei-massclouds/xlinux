@@ -83,6 +83,15 @@ pagecache_get_page(struct address_space *mapping, pgoff_t index,
 }
 EXPORT_SYMBOL(pagecache_get_page);
 
+static struct page *wait_on_page_read(struct page *page)
+{
+    if (!IS_ERR(page)) {
+        if (!PageUptodate(page))
+            panic("page NOT uptodate!");
+    }
+    return page;
+}
+
 static struct page *
 do_read_cache_page(struct address_space *mapping,
                    pgoff_t index,
@@ -109,7 +118,14 @@ do_read_cache_page(struct address_space *mapping,
         else
             err = mapping->a_ops->readpage(data, page);
 
-        panic("%s: 1", __func__);
+        if (err < 0)
+            panic("read page error!");
+
+        page = wait_on_page_read(page);
+        if (IS_ERR(page))
+            panic("wait on page error!");
+
+        return page;
     }
 
     if (PageUptodate(page))
