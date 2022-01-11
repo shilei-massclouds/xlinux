@@ -13,3 +13,4 @@ obj_y += buffer.o
 obj_y += exec.o
 obj_y += file_table.o
 obj_y += mpage.o
+obj_y += open.o

@@ -258,6 +258,11 @@ do_open_execat(int fd, struct filename *name, int flags)
     if (IS_ERR(file))
         panic("bad file!");
 
+    return file;
+}
+
+static int exec_binprm(struct linux_binprm *bprm)
+{
     panic("%s: !", __func__);
 }
 
@@ -275,7 +280,14 @@ static int bprm_execve(struct linux_binprm *bprm,
     if (IS_ERR(file))
         panic("bad file!");
 
+    bprm->file = file;
+
+    retval = exec_binprm(bprm);
+    if (retval < 0)
+        panic("exec binprm error!");
+
     panic("%s: !", __func__);
+    return retval;
 }
 
 int kernel_execve(const char *kernel_filename,

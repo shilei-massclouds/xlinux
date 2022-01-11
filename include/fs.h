@@ -15,6 +15,8 @@
 
 #define SB_ACTIVE   (1<<30)
 
+#define MAX_NON_LFS ((1UL<<31) - 1)
+
 /*
  * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
  * represented in both.
@@ -51,10 +53,23 @@ struct buffer_head;
 #define FMODE_READ      ((__force fmode_t)0x1)
 /* file is open for writing */
 #define FMODE_WRITE     ((__force fmode_t)0x2)
+/* file is seekable */
+#define FMODE_LSEEK     ((__force fmode_t)0x4)
+/* file can be accessed using pread */
+#define FMODE_PREAD     ((__force fmode_t)0x8)
+/* file can be accessed using pwrite */
+#define FMODE_PWRITE    ((__force fmode_t)0x10)
 /* File is opened for execution with sys_execve / sys_uselib */
 #define FMODE_EXEC      ((__force fmode_t)0x20)
 /* File is opened with O_EXCL (only set for block devices) */
 #define FMODE_EXCL      ((__force fmode_t)0x80)
+
+/* File needs atomic accesses to f_pos */
+#define FMODE_ATOMIC_POS    ((__force fmode_t)0x8000)
+
+/* Has read method(s) */
+#define FMODE_CAN_READ  ((__force fmode_t)0x20000)
+#define FMODE_OPENED    ((__force fmode_t)0x80000)
 #define FMODE_CREATED   ((__force fmode_t)0x100000)
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY  ((__force fmode_t)0x4000000)
@@ -198,6 +213,7 @@ struct pseudo_fs_context {
 };
 
 struct file_operations {
+    int (*open)(struct inode *, struct file *);
 };
 
 struct file_system_type {
@@ -237,8 +253,13 @@ struct open_flags {
 };
 
 struct file {
+    struct path     f_path;
+    struct inode    *f_inode;   /* cached value */
     unsigned int    f_flags;
     fmode_t         f_mode;
+
+    struct address_space *f_mapping;
+    const struct file_operations *f_op;
 };
 
 extern bool rootfs_initialized;
@@ -372,5 +393,9 @@ int mpage_readpage(struct page *page, get_block_t get_block);
 
 int bdev_read_page(struct block_device *bdev, sector_t sector,
                    struct page *page);
+
+int vfs_open(const struct path *path, struct file *file);
+
+int generic_file_open(struct inode *inode, struct file *filp);
 
 #endif /* _LINUX_FS_H */

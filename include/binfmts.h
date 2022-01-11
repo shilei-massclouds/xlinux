@@ -22,6 +22,8 @@ struct linux_binprm {
     const char *fdpath;     /* generated filename for execveat */
 
     unsigned long loader, exec;
+
+    struct file *file;
 };
 
 #endif /* _LINUX_BINFMTS_H */

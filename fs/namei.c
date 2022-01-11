@@ -646,7 +646,7 @@ finish_lookup:
 static int do_open(struct nameidata *nd,
                    struct file *file, const struct open_flags *op)
 {
-    panic("%s: !", __func__);
+    return vfs_open(&nd->path, file);
 }
 
 static struct file *
@@ -671,6 +671,13 @@ path_openat(struct nameidata *nd,
             ;
         if (!error)
             error = do_open(nd, file, op);
+    }
+
+    if (likely(!error)) {
+        if (likely(file->f_mode & FMODE_OPENED))
+            return file;
+        BUG_ON(1);
+        panic("open error!");
     }
 
     panic("%s: !", __func__);
