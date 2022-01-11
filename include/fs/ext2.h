@@ -254,4 +254,7 @@ ext2_get_group_desc(struct super_block * sb,
 int ext2_inode_by_name(struct inode *dir, const struct qstr *child,
                        ino_t *ino);
 
+extern const struct inode_operations ext2_file_inode_operations;
+extern const struct file_operations ext2_file_operations;
+
 #endif /* _EXT2_H_ */

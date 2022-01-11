@@ -214,12 +214,9 @@ const struct address_space_operations ext2_aops = {
 
 void ext2_set_file_ops(struct inode *inode)
 {
-    /*
     inode->i_op = &ext2_file_inode_operations;
     inode->i_fop = &ext2_file_operations;
     inode->i_mapping->a_ops = &ext2_aops;
-    */
-    panic("%s: not support!", __func__);
 }
 
 struct inode *ext2_iget(struct super_block *sb, unsigned long ino)

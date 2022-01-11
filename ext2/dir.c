@@ -103,6 +103,7 @@ ext2_find_entry(struct inode *dir, const struct qstr *child,
             if (de->rec_len == 0)
                 panic("zero-length directory entry");
 
+            printk("%s: name(%s, %s)\n", __func__, name, de->name);
             if (ext2_match(namelen, name, de))
                 goto found;
             de = ext2_next_entry(de);

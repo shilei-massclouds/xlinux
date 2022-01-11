@@ -598,7 +598,7 @@ lookup_open(struct nameidata *nd, struct file *file,
         }
     }
 
-    panic("%s: !", __func__);
+    printk("%s: dentry(%s)\n", __func__, dentry->d_name.name);
     return dentry;
 }
 
@@ -632,8 +632,6 @@ open_last_lookups(struct nameidata *nd,
     }
 
     dentry = lookup_open(nd, file, op, false);
-
-    panic("%s: !", __func__);
 
 finish_lookup:
     res = step_into(nd, dentry, inode);
