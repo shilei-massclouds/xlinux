@@ -122,7 +122,7 @@ path_init(struct nameidata *nd, unsigned flags)
     nd->path.mnt = NULL;
     nd->path.dentry = NULL;
 
-    printk("%s: 0 flags(%x)\n", __func__, flags);
+    printk(">>>>>> %s: 0 name(%s) flags(%x)\n", __func__, s, flags);
 
     if (*s == '/' && !(flags & LOOKUP_IN_ROOT)) {
         int error = nd_jump_root(nd);
@@ -225,6 +225,9 @@ step_into(struct nameidata *nd, struct dentry *dentry, struct inode *inode)
 {
     struct path path;
     handle_mounts(nd, dentry, &path, &inode);
+
+    printk("%s: dentry(%s) inode(%u)\n",
+           __func__, dentry->d_name.name, inode->i_ino);
 
     nd->path = path;
     nd->inode = inode;
@@ -554,10 +557,60 @@ kern_path(const char *name, unsigned int flags, struct path *path)
 }
 EXPORT_SYMBOL(kern_path);
 
+static struct dentry *
+lookup_open(struct nameidata *nd, struct file *file,
+            const struct open_flags *op, bool got_write)
+{
+    struct dentry *dentry;
+    struct dentry *dir = nd->path.dentry;
+    struct inode *dir_inode = dir->d_inode;
+
+    printk("### %s: (%lx)\n", __func__, nd->path.dentry->d_inode);
+
+    file->f_mode &= ~FMODE_CREATED;
+    dentry = d_lookup(dir, &nd->last);
+    for (;;) {
+        if (!dentry) {
+            dentry = d_alloc_parallel(dir, &nd->last);
+            if (IS_ERR(dentry))
+                panic("bad dentry!");
+        }
+
+        if (d_in_lookup(dentry))
+            break;
+
+        panic("%s: 1", __func__);
+    }
+
+    if (dentry->d_inode) {
+        /* Cached positive dentry: will open in f_op->open */
+        return dentry;
+    }
+
+    if (d_in_lookup(dentry)) {
+        struct dentry *res =
+            dir_inode->i_op->lookup(dir_inode, dentry, nd->flags);
+        d_lookup_done(dentry);
+        if (unlikely(res)) {
+            if (IS_ERR(res))
+                panic("lookup error!");
+            dentry = res;
+        }
+    }
+
+    panic("%s: !", __func__);
+    return dentry;
+}
+
 static const char *
 open_last_lookups(struct nameidata *nd,
                   struct file *file, const struct open_flags *op)
 {
+    const char *res;
+    struct inode *inode;
+    struct dentry *dentry;
+    int open_flag = op->open_flag;
+
     nd->flags |= op->intent;
 
     if (nd->last_type != LAST_NORM) {
@@ -565,7 +618,28 @@ open_last_lookups(struct nameidata *nd,
         return handle_dots(nd, nd->last_type);
     }
 
+    if (!(open_flag & O_CREAT)) {
+        if (nd->last.name[nd->last.len])
+            nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+        /* we _can_ be in RCU mode here */
+        dentry = lookup_fast(nd, &inode);
+        if (IS_ERR(dentry))
+            panic("bad dentry!");
+        if (likely(dentry))
+            goto finish_lookup;
+    } else {
+        panic("create things!");
+    }
+
+    dentry = lookup_open(nd, file, op, false);
+
     panic("%s: !", __func__);
+
+finish_lookup:
+    res = step_into(nd, dentry, inode);
+    if (unlikely(res))
+        nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
+    return res;
 }
 
 /*

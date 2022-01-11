@@ -54,6 +54,7 @@ inode_init_always(struct super_block *sb, struct inode *inode)
     inode->i_sb = sb;
     inode->i_blkbits = sb->s_blocksize_bits;
     inode->i_mapping = mapping;
+    INIT_HLIST_HEAD(&inode->i_dentry);  /* buggered by rcu freeing */
 
     mapping->a_ops = &empty_aops;
     mapping->host = inode;

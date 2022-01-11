@@ -55,6 +55,7 @@ struct buffer_head;
 #define FMODE_EXEC      ((__force fmode_t)0x20)
 /* File is opened with O_EXCL (only set for block devices) */
 #define FMODE_EXCL      ((__force fmode_t)0x80)
+#define FMODE_CREATED   ((__force fmode_t)0x100000)
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY  ((__force fmode_t)0x4000000)
 
@@ -176,6 +177,7 @@ struct inode {
     blkcnt_t            i_blocks;
 
     struct hlist_node   i_hash;
+    struct hlist_head   i_dentry;
 
     const struct inode_operations *i_op;
     const struct file_operations  *i_fop;

@@ -19,8 +19,10 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 #define LOOKUP_ROOT_GRABBED 0x0008
 #define LOOKUP_PARENT       0x0010  /* internal use only */
 #define LOOKUP_REVAL        0x0020  /* tell ->d_revalidate() to trust no cache */
-#define LOOKUP_OPEN         0x0100  /* ... in open */
 #define LOOKUP_RCU          0x0040  /* RCU pathwalk mode; semi-internal */
+#define LOOKUP_OPEN         0x0100  /* ... in open */
+#define LOOKUP_CREATE       0x0200  /* ... in object creation */
+#define LOOKUP_EXCL         0x0400  /* ... in exclusive creation */
 #define LOOKUP_JUMPED       0x1000
 #define LOOKUP_ROOT         0x2000
 #define LOOKUP_NO_XDEV      0x040000 /* No mountpoint crossing. */

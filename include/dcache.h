@@ -44,6 +44,7 @@ struct dentry {
     struct list_head d_child;   /* child of parent list */
     struct list_head d_subdirs; /* our children */
     struct hlist_bl_node d_in_lookup_hash;  /* only for in-lookup ones */
+    struct hlist_node d_alias;  /* inode alias list */
 };
 
 static inline struct dentry *
@@ -115,5 +116,7 @@ static inline void d_lookup_done(struct dentry *dentry)
 }
 
 int d_set_mounted(struct dentry *dentry);
+
+struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry);
 
 #endif /* _LINUX_DCACHE_H */

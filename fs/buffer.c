@@ -55,8 +55,7 @@ lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size)
 
 inline void touch_buffer(struct buffer_head *bh)
 {
-    //mark_page_accessed(bh->b_page);
-    panic("%s: !", __func__);
+    /* Todo: add access mark. */
 }
 EXPORT_SYMBOL(touch_buffer);
 

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <list.h>
 #include <slab.h>
+#include <stat.h>
 #include <errno.h>
 #include <dcache.h>
 #include <export.h>
@@ -74,6 +76,7 @@ __d_alloc(struct super_block *sb, const struct qstr *name)
     INIT_HLIST_BL_NODE(&dentry->d_hash);
     INIT_LIST_HEAD(&dentry->d_child);
     INIT_LIST_HEAD(&dentry->d_subdirs);
+    INIT_HLIST_NODE(&dentry->d_alias);
     return dentry;
 }
 
@@ -217,7 +220,14 @@ __d_rehash(struct dentry *entry)
 static inline void
 __d_add(struct dentry *dentry, struct inode *inode)
 {
-    BUG_ON(inode);
+    if (unlikely(d_in_lookup(dentry)))
+        __d_lookup_done(dentry);
+
+    if (inode) {
+        hlist_add_head(&dentry->d_alias, &inode->i_dentry);
+        __d_set_inode_and_type(dentry, inode);
+    }
+
     __d_rehash(dentry);
 }
 
@@ -314,6 +324,39 @@ out:
     return ret;
 }
 EXPORT_SYMBOL(d_set_mounted);
+
+static struct dentry *
+__d_find_any_alias(struct inode *inode)
+{
+    struct dentry *alias;
+
+    if (hlist_empty(&inode->i_dentry))
+        return NULL;
+    alias = hlist_entry(inode->i_dentry.first, struct dentry, d_alias);
+    return alias;
+}
+
+struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
+{
+    if (IS_ERR(inode))
+        return ERR_CAST(inode);
+
+    BUG_ON(!d_unhashed(dentry));
+
+    if (!inode)
+        goto out;
+
+    if (S_ISDIR(inode->i_mode)) {
+        struct dentry *new = __d_find_any_alias(inode);
+        if (unlikely(new))
+            panic("It has alias!");
+    }
+
+out:
+    __d_add(dentry, inode);
+    return NULL;
+}
+EXPORT_SYMBOL(d_splice_alias);
 
 static void
 dcache_init(void)

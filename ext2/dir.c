@@ -6,6 +6,8 @@
 #include <pagemap.h>
 #include <highmem.h>
 
+typedef struct ext2_dir_entry_2 ext2_dirent;
+
 static struct page *
 ext2_get_page(struct inode *dir, unsigned long n, int quiet)
 {
@@ -15,6 +17,45 @@ ext2_get_page(struct inode *dir, unsigned long n, int quiet)
         kmap(page);
     }
     return page;
+}
+
+/*
+ * Return the offset into page `page_nr' of the last valid
+ * byte in that page, plus one.
+ */
+static unsigned
+ext2_last_byte(struct inode *inode, unsigned long page_nr)
+{
+    unsigned last_byte = inode->i_size;
+
+    last_byte -= page_nr << PAGE_SHIFT;
+    if (last_byte > PAGE_SIZE)
+        last_byte = PAGE_SIZE;
+    return last_byte;
+}
+
+/*
+ * NOTE! unlike strncmp, ext2_match returns 1 for success, 0 for failure.
+ *
+ * len <= EXT2_NAME_LEN and de != NULL are guaranteed by caller.
+ */
+static inline int
+ext2_match(int len, const char * const name,
+           struct ext2_dir_entry_2 *de)
+{
+    if (len != de->name_len)
+        return 0;
+    if (!de->inode)
+        return 0;
+    return !memcmp(name, de->name, len);
+}
+
+/*
+ * p is at least 6 bytes before the end of page
+ */
+static inline ext2_dirent *ext2_next_entry(ext2_dirent *p)
+{
+    return (ext2_dirent *)((char *)p + p->rec_len);
 }
 
 /*
@@ -29,10 +70,14 @@ struct ext2_dir_entry_2 *
 ext2_find_entry(struct inode *dir, const struct qstr *child,
                 struct page **res_page)
 {
+    ext2_dirent *de;
     unsigned long start, n;
     struct page *page = NULL;
     unsigned long npages = dir_pages(dir);
     struct ext2_inode_info *ei = EXT2_I(dir);
+    const char *name = child->name;
+    int namelen = child->len;
+    unsigned reclen = EXT2_DIR_REC_LEN(namelen);
 
     if (npages == 0)
         return ERR_PTR(-ENOENT);
@@ -50,10 +95,31 @@ ext2_find_entry(struct inode *dir, const struct qstr *child,
         if (IS_ERR(page))
             panic("bad page!");
 
-        panic("%s: 1", __func__);
+        kaddr = page_address(page);
+        de = (ext2_dirent *) kaddr;
+        kaddr += ext2_last_byte(dir, n) - reclen;
+
+        while ((char *)de <= kaddr) {
+            if (de->rec_len == 0)
+                panic("zero-length directory entry");
+
+            if (ext2_match(namelen, name, de))
+                goto found;
+            de = ext2_next_entry(de);
+        }
+
+        if (++n >= npages)
+            n = 0;
+
+        panic("%s: NOT found!", __func__);
     } while(n != start);
 
     panic("%s: !", __func__);
+
+ found:
+    *res_page = page;
+    ei->i_dir_start_lookup = n;
+    return de;
 }
 
 int ext2_inode_by_name(struct inode *dir, const struct qstr *child,
@@ -63,13 +129,9 @@ int ext2_inode_by_name(struct inode *dir, const struct qstr *child,
     struct ext2_dir_entry_2 *de;
 
     de = ext2_find_entry(dir, child, &page);
-    /*
     if (IS_ERR(de))
-        return PTR_ERR(de);
+        panic("bad dentry!");
 
-    *ino = le32_to_cpu(de->inode);
-    ext2_put_page(page);
+    *ino = de->inode;
     return 0;
-    */
-    panic("%s: [%s]!", __func__, child->name);
 }

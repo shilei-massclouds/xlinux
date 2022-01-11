@@ -29,6 +29,25 @@
 #define EXT2_GOOD_OLD_REV   0   /* The good old (original) format */
 #define EXT2_GOOD_OLD_INODE_SIZE 128
 
+#define EXT2_DIR_PAD    4
+#define EXT2_DIR_ROUND  (EXT2_DIR_PAD - 1)
+#define EXT2_DIR_REC_LEN(name_len) \
+    (((name_len) + 8 + EXT2_DIR_ROUND) & ~EXT2_DIR_ROUND)
+
+/*
+ * The new version of the directory entry.  Since EXT2 structures are
+ * stored in intel byte order, and the name_len field could never be
+ * bigger than 255 chars, it's safe to reclaim the extra byte for the
+ * file_type field.
+ */
+struct ext2_dir_entry_2 {
+    u32     inode;          /* Inode number */
+    u16     rec_len;        /* Directory entry length */
+    u8      name_len;       /* Name length */
+    u8      file_type;
+    char    name[];         /* File name, up to EXT2_NAME_LEN */
+};
+
 /*
  * Structure of the super block
  */

@@ -261,6 +261,15 @@ static inline void INIT_HLIST_NODE(struct hlist_node *h)
          pos = hlist_entry_safe((pos)->member.next, typeof(*(pos)), member))
 
 /**
+ * hlist_empty - Is the specified hlist_head structure an empty hlist?
+ * @h: Structure to check.
+ */
+static inline int hlist_empty(const struct hlist_head *h)
+{
+    return !READ_ONCE(h->first);
+}
+
+/**
  * hlist_unhashed - Has node been removed from list and reinitialized?
  * @h: Node to be checked
  *

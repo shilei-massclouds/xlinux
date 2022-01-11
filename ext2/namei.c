@@ -9,29 +9,21 @@ ext2_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
     int res;
     ino_t ino;
-    struct inode * inode;
+    struct inode *inode;
 
+    printk("%s: 1\n", __func__);
     if (dentry->d_name.len > EXT2_NAME_LEN)
         return ERR_PTR(-ENAMETOOLONG);
 
     res = ext2_inode_by_name(dir, &dentry->d_name, &ino);
-    /*
     if (res) {
-        if (res != -ENOENT)
-            return ERR_PTR(res);
-        inode = NULL;
+        panic("lookup inode by name error!");
     } else {
         inode = ext2_iget(dir->i_sb, ino);
-        if (inode == ERR_PTR(-ESTALE)) {
-            ext2_error(dir->i_sb, __func__,
-                    "deleted inode referenced: %lu",
-                    (unsigned long) ino);
-            return ERR_PTR(-EIO);
-        }
+        if (inode == ERR_PTR(-ESTALE))
+            panic("deleted inode referenced: %lu", (unsigned long) ino);
     }
     return d_splice_alias(inode, dentry);
-    */
-    panic("%s: !", __func__);
 }
 
 const struct inode_operations ext2_dir_inode_operations = {
