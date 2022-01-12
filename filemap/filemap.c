@@ -31,7 +31,7 @@ __add_to_page_cache_locked(struct page *page,
 }
 
 int
-add_to_page_cache_lru(struct page *page,
+_add_to_page_cache_lru(struct page *page,
                       struct address_space *mapping,
                       pgoff_t offset,
                       gfp_t gfp_mask)
@@ -46,7 +46,6 @@ add_to_page_cache_lru(struct page *page,
 
     return ret;
 }
-EXPORT_SYMBOL(add_to_page_cache_lru);
 
 struct page *
 find_get_entry(struct address_space *mapping, pgoff_t offset)
@@ -164,10 +163,58 @@ void page_endio(struct page *page, bool is_write, int err)
 }
 EXPORT_SYMBOL(page_endio);
 
+ssize_t generic_file_buffered_read(struct kiocb *iocb,
+                                   struct iov_iter *iter,
+                                   ssize_t written)
+{
+    pgoff_t index;
+    pgoff_t last_index;
+    struct file *filp = iocb->ki_filp;
+    struct file_ra_state *ra = &filp->f_ra;
+    struct address_space *mapping = filp->f_mapping;
+    loff_t *ppos = &iocb->ki_pos;
+
+    index = *ppos >> PAGE_SHIFT;
+    last_index = (*ppos + iter->count + PAGE_SIZE-1) >> PAGE_SHIFT;
+
+    for (;;) {
+        struct page *page;
+
+        page = find_get_page(mapping, index);
+        if (!page) {
+            page_cache_sync_readahead(mapping, ra, filp,
+                                      index, last_index - index);
+            page = find_get_page(mapping, index);
+            if (unlikely(page == NULL))
+                panic("no cached page!");
+        }
+
+        panic("%s: 1 page(%lx)", __func__, page);
+    }
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(generic_file_buffered_read);
+
+ssize_t
+generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+    ssize_t retval = 0;
+    size_t count = iov_iter_count(iter);
+
+    if (!count)
+        return 0;
+
+    return generic_file_buffered_read(iocb, iter, retval);
+}
+EXPORT_SYMBOL(generic_file_read_iter);
+
 static int
 init_module(void)
 {
     printk("module[filemap]: init begin ...\n");
+
+    add_to_page_cache_lru = _add_to_page_cache_lru;
+
     printk("module[filemap]: init end!\n");
 
     return 0;

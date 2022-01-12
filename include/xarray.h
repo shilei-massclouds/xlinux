@@ -170,4 +170,6 @@ static inline void xas_set_err(struct xa_state *xas, long err)
     xas->xa_node = XA_ERROR(err);
 }
 
+void *xa_load(struct xarray *xa, unsigned long index);
+
 #endif /* _LINUX_XARRAY_H */

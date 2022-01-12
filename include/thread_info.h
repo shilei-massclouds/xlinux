@@ -33,6 +33,9 @@ struct thread_info {
     int             cpu;
 };
 
+#include <current.h>
+#define current_thread_info() ((struct thread_info *)current)
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_RISCV_THREAD_INFO_H */

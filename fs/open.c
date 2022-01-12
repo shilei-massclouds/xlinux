@@ -34,13 +34,12 @@ static int do_dentry_open(struct file *f,
             panic("open error!");
     }
     f->f_mode |= FMODE_OPENED;
-    /*
     if ((f->f_mode & FMODE_READ) &&
         likely(f->f_op->read || f->f_op->read_iter))
         f->f_mode |= FMODE_CAN_READ;
-    */
 
     f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
+    file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
     return 0;
 }
 

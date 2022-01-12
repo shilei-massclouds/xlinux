@@ -7,8 +7,10 @@
 #include <blk-mq.h>
 #include <blkdev.h>
 #include <export.h>
+#include <pagemap.h>
 #include <blk_types.h>
 #include <workqueue.h>
+#include <backing-dev.h>
 
 static const struct {
     int         errno;
@@ -77,6 +79,13 @@ blk_alloc_queue(void)
     q = kmem_cache_alloc(blk_requestq_cachep, GFP_KERNEL|__GFP_ZERO);
     if (!q)
         return NULL;
+
+    q->backing_dev_info = bdi_alloc();
+    if (!q->backing_dev_info)
+        panic("out of memory!");
+
+    q->backing_dev_info->ra_pages = VM_READAHEAD_PAGES;
+    q->backing_dev_info->io_pages = VM_READAHEAD_PAGES;
 
     return q;
 }

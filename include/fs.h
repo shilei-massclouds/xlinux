@@ -2,6 +2,7 @@
 #ifndef _LINUX_FS_H
 #define _LINUX_FS_H
 
+#include <uio.h>
 #include <cred.h>
 #include <list.h>
 #include <page.h>
@@ -16,6 +17,8 @@
 #define SB_ACTIVE   (1<<30)
 
 #define MAX_NON_LFS ((1UL<<31) - 1)
+
+#define MAX_RW_COUNT (INT_MAX & PAGE_MASK)
 
 /*
  * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
@@ -100,6 +103,12 @@ struct file;
 
 struct address_space_operations {
     int (*readpage)(struct file *, struct page *);
+    /*
+     * Reads in the requested pages. Unlike ->readpage(), this is
+     * PURELY used for read-ahead!.
+     */
+    int (*readpages)(struct file *filp, struct address_space *mapping,
+                     struct list_head *pages, unsigned nr_pages);
 };
 
 struct address_space {
@@ -166,6 +175,7 @@ struct super_block {
     struct list_head s_inodes;  /* all inodes */
     struct hlist_node s_instances;
     struct block_device *s_bdev;
+    struct backing_dev_info *s_bdi;
     struct file_system_type *s_type;
     char s_id[32];              /* Informational name */
     fmode_t s_mode;
@@ -212,8 +222,15 @@ struct pseudo_fs_context {
     unsigned long magic;
 };
 
+struct kiocb {
+    struct file *ki_filp;
+    loff_t ki_pos;
+};
+
 struct file_operations {
     int (*open)(struct inode *, struct file *);
+    ssize_t (*read)(struct file *, char *, size_t, loff_t *);
+    ssize_t (*read_iter)(struct kiocb *, struct iov_iter *);
 };
 
 struct file_system_type {
@@ -252,11 +269,26 @@ struct open_flags {
     int lookup_flags;
 };
 
+/*
+ * Track a single file's readahead state
+ */
+struct file_ra_state {
+    pgoff_t start;          /* where readahead started */
+    unsigned int size;      /* # of readahead pages */
+    unsigned int async_size;    /* do asynchronous readahead
+                                   when there are only # of pages ahead */
+
+    unsigned int ra_pages;  /* Maximum readahead window */
+    loff_t prev_pos;        /* Cache last read() position */
+};
+
 struct file {
     struct path     f_path;
     struct inode    *f_inode;   /* cached value */
     unsigned int    f_flags;
     fmode_t         f_mode;
+
+    struct file_ra_state f_ra;
 
     struct address_space *f_mapping;
     const struct file_operations *f_op;
@@ -397,5 +429,40 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
 int vfs_open(const struct path *path, struct file *file);
 
 int generic_file_open(struct inode *inode, struct file *filp);
+
+ssize_t
+kernel_read(struct file *file, void *buf, size_t count, loff_t *pos);
+
+static inline void
+init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
+{
+    *kiocb = (struct kiocb) {
+        .ki_filp = filp,
+    };
+}
+
+static inline ssize_t
+call_read_iter(struct file *file, struct kiocb *kio, struct iov_iter *iter)
+{
+    return file->f_op->read_iter(kio, iter);
+}
+
+void
+page_cache_sync_readahead(struct address_space *mapping,
+                          struct file_ra_state *ra, struct file *filp,
+                          pgoff_t index, unsigned long req_count);
+
+void
+file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping);
+
+extern struct super_block *blockdev_superblock;
+static inline bool sb_is_blkdev_sb(struct super_block *sb)
+{
+    return sb == blockdev_superblock;
+}
+
+typedef struct block_device *
+(*I_BDEV_T)(struct inode *inode);
+extern I_BDEV_T I_BDEV;
 
 #endif /* _LINUX_FS_H */

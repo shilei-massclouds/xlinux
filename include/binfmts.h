@@ -5,6 +5,9 @@
 #define MAX_ARG_STRLEN  (PAGE_SIZE * 32)
 #define MAX_ARG_STRINGS 0x7FFFFFFF
 
+/* sizeof(linux_binprm->buf) */
+#define BINPRM_BUF_SIZE 256
+
 /*
  * This structure is used to hold the arguments that are used when loading binaries.
  */
@@ -16,14 +19,19 @@ struct linux_binprm {
 
     unsigned long argmin;   /* rlimit marker for copy_strings() */
 
+    struct file *interpreter;
+    struct file *file;
+
     int argc, envc;
     const char *filename;   /* Name of binary as seen by procps */
-    const char *interp;     /* Name of the binary really executed. */
     const char *fdpath;     /* generated filename for execveat */
+    const char *interp;     /* Name of the binary really executed.
+                               Most of the time same as filename, but could be
+                               different for binfmt_{misc,script} */
 
     unsigned long loader, exec;
 
-    struct file *file;
+    char buf[BINPRM_BUF_SIZE];
 };
 
 #endif /* _LINUX_BINFMTS_H */

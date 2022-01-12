@@ -16,6 +16,8 @@ set_bdev_super(struct super_block *s, void *data)
 {
     s->s_bdev = data;
     s->s_dev = s->s_bdev->bd_dev;
+    s->s_bdi = s->s_bdev->bd_bdi;
+
     return 0;
 }
 

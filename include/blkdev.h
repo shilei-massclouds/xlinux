@@ -23,6 +23,7 @@ struct block_device {
     struct super_block *bd_super;
     struct inode *bd_inode;     /* will die */
     struct gendisk *bd_disk;
+    struct backing_dev_info *bd_bdi;
     struct hd_struct *bd_part;
     u8 bd_partno;
     void *bd_claiming;
@@ -68,6 +69,8 @@ struct request_queue {
 
     struct blk_mq_hw_ctx **queue_hw_ctx;
     unsigned int nr_hw_queues;
+
+    struct backing_dev_info *backing_dev_info;
 
     /*
      * various queue flags, see QUEUE_* below
@@ -169,8 +172,6 @@ block_size(struct block_device *bdev)
 {
     return 1 << bdev->bd_inode->i_blkbits;
 }
-
-struct block_device *I_BDEV(struct inode *inode);
 
 static inline unsigned short req_get_ioprio(struct request *req)
 {

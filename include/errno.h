@@ -40,6 +40,8 @@
 #define ENAMETOOLONG    36  /* File name too long */
 #define ENOSYS      38  /* Invalid system call number */
 
+#define ELOOP       40  /* Too many symbolic links encountered */
+
 #define EBADE       52  /* Invalid exchange */
 #define EBFONT      59  /* Bad font file format */
 #define ENOSTR      60  /* Device not a stream */
@@ -79,6 +81,8 @@
 #define EREMOTEIO   121 /* Remote I/O error */
 
 #define EPROBE_DEFER    517 /* Driver requests probe retry */
+#define EIOCBQUEUED 529 /* iocb queued, will get completion event */
+
 
 static inline void *
 ERR_PTR(long error)

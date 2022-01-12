@@ -70,6 +70,27 @@ void *xas_load(struct xa_state *xas)
 }
 EXPORT_SYMBOL(xas_load);
 
+/**
+ * xa_load() - Load an entry from an XArray.
+ * @xa: XArray.
+ * @index: index into array.
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ * Return: The entry at @index in @xa.
+ */
+void *xa_load(struct xarray *xa, unsigned long index)
+{
+    void *entry;
+    XA_STATE(xas, xa, index);
+
+    entry = xas_load(&xas);
+    if (xa_is_zero(entry))
+        entry = NULL;
+
+    return entry;
+}
+EXPORT_SYMBOL(xa_load);
+
 /* The maximum index that can be contained in the array without expanding it */
 static unsigned long max_index(void *entry)
 {

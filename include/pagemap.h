@@ -12,6 +12,17 @@
 #define FGP_LOCK        0x00000002
 #define FGP_CREAT       0x00000004
 
+#define VM_READAHEAD_PAGES  (SZ_128K / PAGE_SIZE)
+
+struct readahead_control {
+    struct file *file;
+    struct address_space *mapping;
+/* private: use the readahead_* accessors instead */
+    pgoff_t _index;
+    unsigned int _nr_pages;
+    unsigned int _batch_count;
+};
+
 struct page *
 pagecache_get_page(struct address_space *mapping, pgoff_t offset,
                    int fgp_flags, gfp_t cache_gfp_mask);
@@ -82,5 +93,11 @@ mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_mask)
 {
     return mapping_gfp_mask(mapping) & gfp_mask;
 }
+
+static inline gfp_t readahead_gfp_mask(struct address_space *x)
+{
+    return mapping_gfp_mask(x) | __GFP_NORETRY | __GFP_NOWARN;
+}
+
 
 #endif /* _LINUX_PAGEMAP_H */

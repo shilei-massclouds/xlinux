@@ -261,8 +261,43 @@ do_open_execat(int fd, struct filename *name, int flags)
     return file;
 }
 
+static int prepare_binprm(struct linux_binprm *bprm)
+{
+    loff_t pos = 0;
+
+    memset(bprm->buf, 0, BINPRM_BUF_SIZE);
+    return kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE, &pos);
+}
+
+static int search_binary_handler(struct linux_binprm *bprm)
+{
+    int retval;
+
+    retval = prepare_binprm(bprm);
+    if (retval < 0)
+        panic("prepare binprm error!");
+
+    panic("%s: !", __func__);
+}
+
 static int exec_binprm(struct linux_binprm *bprm)
 {
+    int ret, depth;
+
+    for (depth = 0;; depth++) {
+        struct file *exec;
+        if (depth > 5)
+            return -ELOOP;
+
+        printk("%s: 1!\n", __func__);
+        ret = search_binary_handler(bprm);
+        if (ret < 0)
+            panic("can not find handler!");
+        if (!bprm->interpreter)
+            break;
+
+        panic("%s: 1", __func__);
+    }
     panic("%s: !", __func__);
 }
 

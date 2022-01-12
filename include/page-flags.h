@@ -188,6 +188,9 @@ PAGEFLAG(Error, error, PF_NO_TAIL)
 
 PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_TAIL)
 
+PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
+    TESTCLEARFLAG(Readahead, reclaim, PF_NO_COMPOUND)
+
 #define PAGE_TYPE_BASE  0xf0000000
 /* Reserve      0x0000007f to catch underflows of page_mapcount */
 #define PAGE_MAPCOUNT_RESERVE   -128

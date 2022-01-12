@@ -7,6 +7,7 @@
 #include <export.h>
 #include <kernel.h>
 #include <ptrace.h>
+#include <filemap.h>
 
 void (*handle_arch_irq)(struct pt_regs *);
 EXPORT_SYMBOL(handle_arch_irq);
@@ -39,6 +40,17 @@ EXPORT_SYMBOL(kmem_cache_alloc);
 
 kmem_cache_free_t kmem_cache_free;
 EXPORT_SYMBOL(kmem_cache_free);
+
+/* For block device */
+struct super_block *blockdev_superblock;
+EXPORT_SYMBOL(blockdev_superblock);
+
+I_BDEV_T I_BDEV;
+EXPORT_SYMBOL(I_BDEV);
+
+/* For filemap */
+add_to_page_cache_lru_t add_to_page_cache_lru;
+EXPORT_SYMBOL(add_to_page_cache_lru);
 
 /*
  * Init

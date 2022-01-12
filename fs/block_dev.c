@@ -14,6 +14,7 @@
 #include <kernel.h>
 #include <printk.h>
 #include <string.h>
+#include <backing-dev.h>
 
 #define BDEVFS_MAGIC 0x62646576
 
@@ -24,8 +25,7 @@ struct bdev_inode {
 
 static struct kmem_cache *bdev_cachep;
 
-struct super_block *blockdev_superblock;
-EXPORT_SYMBOL(blockdev_superblock);
+extern struct super_block *blockdev_superblock;
 
 static inline unsigned long
 hash(dev_t dev)
@@ -236,6 +236,10 @@ __blkdev_get(struct block_device *bdev,
         set_init_blocksize(bdev);
     }
 
+    if (bdev->bd_bdi == &noop_backing_dev_info) {
+        bdev->bd_bdi = disk->queue->backing_dev_info;
+    }
+
     bd_finish_claiming(bdev, bdev, holder);
     return 0;
 }
@@ -296,6 +300,7 @@ init_once(void *foo)
     struct block_device *bdev = &ei->bdev;
 
     memset(bdev, 0, sizeof(*bdev));
+    bdev->bd_bdi = &noop_backing_dev_info;
     inode_init_once(&ei->vfs_inode);
 }
 
@@ -369,11 +374,10 @@ int sb_min_blocksize(struct super_block *sb, int size)
 }
 EXPORT_SYMBOL(sb_min_blocksize);
 
-struct block_device *I_BDEV(struct inode *inode)
+struct block_device *_I_BDEV(struct inode *inode)
 {
     return &BDEV_I(inode)->bdev;
 }
-EXPORT_SYMBOL(I_BDEV);
 
 int bdev_read_page(struct block_device *bdev, sector_t sector,
                    struct page *page)
@@ -387,3 +391,8 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
                         page, REQ_OP_READ);
 }
 EXPORT_SYMBOL(bdev_read_page);
+
+void block_dev_init(void)
+{
+    I_BDEV = _I_BDEV;
+}

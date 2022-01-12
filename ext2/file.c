@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <filemap.h>
 #include <fs/ext2.h>
 
 const struct inode_operations ext2_file_inode_operations = {
@@ -13,15 +14,14 @@ const struct inode_operations ext2_file_inode_operations = {
     */
 };
 
-/*
 static ssize_t ext2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
     return generic_file_read_iter(iocb, to);
 }
-*/
 
 const struct file_operations ext2_file_operations = {
     .open           = generic_file_open,
+    .read_iter      = ext2_file_read_iter,
     /*
     .llseek         = generic_file_llseek,
     .write_iter     = ext2_file_write_iter,

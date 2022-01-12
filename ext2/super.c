@@ -184,6 +184,7 @@ static struct file_system_type ext2_fs_type = {
 static void init_once(void *foo)
 {
     struct ext2_inode_info *ei = (struct ext2_inode_info *) foo;
+
     inode_init_once(&ei->vfs_inode);
 }
 
