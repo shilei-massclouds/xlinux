@@ -81,6 +81,50 @@
 #define R_RISCV_RVC_JUMP        45
 #define R_RISCV_RELAX           51
 
+/* These constants define the different elf file types */
+#define ET_NONE   0
+#define ET_REL    1
+#define ET_EXEC   2
+#define ET_DYN    3
+#define ET_CORE   4
+#define ET_LOPROC 0xff00
+#define ET_HIPROC 0xffff
+
+#define PT_INTERP           3
+#define PT_LOOS             0x60000000      /* OS-specific */
+#define PT_GNU_PROPERTY     0x6474e553
+#define PT_LOPROC  0x70000000
+#define PT_HIPROC  0x7fffffff
+
+#define PT_GNU_STACK    (PT_LOOS + 0x474e551)
+
+#define EM_RISCV    243 /* RISC-V */
+
+/*
+ * This is used to ensure we don't load something for the wrong architecture.
+ */
+#define elf_check_arch(x) ((x)->e_machine == EM_RISCV)
+
+#define elfhdr      elf64_hdr
+#define elf_phdr    elf64_phdr
+
+/* These constants define the permissions on sections in the program
+   header, p_flags. */
+#define PF_R        0x4
+#define PF_W        0x2
+#define PF_X        0x1
+
+typedef struct elf64_phdr {
+    u32 p_type;
+    u32 p_flags;
+    u64 p_offset;   /* Segment file offset */
+    u64 p_vaddr;    /* Segment virtual address */
+    u64 p_paddr;    /* Segment physical address */
+    u64 p_filesz;   /* Segment size in file */
+    u64 p_memsz;    /* Segment size in memory */
+    u64 p_align;    /* Segment alignment, file & memory */
+} Elf64_Phdr;
+
 typedef struct elf64_hdr {
   unsigned char e_ident[EI_NIDENT]; /* ELF "magic number" */
   u16 e_type;

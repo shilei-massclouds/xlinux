@@ -3,6 +3,8 @@
 #include <filemap.h>
 #include <fs/ext2.h>
 
+#define ext2_file_mmap  generic_file_mmap
+
 const struct inode_operations ext2_file_inode_operations = {
     /*
     .listxattr  = ext2_listxattr,
@@ -22,11 +24,11 @@ static ssize_t ext2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 const struct file_operations ext2_file_operations = {
     .open           = generic_file_open,
     .read_iter      = ext2_file_read_iter,
+    .mmap           = ext2_file_mmap,
     /*
     .llseek         = generic_file_llseek,
     .write_iter     = ext2_file_write_iter,
     .unlocked_ioctl = ext2_ioctl,
-    .mmap           = ext2_file_mmap,
     .release        = ext2_release_file,
     .fsync          = ext2_fsync,
     .get_unmapped_area = thp_get_unmapped_area,

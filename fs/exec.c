@@ -15,6 +15,7 @@
 #include <highmem.h>
 #include <resource.h>
 #include <processor.h>
+#include <mmu_context.h>
 
 static LIST_HEAD(formats);
 
@@ -394,3 +395,66 @@ int kernel_execve(const char *kernel_filename,
     return retval;
 }
 EXPORT_SYMBOL(kernel_execve);
+
+static int exec_mmap(struct mm_struct *mm)
+{
+    struct task_struct *tsk;
+    struct mm_struct *old_mm, *active_mm;
+
+    tsk = current;
+    old_mm = current->mm;
+
+    active_mm = tsk->active_mm;
+    tsk->mm = mm;
+    tsk->active_mm = mm;
+    activate_mm(active_mm, mm);
+    if (old_mm) {
+        BUG_ON(active_mm != old_mm);
+        return 0;
+    }
+    return 0;
+}
+
+/*
+ * Calling this is the point of no return. None of the failures will be
+ * seen by userspace since either the process is already taking a fatal
+ * signal (via de_thread() or coredump), or will have SEGV raised
+ * (after exec_mmap()) by search_binary_handler (see below).
+ */
+int begin_new_exec(struct linux_binprm *bprm)
+{
+    int retval;
+
+    /*
+     * Ensure all future errors are fatal.
+     */
+    bprm->point_of_no_return = true;
+
+    /*
+     * Must be called _before_ exec_mmap() as bprm->mm is
+     * not visibile until then. This also enables the update
+     * to be lockless.
+     */
+    set_mm_exe_file(bprm->mm, bprm->file);
+
+    retval = exec_mmap(bprm->mm);
+    if (retval)
+        panic("exec mmap error!");
+
+    bprm->mm = NULL;
+
+    return 0;
+}
+
+void setup_new_exec(struct linux_binprm * bprm)
+{
+    /* Setup things that can depend upon the personality */
+    struct task_struct *me = current;
+
+    /* Set the new mm task size. We have to do that late because it may
+     * depend on TIF_32BIT which is only updated in flush_thread() on
+     * some architectures like powerpc
+     */
+    me->mm->task_size = TASK_SIZE;
+}
+EXPORT_SYMBOL(setup_new_exec);

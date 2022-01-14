@@ -271,6 +271,26 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 }
 EXPORT_SYMBOL(generic_file_read_iter);
 
+const struct vm_operations_struct generic_file_vm_ops = {
+    /*
+    .fault          = filemap_fault,
+    .map_pages      = filemap_map_pages,
+    .page_mkwrite   = filemap_page_mkwrite,
+    */
+};
+
+int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
+{
+    struct address_space *mapping = file->f_mapping;
+
+    if (!mapping->a_ops->readpage)
+        panic("a_ops has no readpage!");
+
+    vma->vm_ops = &generic_file_vm_ops;
+    return 0;
+}
+EXPORT_SYMBOL(generic_file_mmap);
+
 static int
 init_module(void)
 {

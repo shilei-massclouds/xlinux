@@ -10,6 +10,11 @@
 /* sizeof(linux_binprm->buf) */
 #define BINPRM_BUF_SIZE 256
 
+/* Stack area protections */
+#define EXSTACK_DEFAULT   0 /* Whatever the arch defaults to */
+#define EXSTACK_DISABLE_X 1 /* Disable executable stacks */
+#define EXSTACK_ENABLE_X  2 /* Enable executable stacks */
+
 /*
  * This structure is used to hold the arguments that are used when loading binaries.
  */

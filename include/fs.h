@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <types.h>
 #include <xarray.h>
+#include <mm_types.h>
 
 #define BLOCK_SIZE_BITS 10
 #define BLOCK_SIZE      (1<<BLOCK_SIZE_BITS)
@@ -47,6 +48,7 @@
 struct super_block;
 struct buffer_head;
 struct readahead_control;
+struct linux_binprm;
 
 /*
  * flags in file.f_mode.  Note that FMODE_READ and FMODE_WRITE must correspond
@@ -233,6 +235,7 @@ struct file_operations {
     int (*open)(struct inode *, struct file *);
     ssize_t (*read)(struct file *, char *, size_t, loff_t *);
     ssize_t (*read_iter)(struct kiocb *, struct iov_iter *);
+    int (*mmap)(struct file *, struct vm_area_struct *);
 };
 
 struct file_system_type {
@@ -468,5 +471,9 @@ static inline bool sb_is_blkdev_sb(struct super_block *sb)
 typedef struct block_device *
 (*I_BDEV_T)(struct inode *inode);
 extern I_BDEV_T I_BDEV;
+
+int begin_new_exec(struct linux_binprm *bprm);
+
+void setup_new_exec(struct linux_binprm * bprm);
 
 #endif /* _LINUX_FS_H */

@@ -21,4 +21,6 @@ void page_endio(struct page *page, bool is_write, int err);
 ssize_t
 generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter);
 
+int generic_file_mmap(struct file * file, struct vm_area_struct * vma);
+
 #endif /* _LINUX_FILEMAP_H */

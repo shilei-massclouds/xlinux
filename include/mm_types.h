@@ -47,6 +47,11 @@ struct mm_struct {
     unsigned long total_vm;    /* Total pages mapped */
     unsigned long stack_vm;    /* VM_STACK */
 
+    /* store ref to file /proc/<pid>/exe symlink points to */
+    struct file *exe_file;
+
+    unsigned long task_size;        /* size of task vm space */
+
     unsigned long highest_vm_end;   /* highest vma end address */
 };
 

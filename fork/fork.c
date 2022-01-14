@@ -65,6 +65,12 @@ struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
 }
 EXPORT_SYMBOL(vm_area_alloc);
 
+void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+{
+    mm->exe_file = new_exe_file;
+}
+EXPORT_SYMBOL(set_mm_exe_file);
+
 #define ARCH_MIN_MMSTRUCT_ALIGN 0
 
 void proc_caches_init(void)

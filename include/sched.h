@@ -12,6 +12,7 @@ struct task_struct {
     struct thread_info thread_info;
 
     struct mm_struct *mm;
+    struct mm_struct *active_mm;
 
     struct fs_struct *fs;
 };
