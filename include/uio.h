@@ -3,12 +3,19 @@
 #ifndef __LINUX_UIO_H
 #define __LINUX_UIO_H
 
+#include <page.h>
 #include <types.h>
+#include <kernel.h>
 
 struct iovec
 {
     void *iov_base;
     __kernel_size_t iov_len;
+};
+
+struct kvec {
+    void *iov_base; /* and that should *never* hold a userland pointer */
+    size_t iov_len;
 };
 
 enum iter_type {
@@ -61,6 +68,32 @@ static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
      */
     if (i->count > count)
         i->count = count;
+}
+
+size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
+                         struct iov_iter *i);
+
+size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
+
+static __always_inline
+size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
+{
+    return _copy_to_iter(addr, bytes, i);
+}
+
+static inline enum iter_type iov_iter_type(const struct iov_iter *i)
+{
+    return i->type & ~(READ | WRITE);
+}
+
+static inline bool iter_is_iovec(const struct iov_iter *i)
+{
+    return iov_iter_type(i) == ITER_IOVEC;
+}
+
+static inline bool iov_iter_is_pipe(const struct iov_iter *i)
+{
+    return iov_iter_type(i) == ITER_PIPE;
 }
 
 #endif /* __LINUX_UIO_H */

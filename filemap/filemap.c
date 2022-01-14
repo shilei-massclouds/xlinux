@@ -169,16 +169,28 @@ ssize_t generic_file_buffered_read(struct kiocb *iocb,
 {
     pgoff_t index;
     pgoff_t last_index;
+    pgoff_t prev_index;
+    unsigned int prev_offset;
+    unsigned long offset;      /* offset into pagecache page */
+    int error = 0;
     struct file *filp = iocb->ki_filp;
     struct file_ra_state *ra = &filp->f_ra;
     struct address_space *mapping = filp->f_mapping;
+    struct inode *inode = mapping->host;
     loff_t *ppos = &iocb->ki_pos;
 
     index = *ppos >> PAGE_SHIFT;
+    prev_index = ra->prev_pos >> PAGE_SHIFT;
+    prev_offset = ra->prev_pos & (PAGE_SIZE-1);
     last_index = (*ppos + iter->count + PAGE_SIZE-1) >> PAGE_SHIFT;
+    offset = *ppos & ~PAGE_MASK;
 
     for (;;) {
+        loff_t isize;
+        unsigned long nr;
+        unsigned long ret;
         struct page *page;
+        pgoff_t end_index;
 
         page = find_get_page(mapping, index);
         if (!page) {
@@ -189,9 +201,60 @@ ssize_t generic_file_buffered_read(struct kiocb *iocb,
                 panic("no cached page!");
         }
 
-        panic("%s: 1 page(%lx)", __func__, page);
+        if (PageReadahead(page))
+            panic("page readahead!");
+        if (!PageUptodate(page))
+            panic("page is NOT uptodate!");
+
+        /*
+         * i_size must be checked after we know the page is Uptodate.
+         *
+         * Checking i_size after the check allows us to calculate
+         * the correct value for "nr", which means the zero-filled
+         * part of the page is not copied back to userspace (unless
+         * another truncate extends the file - this is desired though).
+         */
+        isize = i_size_read(inode);
+        end_index = (isize - 1) >> PAGE_SHIFT;
+        if (unlikely(!isize || index > end_index))
+            goto out;
+
+        /* nr is the maximum number of bytes to copy from this page */
+        nr = PAGE_SIZE;
+        if (index == end_index) {
+            nr = ((isize - 1) & ~PAGE_MASK) + 1;
+            if (nr <= offset) {
+                goto out;
+            }
+        }
+        nr = nr - offset;
+
+        prev_index = index;
+
+        /*
+         * Ok, we have the page, and it's up-to-date, so
+         * now we can copy it to user space...
+         */
+        ret = copy_page_to_iter(page, offset, nr, iter);
+        offset += ret;
+        index += offset >> PAGE_SHIFT;
+        offset &= ~PAGE_MASK;
+        prev_offset = offset;
+
+        written += ret;
+        if (!iov_iter_count(iter))
+            goto out;
+
+        panic("copy page error!");
     }
-    panic("%s: !", __func__);
+
+out:
+    ra->prev_pos = prev_index;
+    ra->prev_pos <<= PAGE_SHIFT;
+    ra->prev_pos |= prev_offset;
+
+    *ppos = ((loff_t)index << PAGE_SHIFT) + offset;
+    return written ? written : error;
 }
 EXPORT_SYMBOL(generic_file_buffered_read);
 

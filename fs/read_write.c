@@ -21,7 +21,6 @@ new_sync_read(struct file *filp, char *buf, size_t len, loff_t *ppos)
     BUG_ON(ret == -EIOCBQUEUED);
     if (ppos)
         *ppos = kiocb.ki_pos;
-    panic("%s: !", __func__);
     return ret;
 }
 
@@ -44,16 +43,9 @@ __kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
         ret = new_sync_read(file, (void *)buf, count, pos);
     else
         panic("bad read op!");
-    /*
+
     set_fs(old_fs);
-    if (ret > 0) {
-        fsnotify_access(file);
-        add_rchar(current, ret);
-    }
-    inc_syscr(current);
     return ret;
-    */
-    panic("%s: !", __func__);
 }
 
 ssize_t

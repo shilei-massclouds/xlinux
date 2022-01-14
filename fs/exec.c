@@ -16,6 +16,17 @@
 #include <resource.h>
 #include <processor.h>
 
+static LIST_HEAD(formats);
+
+void __register_binfmt(struct linux_binfmt * fmt, int insert)
+{
+    BUG_ON(!fmt);
+    BUG_ON(!fmt->load_binary);
+    insert ? list_add(&fmt->lh, &formats) :
+        list_add_tail(&fmt->lh, &formats);
+}
+EXPORT_SYMBOL(__register_binfmt);
+
 static int __bprm_mm_init(struct linux_binprm *bprm)
 {
     int err;
@@ -272,10 +283,19 @@ static int prepare_binprm(struct linux_binprm *bprm)
 static int search_binary_handler(struct linux_binprm *bprm)
 {
     int retval;
+    struct linux_binfmt *fmt;
 
     retval = prepare_binprm(bprm);
     if (retval < 0)
         panic("prepare binprm error!");
+
+    list_for_each_entry(fmt, &formats, lh) {
+        retval = fmt->load_binary(bprm);
+        if (bprm->point_of_no_return || (retval != -ENOEXEC))
+            return retval;
+
+        panic("bad fmt");
+    }
 
     panic("%s: !", __func__);
 }

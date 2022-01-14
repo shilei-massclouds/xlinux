@@ -46,6 +46,7 @@
 
 struct super_block;
 struct buffer_head;
+struct readahead_control;
 
 /*
  * flags in file.f_mode.  Note that FMODE_READ and FMODE_WRITE must correspond
@@ -109,6 +110,7 @@ struct address_space_operations {
      */
     int (*readpages)(struct file *filp, struct address_space *mapping,
                      struct list_head *pages, unsigned nr_pages);
+    void (*readahead)(struct readahead_control *);
 };
 
 struct address_space {
@@ -422,6 +424,8 @@ typedef int (get_block_t)(struct inode *inode, sector_t iblock,
                           struct buffer_head *bh_result, int create);
 
 int mpage_readpage(struct page *page, get_block_t get_block);
+
+void mpage_readahead(struct readahead_control *rac, get_block_t get_block);
 
 int bdev_read_page(struct block_device *bdev, sector_t sector,
                    struct page *page);

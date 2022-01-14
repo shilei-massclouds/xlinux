@@ -87,6 +87,7 @@ enum req_flag_bits {
     __REQ_NR_BITS,      /* stops here */
 };
 
+#define REQ_RAHEAD      (1ULL << __REQ_RAHEAD)
 #define REQ_HIPRI       (1ULL << __REQ_HIPRI)
 
 /*

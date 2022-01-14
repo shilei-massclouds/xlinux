@@ -2,6 +2,8 @@
 #ifndef _LINUX_BINFMTS_H
 #define _LINUX_BINFMTS_H
 
+#include <list.h>
+
 #define MAX_ARG_STRLEN  (PAGE_SIZE * 32)
 #define MAX_ARG_STRINGS 0x7FFFFFFF
 
@@ -16,6 +18,24 @@ struct linux_binprm {
     unsigned long vma_pages;
     struct mm_struct *mm;
     unsigned long p;        /* current top of mem */
+
+    unsigned int
+        /* Should an execfd be passed to userspace? */
+        have_execfd:1,
+
+        /* Use the creds of a script (see binfmt_misc) */
+        execfd_creds:1,
+        /*
+         * Set by bprm_creds_for_exec hook to indicate a
+         * privilege-gaining exec has happened. Used to set
+         * AT_SECURE auxv for glibc.
+         */
+        secureexec:1,
+        /*
+         * Set when errors can no longer be returned to the
+         * original userspace.
+         */
+        point_of_no_return:1;
 
     unsigned long argmin;   /* rlimit marker for copy_strings() */
 
@@ -33,5 +53,22 @@ struct linux_binprm {
 
     char buf[BINPRM_BUF_SIZE];
 };
+
+/*
+ * This structure defines the functions that are used to load the binary formats that
+ * linux accepts.
+ */
+struct linux_binfmt {
+    struct list_head lh;
+    int (*load_binary)(struct linux_binprm *);
+};
+
+void __register_binfmt(struct linux_binfmt *fmt, int insert);
+
+/* Registration of default binfmt handlers */
+static inline void register_binfmt(struct linux_binfmt *fmt)
+{
+    __register_binfmt(fmt, 0);
+}
 
 #endif /* _LINUX_BINFMTS_H */

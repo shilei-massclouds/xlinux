@@ -208,8 +208,14 @@ static int ext2_readpage(struct file *file, struct page *page)
     return mpage_readpage(page, ext2_get_block);
 }
 
+static void ext2_readahead(struct readahead_control *rac)
+{
+    mpage_readahead(rac, ext2_get_block);
+}
+
 const struct address_space_operations ext2_aops = {
     .readpage   = ext2_readpage,
+    .readahead  = ext2_readahead,
 };
 
 void ext2_set_file_ops(struct inode *inode)

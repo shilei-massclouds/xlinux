@@ -38,6 +38,12 @@ static inline void *kmap_atomic(struct page *page)
 }
 #define kmap_atomic_prot(page, prot)    kmap_atomic(page)
 
+/*
+ * Prevent people trying to call kunmap_atomic() as if it were kunmap()
+ * kunmap_atomic() should get the return value of kmap_atomic, not the page.
+ */
+#define kunmap_atomic(addr)
+
 static inline void *kmap(struct page *page)
 {
     return page_address(page);

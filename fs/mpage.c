@@ -67,7 +67,8 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
     unsigned first_hole = blocks_per_page;
 
     if (args->is_readahead) {
-        panic("is readahead!");
+        op_flags = REQ_RAHEAD;
+        gfp = readahead_gfp_mask(page->mapping);
     } else {
         op_flags = 0;
         gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
@@ -243,3 +244,21 @@ int mpage_readpage(struct page *page, get_block_t get_block)
     return 0;
 }
 EXPORT_SYMBOL(mpage_readpage);
+
+void mpage_readahead(struct readahead_control *rac, get_block_t get_block)
+{
+    struct page *page;
+    struct mpage_readpage_args args = {
+        .get_block = get_block,
+        .is_readahead = true,
+    };
+
+    while ((page = readahead_page(rac))) {
+        args.page = page;
+        args.nr_pages = readahead_count(rac);
+        args.bio = do_mpage_readpage(&args);
+    }
+    if (args.bio)
+        mpage_bio_submit(REQ_OP_READ, REQ_RAHEAD, args.bio);
+}
+EXPORT_SYMBOL(mpage_readahead);

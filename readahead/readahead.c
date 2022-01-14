@@ -77,7 +77,32 @@ static void
 read_pages(struct readahead_control *rac, struct list_head *pages,
            bool skip_page)
 {
-    panic("%s: !", __func__);
+    struct page *page;
+    const struct address_space_operations *aops = rac->mapping->a_ops;
+
+    BUG_ON(skip_page);
+
+    if (!readahead_count(rac))
+        goto out;
+
+    if (aops->readahead) {
+        aops->readahead(rac);
+        /* Clean up the remaining pages */
+        while ((page = readahead_page(rac))) {
+            /* Todo: unlock and put page! */
+        }
+    } else if (aops->readpages) {
+        panic("aops no readpages!");
+    } else {
+        panic("no aops!");
+    }
+
+    BUG_ON(!list_empty(pages));
+    BUG_ON(readahead_count(rac));
+
+out:
+    if (skip_page)
+        rac->_index++;
 }
 
 void page_cache_readahead_unbounded(struct address_space *mapping,
@@ -126,9 +151,6 @@ void page_cache_readahead_unbounded(struct address_space *mapping,
      * will then handle the error.
      */
     read_pages(&rac, &page_pool, false);
-
-    panic("%s: index(%lu) nr_to_read(%lu) lookahead_size(%lu)\n",
-          __func__, index, nr_to_read, lookahead_size);
 }
 
 void __do_page_cache_readahead(struct address_space *mapping,

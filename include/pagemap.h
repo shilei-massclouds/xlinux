@@ -99,5 +99,32 @@ static inline gfp_t readahead_gfp_mask(struct address_space *x)
     return mapping_gfp_mask(x) | __GFP_NORETRY | __GFP_NOWARN;
 }
 
+/**
+ * readahead_count - The number of pages in this readahead request.
+ * @rac: The readahead request.
+ */
+static inline unsigned int readahead_count(struct readahead_control *rac)
+{
+    return rac->_nr_pages;
+}
+
+static inline struct page *readahead_page(struct readahead_control *rac)
+{
+    struct page *page;
+
+    BUG_ON(rac->_batch_count > rac->_nr_pages);
+    rac->_nr_pages -= rac->_batch_count;
+    rac->_index += rac->_batch_count;
+
+    if (!rac->_nr_pages) {
+        rac->_batch_count = 0;
+        return NULL;
+    }
+
+    page = xa_load(&rac->mapping->i_pages, rac->_index);
+    rac->_batch_count = 1;
+
+    return page;
+}
 
 #endif /* _LINUX_PAGEMAP_H */
