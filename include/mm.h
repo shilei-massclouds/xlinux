@@ -14,6 +14,8 @@
 
 #define untagged_addr(addr) (addr)
 
+#define offset_in_page(p)   ((unsigned long)(p) & ~PAGE_MASK)
+
 /* Page flags: | ZONE | [LAST_CPUPID] | ... | FLAGS | */
 #define NODES_PGOFF     (sizeof(unsigned long)*8)
 #define ZONES_PGOFF     (NODES_PGOFF - ZONES_WIDTH)
@@ -338,5 +340,10 @@ static inline void mm_populate(unsigned long addr, unsigned long len)
     /* Ignore errors */
     (void) __mm_populate(addr, len, 1);
 }
+
+unsigned long
+vm_mmap_pgoff(struct file *file, unsigned long addr,
+              unsigned long len, unsigned long prot,
+              unsigned long flag, unsigned long pgoff);
 
 #endif /* _RISCV_MM_H_ */
