@@ -270,6 +270,13 @@ long get_user_pages_remote(struct mm_struct *mm,
 }
 EXPORT_SYMBOL(get_user_pages_remote);
 
+int
+__mm_populate(unsigned long start, unsigned long len, int ignore_errors)
+{
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(__mm_populate);
+
 static int
 init_module(void)
 {

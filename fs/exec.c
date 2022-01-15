@@ -458,3 +458,77 @@ void setup_new_exec(struct linux_binprm * bprm)
     me->mm->task_size = TASK_SIZE;
 }
 EXPORT_SYMBOL(setup_new_exec);
+
+static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
+{
+    panic("%s: !", __func__);
+    /* Todo: add it. */
+    return 0;
+}
+
+int setup_arg_pages(struct linux_binprm *bprm,
+                    unsigned long stack_top,
+                    int executable_stack)
+{
+    unsigned long ret;
+    unsigned long vm_flags;
+    unsigned long stack_base;
+    unsigned long stack_size;
+    unsigned long stack_shift;
+    unsigned long stack_expand;
+    struct mm_struct *mm = current->mm;
+    struct vm_area_struct *vma = bprm->vma;
+
+    stack_top = PAGE_ALIGN(stack_top);
+
+    stack_shift = vma->vm_end - stack_top;
+
+    bprm->p -= stack_shift;
+    mm->arg_start = bprm->p;
+
+    if (bprm->loader)
+        bprm->loader -= stack_shift;
+    bprm->exec -= stack_shift;
+
+    vm_flags = VM_STACK_FLAGS;
+
+    /*
+     * Adjust stack execute permissions; explicitly enable for
+     * EXSTACK_ENABLE_X, disable for EXSTACK_DISABLE_X and leave alone
+     * (arch default) otherwise.
+     */
+    if (unlikely(executable_stack == EXSTACK_ENABLE_X))
+        vm_flags |= VM_EXEC;
+    else if (executable_stack == EXSTACK_DISABLE_X)
+        vm_flags &= ~VM_EXEC;
+    vm_flags |= mm->def_flags;
+    vm_flags |= VM_STACK_INCOMPLETE_SETUP;
+
+    if (unlikely(vm_flags & VM_EXEC)) {
+        panic("process '%lx' started with executable stack", bprm->file);
+    }
+
+    /* Move stack pages down in memory. */
+    if (stack_shift) {
+        ret = shift_arg_pages(vma, stack_shift);
+        if (ret)
+            panic("shift arg pages error!");
+    }
+
+    /* mprotect_fixup is overkill to remove the temporary stack flags */
+    vma->vm_flags &= ~VM_STACK_INCOMPLETE_SETUP;
+
+    stack_expand = 131072UL; /* randomly 32*4k (or 2*64k) pages */
+    stack_size = vma->vm_end - vma->vm_start;
+    stack_base = vma->vm_start - stack_expand;
+
+    current->mm->start_stack = bprm->p;
+    /*
+    ret = expand_stack(vma, stack_base);
+    if (ret)
+        ret = -EFAULT;
+        */
+
+    return ret;
+}
+EXPORT_SYMBOL(setup_arg_pages);

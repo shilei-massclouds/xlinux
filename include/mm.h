@@ -317,4 +317,26 @@ pgprot_t vm_get_page_prot(unsigned long vm_flags);
 
 int set_page_dirty(struct page *page);
 
+int expand_stack(struct vm_area_struct *vma, unsigned long address);
+
+unsigned long
+vm_mmap(struct file *file, unsigned long addr,
+        unsigned long len, unsigned long prot,
+        unsigned long flag, unsigned long offset);
+
+unsigned long
+do_mmap(struct file *file, unsigned long addr,
+        unsigned long len, unsigned long prot,
+        unsigned long flags, unsigned long pgoff,
+        unsigned long *populate, struct list_head *uf);
+
+extern int
+__mm_populate(unsigned long addr, unsigned long len, int ignore_errors);
+
+static inline void mm_populate(unsigned long addr, unsigned long len)
+{
+    /* Ignore errors */
+    (void) __mm_populate(addr, len, 1);
+}
+
 #endif /* _RISCV_MM_H_ */

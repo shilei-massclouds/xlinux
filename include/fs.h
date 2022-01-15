@@ -476,4 +476,8 @@ int begin_new_exec(struct linux_binprm *bprm);
 
 void setup_new_exec(struct linux_binprm * bprm);
 
+int setup_arg_pages(struct linux_binprm *bprm,
+                    unsigned long stack_top,
+                    int executable_stack);
+
 #endif /* _LINUX_FS_H */

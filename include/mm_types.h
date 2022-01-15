@@ -51,6 +51,9 @@ struct mm_struct {
     struct file *exe_file;
 
     unsigned long task_size;        /* size of task vm space */
+    unsigned long start_brk, brk, start_stack;
+    unsigned long arg_start, arg_end, env_start, env_end;
+    unsigned long def_flags;
 
     unsigned long highest_vm_end;   /* highest vma end address */
 };

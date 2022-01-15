@@ -90,7 +90,9 @@
 #define ET_LOPROC 0xff00
 #define ET_HIPROC 0xffff
 
-#define PT_INTERP           3
+#define PT_LOAD     1
+#define PT_INTERP   3
+
 #define PT_LOOS             0x60000000      /* OS-specific */
 #define PT_GNU_PROPERTY     0x6474e553
 #define PT_LOPROC  0x70000000
