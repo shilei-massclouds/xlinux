@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <export.h>
 #include <rbtree.h>
+#include <current.h>
 
 /* enforced gap between the expanding stack and other mappings. */
 unsigned long stack_guard_gap = 256UL<<PAGE_SHIFT;
@@ -256,11 +257,58 @@ int expand_stack(struct vm_area_struct *vma, unsigned long address)
 EXPORT_SYMBOL(expand_stack);
 
 unsigned long
+get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+                  unsigned long pgoff, unsigned long flags)
+{
+    unsigned long (*get_area)(struct file *, unsigned long,
+                              unsigned long, unsigned long, unsigned long);
+
+    /* Careful about overflows.. */
+    if (len > TASK_SIZE)
+        return -ENOMEM;
+
+    get_area = current->mm->get_unmapped_area;
+
+    addr = get_area(file, addr, len, pgoff, flags);
+    if (IS_ERR_VALUE(addr))
+        panic("bad addr!");
+
+    if (addr > TASK_SIZE - len)
+        panic("out of memory!");
+    if (offset_in_page(addr))
+        panic("bad arg!");
+
+    panic("%s: !", __func__);
+    return addr;
+}
+
+unsigned long
 do_mmap(struct file *file, unsigned long addr,
         unsigned long len, unsigned long prot,
         unsigned long flags, unsigned long pgoff,
         unsigned long *populate, struct list_head *uf)
 {
+    *populate = 0;
+
+    if (!len)
+        return -EINVAL;
+
+    /* Careful about overflows.. */
+    len = PAGE_ALIGN(len);
+    if (!len)
+        return -ENOMEM;
+
+    /* offset overflow? */
+    if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+        return -EOVERFLOW;
+
+    /* Obtain the address to map to. we verify (or select) it and ensure
+     * that it represents a valid section of the address space.
+     */
+    addr = get_unmapped_area(file, addr, len, pgoff, flags);
+    if (IS_ERR_VALUE(addr))
+        panic("get unmapped area!");
+
     panic("%s: !", __func__);
 }
 EXPORT_SYMBOL(do_mmap);

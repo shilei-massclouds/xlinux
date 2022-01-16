@@ -44,8 +44,10 @@ struct mm_struct {
     struct rb_root mm_rb;
     pgd_t *pgd;
     unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
-    unsigned long total_vm;    /* Total pages mapped */
-    unsigned long stack_vm;    /* VM_STACK */
+    unsigned long total_vm;     /* Total pages mapped */
+    unsigned long stack_vm;     /* VM_STACK */
+
+    unsigned long mmap_base;    /* base of mmap area */
 
     /* store ref to file /proc/<pid>/exe symlink points to */
     struct file *exe_file;
@@ -56,6 +58,12 @@ struct mm_struct {
     unsigned long def_flags;
 
     unsigned long highest_vm_end;   /* highest vma end address */
+
+    unsigned long (*get_unmapped_area)(struct file *filp,
+                                       unsigned long addr,
+                                       unsigned long len,
+                                       unsigned long pgoff,
+                                       unsigned long flags);
 };
 
 struct vm_operations_struct {

@@ -2,7 +2,10 @@
 
 #include <mm.h>
 #include <export.h>
+#include <current.h>
 #include <mm_types.h>
+#include <processor.h>
+#include <mman-common.h>
 
 void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
                      struct vm_area_struct *prev)
@@ -52,3 +55,88 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
 }
 EXPORT_SYMBOL(vm_mmap);
 
+/*
+ * Leave enough space between the mmap area and the stack to honour ulimit in
+ * the face of randomisation.
+ */
+#define MIN_GAP     (SZ_128M)
+#define MAX_GAP     (STACK_TOP / 6 * 5)
+
+static unsigned long
+mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
+{
+    unsigned long gap = rlim_stack->rlim_cur;
+    unsigned long pad = stack_guard_gap;
+
+    /* Values close to RLIM_INFINITY can overflow. */
+    if (gap + pad > gap)
+        gap += pad;
+
+    if (gap < MIN_GAP)
+        gap = MIN_GAP;
+    else if (gap > MAX_GAP)
+        gap = MAX_GAP;
+
+    return PAGE_ALIGN(STACK_TOP - gap - rnd);
+}
+
+#define arch_get_mmap_end(addr) (TASK_SIZE)
+
+/*
+ * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
+ */
+/*
+struct vm_area_struct *
+find_vma_prev(struct mm_struct *mm, unsigned long addr,
+              struct vm_area_struct **pprev)
+{
+    struct vm_area_struct *vma;
+
+    vma = find_vma(mm, addr);
+    if (vma) {
+        *pprev = vma->vm_prev;
+    } else {
+        struct rb_node *rb_node = rb_last(&mm->mm_rb);
+
+        *pprev = rb_node ? rb_entry(rb_node, struct vm_area_struct, vm_rb) : NULL;
+    }
+    return vma;
+}
+*/
+
+unsigned long
+arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
+                               unsigned long len, unsigned long pgoff,
+                               unsigned long flags)
+{
+    struct vm_area_struct *vma;
+    struct mm_struct *mm = current->mm;
+    const unsigned long mmap_end = arch_get_mmap_end(addr);
+
+    if (flags & MAP_FIXED)
+        return addr;
+
+    /* requesting a specific address */
+    if (addr) {
+        addr = PAGE_ALIGN(addr);
+        /*
+        vma = find_vma_prev(mm, addr, &prev);
+        if (mmap_end - len >= addr && addr >= mmap_min_addr &&
+                (!vma || addr + len <= vm_start_gap(vma)) &&
+                (!prev || addr >= vm_end_gap(prev)))
+            return addr;
+            */
+    }
+
+    panic("%s: !", __func__);
+}
+
+void
+arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
+{
+    unsigned long random_factor = 0UL;
+
+    mm->mmap_base = mmap_base(random_factor, rlim_stack);
+    mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+}
+EXPORT_SYMBOL(arch_pick_mmap_layout);

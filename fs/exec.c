@@ -446,10 +446,12 @@ int begin_new_exec(struct linux_binprm *bprm)
     return 0;
 }
 
-void setup_new_exec(struct linux_binprm * bprm)
+void setup_new_exec(struct linux_binprm *bprm)
 {
     /* Setup things that can depend upon the personality */
     struct task_struct *me = current;
+
+    arch_pick_mmap_layout(me->mm, &bprm->rlim_stack);
 
     /* Set the new mm task size. We have to do that late because it may
      * depend on TIF_32BIT which is only updated in flush_thread() on

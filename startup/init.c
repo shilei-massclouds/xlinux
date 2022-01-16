@@ -7,6 +7,7 @@
 #include <export.h>
 #include <kernel.h>
 #include <ptrace.h>
+#include <signal.h>
 #include <filemap.h>
 
 void (*handle_arch_irq)(struct pt_regs *);
@@ -16,8 +17,13 @@ EXPORT_SYMBOL(handle_arch_irq);
 struct fs_struct init_fs = {
 };
 
+static struct signal_struct init_signals = {
+    .rlim   = INIT_RLIMITS,
+};
+
 struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
-    .fs = &init_fs,
+    .fs     = &init_fs,
+    .signal = &init_signals,
 };
 
 /*

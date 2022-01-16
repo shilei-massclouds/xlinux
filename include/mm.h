@@ -10,6 +10,7 @@
 #include <pgtable.h>
 #include <memblock.h>
 #include <mm_types.h>
+#include <resource.h>
 #include <page-flags.h>
 
 #define untagged_addr(addr) (addr)
@@ -345,5 +346,8 @@ unsigned long
 vm_mmap_pgoff(struct file *file, unsigned long addr,
               unsigned long len, unsigned long prot,
               unsigned long flag, unsigned long pgoff);
+
+void
+arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack);
 
 #endif /* _RISCV_MM_H_ */

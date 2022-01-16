@@ -3,6 +3,7 @@
 #define _LINUX_BINFMTS_H
 
 #include <list.h>
+#include <resource.h>
 
 #define MAX_ARG_STRLEN  (PAGE_SIZE * 32)
 #define MAX_ARG_STRINGS 0x7FFFFFFF
@@ -55,6 +56,8 @@ struct linux_binprm {
                                different for binfmt_{misc,script} */
 
     unsigned long loader, exec;
+
+    struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
 
     char buf[BINPRM_BUF_SIZE];
 };

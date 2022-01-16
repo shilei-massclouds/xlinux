@@ -15,6 +15,9 @@ struct task_struct {
     struct mm_struct *active_mm;
 
     struct fs_struct *fs;
+
+    /* Signal handlers: */
+    struct signal_struct *signal;
 };
 
 #endif /* _LINUX_SCHED_H */
