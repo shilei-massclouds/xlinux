@@ -352,4 +352,11 @@ vm_mmap_pgoff(struct file *file, unsigned long addr,
 void
 arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack);
 
+unsigned long
+get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+                  unsigned long pgoff, unsigned long flags);
+
+int vm_brk_flags(unsigned long addr, unsigned long request,
+                 unsigned long flags);
+
 #endif /* _RISCV_MM_H_ */

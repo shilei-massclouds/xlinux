@@ -16,6 +16,7 @@
 #define CSR_SATP        0x180
 
 #define CSR_IE      CSR_SIE
+
 #define CSR_IP      CSR_SIP
 
 #define CSR_STATUS	CSR_SSTATUS
@@ -61,6 +62,7 @@
 #define EXC_STORE_PAGE_FAULT    15
 
 #define SR_IE       SR_SIE
+#define SR_PIE      SR_SPIE
 #define RV_IRQ_EXT  IRQ_S_EXT
 
 #ifndef __ASSEMBLY__

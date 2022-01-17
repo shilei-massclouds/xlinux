@@ -58,3 +58,13 @@ void setup_early_pgd(uintptr_t dtb_pa)
 
     kernel_start = load_pa;
 }
+
+extern unsigned long
+__asm_copy_to_user(void *to, const void *from, unsigned long n);
+
+unsigned long
+asm_copy_to_user(void *to, const void *from, unsigned long n)
+{
+    return __asm_copy_to_user(to, from, n);
+}
+EXPORT_SYMBOL(asm_copy_to_user);

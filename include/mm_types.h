@@ -48,6 +48,7 @@ struct mm_struct {
     unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
     unsigned long total_vm;     /* Total pages mapped */
     unsigned long stack_vm;     /* VM_STACK */
+    unsigned long data_vm;      /* VM_WRITE & ~VM_SHARED & ~VM_STACK */
 
     unsigned long mmap_base;    /* base of mmap area */
 
@@ -55,9 +56,12 @@ struct mm_struct {
     struct file *exe_file;
 
     unsigned long task_size;        /* size of task vm space */
+    unsigned long start_code, end_code, start_data, end_data;
     unsigned long start_brk, brk, start_stack;
     unsigned long arg_start, arg_end, env_start, env_end;
     unsigned long def_flags;
+
+    struct linux_binfmt *binfmt;
 
     unsigned long highest_vm_end;   /* highest vma end address */
 

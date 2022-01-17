@@ -49,6 +49,7 @@ struct super_block;
 struct buffer_head;
 struct readahead_control;
 struct linux_binprm;
+struct linux_binfmt;
 
 /*
  * flags in file.f_mode.  Note that FMODE_READ and FMODE_WRITE must correspond
@@ -494,5 +495,9 @@ static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
 {
     return file->f_op->mmap(file, vma);
 }
+
+void set_binfmt(struct linux_binfmt *new);
+
+void finalize_exec(struct linux_binprm *bprm);
 
 #endif /* _LINUX_FS_H */

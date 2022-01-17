@@ -110,6 +110,11 @@
 #define elfhdr      elf64_hdr
 #define elf_phdr    elf64_phdr
 
+typedef u64   Elf64_Off;
+#define elf_addr_t  Elf64_Off
+
+#define ELF_EXEC_PAGESIZE   (PAGE_SIZE)
+
 /* These constants define the permissions on sections in the program
    header, p_flags. */
 #define PF_R        0x4

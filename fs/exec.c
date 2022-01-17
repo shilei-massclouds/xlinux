@@ -10,6 +10,7 @@
 #include <export.h>
 #include <kernel.h>
 #include <limits.h>
+#include <signal.h>
 #include <string.h>
 #include <binfmts.h>
 #include <current.h>
@@ -533,3 +534,18 @@ int setup_arg_pages(struct linux_binprm *bprm,
     return ret;
 }
 EXPORT_SYMBOL(setup_arg_pages);
+
+void set_binfmt(struct linux_binfmt *new)
+{
+    struct mm_struct *mm = current->mm;
+    mm->binfmt = new;
+}
+EXPORT_SYMBOL(set_binfmt);
+
+/* Runs immediately before start_thread() takes over. */
+void finalize_exec(struct linux_binprm *bprm)
+{
+    /* Store any stack rlimit changes before starting thread. */
+    current->signal->rlim[RLIMIT_STACK] = bprm->rlim_stack;
+}
+EXPORT_SYMBOL(finalize_exec);

@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <fs.h>
+#include <csr.h>
 #include <elf.h>
 #include <mman.h>
 #include <slab.h>
 #include <errno.h>
+#include <auxvec.h>
+#include <export.h>
 #include <string.h>
 #include <binfmts.h>
+#include <current.h>
+#include <uaccess.h>
 #include <processor.h>
 #include <mman-common.h>
 
@@ -14,6 +19,9 @@
 #define ELF_PAGESTART(_v)   ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
 #define ELF_PAGEOFFSET(_v)  ((_v) & (ELF_MIN_ALIGN-1))
 #define ELF_PAGEALIGN(_v)   (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
+
+#define STACK_ADD(sp, items) ((elf_addr_t *)(sp) - (items))
+#define STACK_ROUND(sp, items) (((unsigned long) (sp - items)) &~ 15UL)
 
 #define BAD_ADDR(x) (unlikely((unsigned long)(x) >= TASK_SIZE))
 
@@ -103,18 +111,161 @@ elf_map(struct file *filep, unsigned long addr,
     return(map_addr);
 }
 
+static int set_brk(unsigned long start, unsigned long end, int prot)
+{
+    start = ELF_PAGEALIGN(start);
+    end = ELF_PAGEALIGN(end);
+    if (end > start) {
+        /*
+         * Map the last of the bss segment.
+         * If the header is requesting these pages to be
+         * executable, honour that (ppc32 needs this).
+         */
+        int error = vm_brk_flags(start, end - start,
+                                 prot & PROT_EXEC ? VM_EXEC : 0);
+        if (error)
+            return error;
+    }
+    current->mm->start_brk = current->mm->brk = end;
+    return 0;
+}
+
+static int load_elf_binary(struct linux_binprm *bprm);
+
+static struct linux_binfmt elf_format = {
+    .load_binary = load_elf_binary,
+};
+
+static int
+create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
+                  unsigned long load_addr,
+                  unsigned long interp_load_addr,
+                  unsigned long e_entry)
+{
+    int items;
+    int ei_index;
+    elf_addr_t *sp;
+    elf_addr_t *elf_info;
+    elf_addr_t *u_platform;
+    elf_addr_t *u_base_platform;
+    struct vm_area_struct *vma;
+    int argc = bprm->argc;
+    int envc = bprm->envc;
+    unsigned long p = bprm->p;
+    struct mm_struct *mm = current->mm;
+
+    u_platform = NULL;
+    u_base_platform = NULL;
+
+    /* Create the ELF interpreter info */
+    elf_info = (elf_addr_t *)mm->saved_auxv;
+    /* update AT_VECTOR_SIZE_BASE if the number of NEW_AUX_ENT() changes */
+#define NEW_AUX_ENT(id, val) \
+    do { \
+        *elf_info++ = id; \
+        *elf_info++ = val; \
+    } while (0)
+
+    NEW_AUX_ENT(AT_PAGESZ, ELF_EXEC_PAGESIZE);
+    NEW_AUX_ENT(AT_PHDR, load_addr + exec->e_phoff);
+    NEW_AUX_ENT(AT_PHENT, sizeof(struct elf_phdr));
+    NEW_AUX_ENT(AT_PHNUM, exec->e_phnum);
+    NEW_AUX_ENT(AT_BASE, interp_load_addr);
+    NEW_AUX_ENT(AT_FLAGS, 0);
+    NEW_AUX_ENT(AT_ENTRY, e_entry);
+    NEW_AUX_ENT(AT_SECURE, bprm->secureexec);
+    NEW_AUX_ENT(AT_EXECFN, bprm->exec);
+#undef NEW_AUX_ENT
+
+    /* AT_NULL is zero; clear the rest too */
+    memset(elf_info, 0,(char *)mm->saved_auxv +
+           sizeof(mm->saved_auxv) - (char *)elf_info);
+
+    /* And advance past the AT_NULL entry.  */
+    elf_info += 2;
+
+    ei_index = elf_info - (elf_addr_t *)mm->saved_auxv;
+    sp = STACK_ADD(p, ei_index);
+
+    items = (argc + 1) + (envc + 1) + 1;
+    bprm->p = STACK_ROUND(sp, items);
+
+    sp = (elf_addr_t *)bprm->p;
+
+    /*
+     * Grow the stack manually; some architectures have a limit on how
+     * far ahead a user-space access may be in order to grow the stack.
+     */
+    vma = find_extend_vma(mm, bprm->p);
+    if (!vma)
+        return -EFAULT;
+
+    /* Now, let's put argc (and argv, envp if appropriate) on the stack */
+    if (put_user(argc, sp++))
+        return -EFAULT;
+
+    /* Populate list of argv pointers back to argv strings. */
+    p = mm->arg_end = mm->arg_start;
+    while (argc-- > 0) {
+        size_t len;
+        if (put_user((elf_addr_t)p, sp++))
+            return -EFAULT;
+        len = strnlen_user((void *)p, MAX_ARG_STRLEN);
+        if (!len || len > MAX_ARG_STRLEN)
+            return -EINVAL;
+        p += len;
+    }
+    if (put_user(0, sp++))
+        return -EFAULT;
+    mm->arg_end = p;
+
+    /* Populate list of envp pointers back to envp strings. */
+    mm->env_end = mm->env_start = p;
+    while (envc-- > 0) {
+        size_t len;
+        if (put_user((elf_addr_t)p, sp++))
+            return -EFAULT;
+        len = strnlen_user((void *)p, MAX_ARG_STRLEN);
+        if (!len || len > MAX_ARG_STRLEN)
+            return -EINVAL;
+        p += len;
+    }
+    if (put_user(0, sp++))
+        return -EFAULT;
+    mm->env_end = p;
+
+    /* Put the elf_info on the stack in the right place.  */
+    if (copy_to_user(sp, mm->saved_auxv, ei_index * sizeof(elf_addr_t)))
+        return -EFAULT;
+    return 0;
+}
+
+void start_thread(struct pt_regs *regs,
+                  unsigned long pc,
+                  unsigned long sp)
+{
+    regs->status = SR_PIE;
+    regs->epc = pc;
+    regs->sp = sp;
+    set_fs(USER_DS);
+}
+
 static int load_elf_binary(struct linux_binprm *bprm)
 {
     int i;
     int retval;
     unsigned long error;
+    struct pt_regs *regs;
+    struct mm_struct *mm;
     unsigned long e_entry;
+    unsigned long elf_entry;
     struct elf_phdr *elf_ppnt;
     struct elf_phdr *elf_phdata;
     unsigned long elf_bss, elf_brk;
     unsigned long start_code, end_code, start_data, end_data;
     int bss_prot = 0;
     int load_addr_set = 0;
+    unsigned long interp_load_addr = 0;
     unsigned long load_addr = 0, load_bias = 0;
     int executable_stack = EXSTACK_DEFAULT;
     struct elf_phdr *elf_property_phdata = NULL;
@@ -268,18 +419,49 @@ static int load_elf_binary(struct linux_binprm *bprm)
     start_data += load_bias;
     end_data += load_bias;
 
-    panic("%s: !", __func__);
+    /* Calling set_brk effectively mmaps the pages that we need
+     * for the bss and break sections.  We must do this before
+     * mapping in the interpreter, to make sure it doesn't wind
+     * up getting placed where the bss needs to go.
+     */
+    retval = set_brk(elf_bss, elf_brk, bss_prot);
+    if (retval)
+        panic("set brk error!");
 
+    if (interpreter) {
+        panic("interpreter!");
+    } else {
+        elf_entry = e_entry;
+        if (BAD_ADDR(elf_entry))
+            panic("bad elf_entry!");
+    }
+
+    kfree(elf_phdata);
+
+    set_binfmt(&elf_format);
+
+    retval = create_elf_tables(bprm, elf_ex,
+                               load_addr, interp_load_addr, e_entry);
+    if (retval < 0)
+        panic("create elf tables error!");
+
+    mm = current->mm;
+    mm->end_code = end_code;
+    mm->start_code = start_code;
+    mm->start_data = start_data;
+    mm->end_data = end_data;
+    mm->start_stack = bprm->p;
+
+    regs = current_pt_regs();
+
+    finalize_exec(bprm);
+    start_thread(regs, elf_entry, bprm->p);
     retval = 0;
 
  out:
     panic("%s: error!", __func__);
     return retval;
 }
-
-static struct linux_binfmt elf_format = {
-    .load_binary = load_elf_binary,
-};
 
 int init_elf_binfmt(void)
 {

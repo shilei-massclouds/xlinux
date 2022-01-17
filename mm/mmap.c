@@ -485,3 +485,71 @@ do_mmap(struct file *file, unsigned long addr,
     return addr;
 }
 EXPORT_SYMBOL(do_mmap);
+
+static int do_brk_flags(unsigned long addr, unsigned long len,
+                        unsigned long flags, struct list_head *uf)
+{
+    int error;
+    unsigned long mapped_addr;
+    struct vm_area_struct *vma, *prev;
+    struct rb_node **rb_link, *rb_parent;
+    pgoff_t pgoff = addr >> PAGE_SHIFT;
+    struct mm_struct *mm = current->mm;
+
+    /* Until we need other flags, refuse anything except VM_EXEC. */
+    if ((flags & (~VM_EXEC)) != 0)
+        return -EINVAL;
+    flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+
+    mapped_addr = get_unmapped_area(NULL, addr, len, 0, MAP_FIXED);
+    if (IS_ERR_VALUE(mapped_addr))
+        return mapped_addr;
+
+    /*
+     * Clear old maps.  this also does some error checking for us
+     */
+    while (find_vma_links(mm, addr, addr + len,
+                          &prev, &rb_link, &rb_parent))
+        panic("find vma links error!");
+
+    /*
+     * create a vma struct for an anonymous mapping
+     */
+    vma = vm_area_alloc(mm);
+    if (!vma)
+        panic("out of memory!");
+
+    vma_set_anonymous(vma);
+    vma->vm_start = addr;
+    vma->vm_end = addr + len;
+    vma->vm_pgoff = pgoff;
+    vma->vm_flags = flags;
+    vma->vm_page_prot = vm_get_page_prot(flags);
+    vma_link(mm, vma, prev, rb_link, rb_parent);
+    mm->total_vm += len >> PAGE_SHIFT;
+    mm->data_vm += len >> PAGE_SHIFT;
+    return 0;
+}
+
+int vm_brk_flags(unsigned long addr, unsigned long request,
+                 unsigned long flags)
+{
+    int ret;
+    bool populate;
+    unsigned long len;
+    LIST_HEAD(uf);
+    struct mm_struct *mm = current->mm;
+
+    len = PAGE_ALIGN(request);
+    if (len < request)
+        return -ENOMEM;
+    if (!len)
+        return 0;
+
+    ret = do_brk_flags(addr, len, flags, &uf);
+    populate = ((mm->def_flags & VM_LOCKED) != 0);
+    if (populate && !ret)
+        panic("can not populate!");
+    return ret;
+}
+EXPORT_SYMBOL(vm_brk_flags);
