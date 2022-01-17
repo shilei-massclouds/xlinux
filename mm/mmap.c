@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <mm.h>
+#include <fork.h>
 #include <mman.h>
 #include <stat.h>
 #include <errno.h>
@@ -276,10 +277,11 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
     if (IS_ERR_VALUE(addr))
         panic("bad addr!");
 
+    printk("%s: addr(%lx) len(%lx)\n", __func__, addr, len);
     if (addr > TASK_SIZE - len)
         panic("out of memory!");
     if (offset_in_page(addr))
-        panic("bad arg!");
+        panic("bad arg addr(%lx)!", addr);
 
     return addr;
 }
@@ -318,12 +320,86 @@ file_mmap_ok(struct file *file, struct inode *inode,
     return true;
 }
 
+/*
+ * We account for memory if it's a private writeable mapping,
+ * not hugepages and VM_NORESERVE wasn't set.
+ */
+static inline int
+accountable_mapping(struct file *file, vm_flags_t vm_flags)
+{
+    return (vm_flags & (VM_NORESERVE | VM_SHARED | VM_WRITE)) == VM_WRITE;
+}
+
+/* Update vma->vm_page_prot to reflect vma->vm_flags. */
+void vma_set_page_prot(struct vm_area_struct *vma)
+{
+    /* Todo: */
+}
+
 unsigned long
 mmap_region(struct file *file, unsigned long addr,
             unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
             struct list_head *uf)
 {
-    panic("%s: !", __func__);
+    int error;
+    struct rb_node **rb_link, *rb_parent;
+    struct vm_area_struct *vma, *prev, *merge;
+    unsigned long charged = 0;
+    struct mm_struct *mm = current->mm;
+
+    /* Clear old maps */
+    while (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent))
+        panic("can not find vma links!");
+
+    /*
+     * Private writable mapping: check memory availability
+     */
+    if (accountable_mapping(file, vm_flags)) {
+        charged = len >> PAGE_SHIFT;
+        vm_flags |= VM_ACCOUNT;
+    }
+
+    /*
+     * Determine the object being mapped and call the appropriate
+     * specific mapper. the address has already been validated, but
+     * not unmapped, but the maps are removed from the list.
+     */
+    vma = vm_area_alloc(mm);
+    if (!vma)
+        panic("out of memory!");
+
+    vma->vm_start = addr;
+    vma->vm_end = addr + len;
+    vma->vm_flags = vm_flags;
+    vma->vm_page_prot = vm_get_page_prot(vm_flags);
+    vma->vm_pgoff = pgoff;
+
+    if (file) {
+    } else if (vm_flags & VM_SHARED) {
+        if (vm_flags & VM_SHARED)
+            panic("VM_SHARED!");
+
+        vma->vm_file = file;
+        error = call_mmap(file, vma);
+        if (error)
+            panic("unmap and free vma!");
+
+        if (unlikely(vm_flags != vma->vm_flags && prev))
+            panic("vm_flags!");
+
+        BUG_ON(addr != vma->vm_start);
+
+        addr = vma->vm_start;
+        vm_flags = vma->vm_flags;
+    } else {
+        panic("bad arg!");
+    }
+
+    vma_link(mm, vma, prev, rb_link, rb_parent);
+    file = vma->vm_file;
+
+    vma_set_page_prot(vma);
+    return addr;
 }
 
 unsigned long
@@ -334,6 +410,8 @@ do_mmap(struct file *file, unsigned long addr,
 {
     vm_flags_t vm_flags;
     struct mm_struct *mm = current->mm;
+
+    printk("%s: addr(%lx)\n", __func__, addr);
 
     *populate = 0;
 
@@ -354,7 +432,7 @@ do_mmap(struct file *file, unsigned long addr,
      */
     addr = get_unmapped_area(file, addr, len, pgoff, flags);
     if (IS_ERR_VALUE(addr))
-        panic("get unmapped area!");
+        return addr;
 
     /* Do simple checking here so the lower-level routines won't have
      * to. we assume access permissions have been handled by the open
@@ -404,6 +482,6 @@ do_mmap(struct file *file, unsigned long addr,
          (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
         panic("set poplate!");
 
-    panic("%s: !", __func__);
+    return addr;
 }
 EXPORT_SYMBOL(do_mmap);

@@ -2,6 +2,7 @@
 
 #include <bug.h>
 #include <sbi.h>
+#include <fork.h>
 #include <slab.h>
 #include <sched.h>
 #include <export.h>
@@ -39,6 +40,10 @@ EXPORT_SYMBOL(kfree);
 
 kmemdup_nul_t kmemdup_nul;
 EXPORT_SYMBOL(kmemdup_nul);
+
+/* For fork */
+vm_area_alloc_t vm_area_alloc;
+EXPORT_SYMBOL(vm_area_alloc);
 
 /* For specific cache allocation */
 kmem_cache_alloc_t kmem_cache_alloc;

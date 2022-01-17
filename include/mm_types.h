@@ -96,6 +96,8 @@ struct vm_area_struct {
 
     unsigned long vm_pgoff;     /* Offset within vm_file in PAGE_SIZE units */
 
+    struct file *vm_file;       /* File we map to (can be NULL). */
+
     /* Function pointers to deal with this struct. */
     const struct vm_operations_struct *vm_ops;
 };

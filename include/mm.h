@@ -15,8 +15,6 @@
 
 #define untagged_addr(addr) (addr)
 
-#define offset_in_page(p)   ((unsigned long)(p) & ~PAGE_MASK)
-
 /* Page flags: | ZONE | [LAST_CPUPID] | ... | FLAGS | */
 #define NODES_PGOFF     (sizeof(unsigned long)*8)
 #define ZONES_PGOFF     (NODES_PGOFF - ZONES_WIDTH)
@@ -57,6 +55,7 @@
 #define VM_SEQ_READ     0x00008000  /* App will access data sequentially */
 #define VM_RAND_READ    0x00010000  /* App will not benefit from clustered reads */
 #define VM_ACCOUNT      0x00100000  /* Is a VM accounted object */
+#define VM_NORESERVE    0x00200000  /* should the VM suppress accounting */
 #define VM_SYNC         0x00800000  /* Synchronous page faults */
 
 /* Bits set in the VMA until the stack is in its final location */

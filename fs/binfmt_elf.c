@@ -11,6 +11,7 @@
 #include <mman-common.h>
 
 #define ELF_MIN_ALIGN       PAGE_SIZE
+#define ELF_PAGESTART(_v)   ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
 #define ELF_PAGEOFFSET(_v)  ((_v) & (ELF_MIN_ALIGN-1))
 #define ELF_PAGEALIGN(_v)   (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
 
@@ -84,6 +85,7 @@ elf_map(struct file *filep, unsigned long addr,
     unsigned long size = eppnt->p_filesz + ELF_PAGEOFFSET(eppnt->p_vaddr);
     unsigned long off = eppnt->p_offset - ELF_PAGEOFFSET(eppnt->p_vaddr);
 
+    addr = ELF_PAGESTART(addr);
     size = ELF_PAGEALIGN(size);
 
     if (!size)
@@ -94,7 +96,11 @@ elf_map(struct file *filep, unsigned long addr,
     else
         map_addr = vm_mmap(filep, addr, size, prot, type, off);
 
-    panic("%s: !", __func__);
+    if ((type & MAP_FIXED_NOREPLACE) &&
+        PTR_ERR((void *)map_addr) == -EEXIST)
+        panic("elf segment requested but the memory is mapped already");
+
+    return(map_addr);
 }
 
 static int load_elf_binary(struct linux_binprm *bprm)
@@ -102,10 +108,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
     int i;
     int retval;
     unsigned long error;
+    unsigned long e_entry;
     struct elf_phdr *elf_ppnt;
     struct elf_phdr *elf_phdata;
     unsigned long elf_bss, elf_brk;
     unsigned long start_code, end_code, start_data, end_data;
+    int bss_prot = 0;
     int load_addr_set = 0;
     unsigned long load_addr = 0, load_bias = 0;
     int executable_stack = EXSTACK_DEFAULT;
@@ -214,8 +222,51 @@ static int load_elf_binary(struct linux_binprm *bprm)
         if (BAD_ADDR(error))
             panic("elf map error!");
 
-        panic("%s: 1", __func__);
+        if (!load_addr_set) {
+            load_addr_set = 1;
+            load_addr = (elf_ppnt->p_vaddr - elf_ppnt->p_offset);
+            if (elf_ex->e_type == ET_DYN)
+                panic("ET_DYN");
+        }
+
+        k = elf_ppnt->p_vaddr;
+        if ((elf_ppnt->p_flags & PF_X) && k < start_code)
+            start_code = k;
+        if (start_data < k)
+            start_data = k;
+
+        /*
+         * Check to see if the section's size will overflow the
+         * allowed task size. Note that p_filesz must always be
+         * <= p_memsz so it is only necessary to check p_memsz.
+         */
+        if (BAD_ADDR(k) || elf_ppnt->p_filesz > elf_ppnt->p_memsz ||
+            elf_ppnt->p_memsz > TASK_SIZE ||
+            TASK_SIZE - elf_ppnt->p_memsz < k)
+            panic("out free dentry!");
+
+        k = elf_ppnt->p_vaddr + elf_ppnt->p_filesz;
+
+        if (k > elf_bss)
+            elf_bss = k;
+        if ((elf_ppnt->p_flags & PF_X) && end_code < k)
+            end_code = k;
+        if (end_data < k)
+            end_data = k;
+        k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
+        if (k > elf_brk) {
+            bss_prot = elf_prot;
+            elf_brk = k;
+        }
     }
+
+    e_entry = elf_ex->e_entry + load_bias;
+    elf_bss += load_bias;
+    elf_brk += load_bias;
+    start_code += load_bias;
+    end_code += load_bias;
+    start_data += load_bias;
+    end_data += load_bias;
 
     panic("%s: !", __func__);
 

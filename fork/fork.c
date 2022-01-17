@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <bug.h>
+#include <fork.h>
 #include <slab.h>
 #include <errno.h>
 #include <sched.h>
@@ -54,7 +55,7 @@ struct mm_struct *mm_alloc(void)
 }
 EXPORT_SYMBOL(mm_alloc);
 
-struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
+struct vm_area_struct *_vm_area_alloc(struct mm_struct *mm)
 {
     struct vm_area_struct *vma;
 
@@ -63,7 +64,6 @@ struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
         vma_init(vma, mm);
     return vma;
 }
-EXPORT_SYMBOL(vm_area_alloc);
 
 void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 {
@@ -101,6 +101,8 @@ init_module(void)
     printk("module[fork]: init begin ...\n");
 
     proc_caches_init();
+
+    vm_area_alloc = _vm_area_alloc;
 
     printk("module[fork]: init end!\n");
 

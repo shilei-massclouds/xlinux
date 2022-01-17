@@ -490,4 +490,9 @@ static inline struct inode *file_inode(const struct file *f)
     return f->f_inode;
 }
 
+static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
+{
+    return file->f_op->mmap(file, vma);
+}
+
 #endif /* _LINUX_FS_H */
