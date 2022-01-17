@@ -9,6 +9,7 @@
 #define NAME_MAX    255     /* # chars in a file name */
 #define UINT_MAX    (~0U)
 #define LONG_MAX    ((long)(~0UL >> 1))
+#define LLONG_MAX   ((long long)(~0ULL >> 1))
 
 #define CONFIG_INIT_ENV_ARG_LIMIT 32
 

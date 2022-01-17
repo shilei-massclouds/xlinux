@@ -5,6 +5,7 @@
 #include <slab.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <mount.h>
 #include <namei.h>
 #include <export.h>
 #include <kernel.h>

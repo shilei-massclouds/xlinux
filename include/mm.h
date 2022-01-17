@@ -51,10 +51,13 @@
 #define VM_MAYSHARE     0x00000080
 
 #define VM_GROWSDOWN    0x00000100  /* general info on the segment */
+#define VM_DENYWRITE    0x00000800  /* ETXTBSY on write attempts.. */
+#define VM_LOCKED       0x00002000
 #define VM_GROWSUP      VM_NONE
 #define VM_SEQ_READ     0x00008000  /* App will access data sequentially */
 #define VM_RAND_READ    0x00010000  /* App will not benefit from clustered reads */
 #define VM_ACCOUNT      0x00100000  /* Is a VM accounted object */
+#define VM_SYNC         0x00800000  /* Synchronous page faults */
 
 /* Bits set in the VMA until the stack is in its final location */
 #define VM_STACK_INCOMPLETE_SETUP   (VM_RAND_READ | VM_SEQ_READ)

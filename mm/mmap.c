@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <mm.h>
+#include <mman.h>
+#include <stat.h>
 #include <errno.h>
 #include <export.h>
+#include <limits.h>
 #include <rbtree.h>
 #include <current.h>
 
@@ -278,8 +281,49 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
     if (offset_in_page(addr))
         panic("bad arg!");
 
-    panic("%s: !", __func__);
     return addr;
+}
+
+static inline u64
+file_mmap_size_max(struct file *file, struct inode *inode)
+{
+    if (S_ISREG(inode->i_mode))
+        return MAX_LFS_FILESIZE;
+
+    if (S_ISBLK(inode->i_mode))
+        return MAX_LFS_FILESIZE;
+
+    if (S_ISSOCK(inode->i_mode))
+        return MAX_LFS_FILESIZE;
+
+    /* Special "we do even unsigned file positions" case */
+    if (file->f_mode & FMODE_UNSIGNED_OFFSET)
+        return 0;
+
+    /* Yes, random drivers might want more. But I'm tired of buggy drivers */
+    return ULONG_MAX;
+}
+
+static inline bool
+file_mmap_ok(struct file *file, struct inode *inode,
+             unsigned long pgoff, unsigned long len)
+{
+    u64 maxsize = file_mmap_size_max(file, inode);
+
+    if (maxsize && len > maxsize)
+        return false;
+    maxsize -= len;
+    if (pgoff > maxsize >> PAGE_SHIFT)
+        return false;
+    return true;
+}
+
+unsigned long
+mmap_region(struct file *file, unsigned long addr,
+            unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
+            struct list_head *uf)
+{
+    panic("%s: !", __func__);
 }
 
 unsigned long
@@ -288,6 +332,9 @@ do_mmap(struct file *file, unsigned long addr,
         unsigned long flags, unsigned long pgoff,
         unsigned long *populate, struct list_head *uf)
 {
+    vm_flags_t vm_flags;
+    struct mm_struct *mm = current->mm;
+
     *populate = 0;
 
     if (!len)
@@ -308,6 +355,54 @@ do_mmap(struct file *file, unsigned long addr,
     addr = get_unmapped_area(file, addr, len, pgoff, flags);
     if (IS_ERR_VALUE(addr))
         panic("get unmapped area!");
+
+    /* Do simple checking here so the lower-level routines won't have
+     * to. we assume access permissions have been handled by the open
+     * of the memory object, so we don't do any here.
+     */
+    vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+        mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+
+    if (file) {
+        unsigned long flags_mask;
+        struct inode *inode = file_inode(file);
+
+        if (!file_mmap_ok(file, inode, pgoff, len))
+            panic("overflow!");
+
+        //flags_mask = LEGACY_MAP_MASK | file->f_op->mmap_supported_flags;
+        flags_mask = LEGACY_MAP_MASK;
+
+        switch (flags & MAP_TYPE) {
+            case MAP_SHARED:
+                panic("MAP_SHARED!");
+            case MAP_SHARED_VALIDATE:
+                panic("MAP_SHARED_VALIDATE!");
+            case MAP_PRIVATE:
+                if (!(file->f_mode & FMODE_READ))
+                    return -EACCES;
+
+                if (!file->f_op->mmap)
+                    return -ENODEV;
+                if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
+                    return -EINVAL;
+
+                break;
+            default:
+                panic("bad flags!");
+        }
+    } else {
+        panic("no file!");
+    }
+
+    if (flags & MAP_NORESERVE)
+        panic("MAP_NORESERVE!");
+
+    addr = mmap_region(file, addr, len, vm_flags, pgoff, uf);
+    if (!IS_ERR_VALUE(addr) &&
+        ((vm_flags & VM_LOCKED) ||
+         (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
+        panic("set poplate!");
 
     panic("%s: !", __func__);
 }

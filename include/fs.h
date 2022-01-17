@@ -70,8 +70,11 @@ struct linux_binprm;
 /* File is opened with O_EXCL (only set for block devices) */
 #define FMODE_EXCL      ((__force fmode_t)0x80)
 
+/* File is huge (eg. /dev/kmem): treat loff_t as unsigned */
+#define FMODE_UNSIGNED_OFFSET   ((__force fmode_t)0x2000)
+
 /* File needs atomic accesses to f_pos */
-#define FMODE_ATOMIC_POS    ((__force fmode_t)0x8000)
+#define FMODE_ATOMIC_POS        ((__force fmode_t)0x8000)
 
 /* Has read method(s) */
 #define FMODE_CAN_READ  ((__force fmode_t)0x20000)
@@ -101,6 +104,8 @@ struct linux_binprm;
 #define __I_NEW         3
 #define I_NEW           (1 << __I_NEW)
 #define I_CREATING      (1 << 15)
+
+#define MAX_LFS_FILESIZE    ((loff_t)LLONG_MAX)
 
 struct file;
 
@@ -479,5 +484,10 @@ void setup_new_exec(struct linux_binprm * bprm);
 int setup_arg_pages(struct linux_binprm *bprm,
                     unsigned long stack_top,
                     int executable_stack);
+
+static inline struct inode *file_inode(const struct file *f)
+{
+    return f->f_inode;
+}
 
 #endif /* _LINUX_FS_H */

@@ -18,6 +18,8 @@
  */
 typedef unsigned int vm_fault_t;
 
+typedef unsigned long vm_flags_t;
+
 enum vm_fault_reason {
     VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
     VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
