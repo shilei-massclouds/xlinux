@@ -13,6 +13,8 @@
 #define TASK_TI_USER_SP         32
 #define TASK_TI_CPU             40
 
+#define THREADINFO_GFP      (GFP_KERNEL_ACCOUNT | __GFP_ZERO)
+
 #ifndef __ASSEMBLY__
 
 typedef struct {

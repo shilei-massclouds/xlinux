@@ -19,4 +19,6 @@ int copy_thread(unsigned long clone_flags,
                 unsigned long usp, unsigned long arg,
                 struct task_struct *p, unsigned long tls);
 
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
+
 #endif /* _LINUX_FORK_H */

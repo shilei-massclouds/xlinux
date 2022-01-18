@@ -58,7 +58,9 @@ void rest_init(void)
 {
     int pid;
 
+    printk("%s: 1\n", __func__);
     pid = kernel_thread(kernel_init, NULL, CLONE_FS);
+    printk("%s: 2\n", __func__);
 
     panic("Todo: add schedule here!");
 }

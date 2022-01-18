@@ -80,14 +80,40 @@ static inline struct task_struct *alloc_task_struct_node(void)
     return kmem_cache_alloc(task_struct_cachep, GFP_KERNEL);
 }
 
+static unsigned long *alloc_thread_stack_node(struct task_struct *tsk)
+{
+    struct page *page = alloc_pages(THREADINFO_GFP, THREAD_SIZE_ORDER);
+
+    if (likely(page)) {
+        tsk->stack = page_address(page);
+        return tsk->stack;
+    }
+    return NULL;
+}
+
 static struct task_struct *
 dup_task_struct(struct task_struct *orig)
 {
+    int err;
+    unsigned long *stack;
     struct task_struct *tsk;
 
     tsk = alloc_task_struct_node();
     if (!tsk)
         panic("out of memory!");
+
+    stack = alloc_thread_stack_node(tsk);
+    if (!stack)
+        panic("out of memory!");
+
+    err = arch_dup_task_struct(tsk, orig);
+
+    /*
+     * arch_dup_task_struct() clobbers the stack-related fields.  Make
+     * sure they're properly initialized before using any stack-related
+     * functions again.
+     */
+    tsk->stack = stack;
 
     return tsk;
 }
