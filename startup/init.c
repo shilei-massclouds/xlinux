@@ -22,7 +22,10 @@ static struct signal_struct init_signals = {
     .rlim   = INIT_RLIMITS,
 };
 
-struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
+struct task_struct init_task
+__aligned(L1_CACHE_BYTES) = {
+    .thread_info = INIT_THREAD_INFO(init_task),
+
     .fs     = &init_fs,
     .signal = &init_signals,
 };

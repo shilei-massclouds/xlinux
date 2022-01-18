@@ -9,19 +9,6 @@
 #define RISCV_PTR       ".dword"
 #define RISCV_SZPTR     "8"
 
-/*
- * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
- * get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons, these macros are grossly misnamed.
- */
-
-#define MAKE_MM_SEG(s)  ((mm_segment_t) { (s) })
-
-#define KERNEL_DS   MAKE_MM_SEG(~0UL)
-#define USER_DS     MAKE_MM_SEG(TASK_SIZE)
-
 #define get_fs() (current_thread_info()->addr_limit)
 
 static inline void set_fs(mm_segment_t fs)
@@ -81,19 +68,7 @@ do {                                \
     __typeof__(*(ptr)) __x = x;             \
     __enable_user_access();                 \
     __asm__ __volatile__ (                  \
-        "1:\n"                      \
         "   " insn " %z3, %2\n"         \
-        "2:\n"                      \
-        "   .section .fixup,\"ax\"\n"       \
-        "   .balign 4\n"                \
-        "3:\n"                      \
-        "   li %0, %4\n"                \
-        "   jump 2b, %1\n"              \
-        "   .previous\n"                \
-        "   .section __ex_table,\"a\"\n"        \
-        "   .balign " RISCV_SZPTR "\n"          \
-        "   " RISCV_PTR " 1b, 3b\n"         \
-        "   .previous"              \
         : "+r" (err), "=r" (__tmp), "=m" (*(ptr))   \
         : "rJ" (__x), "i" (-EFAULT));           \
     __disable_user_access();                \

@@ -198,21 +198,21 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
      */
     vma = find_extend_vma(mm, bprm->p);
     if (!vma)
-        return -EFAULT;
+        panic("find extend vma error!");
 
     /* Now, let's put argc (and argv, envp if appropriate) on the stack */
     if (put_user(argc, sp++))
-        return -EFAULT;
+        panic("put argc to userspace error!");
 
     /* Populate list of argv pointers back to argv strings. */
     p = mm->arg_end = mm->arg_start;
     while (argc-- > 0) {
         size_t len;
         if (put_user((elf_addr_t)p, sp++))
-            return -EFAULT;
+            panic("put argv to userspace error!");
         len = strnlen_user((void *)p, MAX_ARG_STRLEN);
         if (!len || len > MAX_ARG_STRLEN)
-            return -EINVAL;
+            panic("bad len(%u)!", len);
         p += len;
     }
     if (put_user(0, sp++))
@@ -234,10 +234,11 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
         return -EFAULT;
     mm->env_end = p;
 
-    /* Put the elf_info on the stack in the right place.  */
-    if (copy_to_user(sp, mm->saved_auxv, ei_index * sizeof(elf_addr_t)))
-        return -EFAULT;
-    return 0;
+    panic("%s: !", __func__);
+//    /* Put the elf_info on the stack in the right place.  */
+//    if (copy_to_user(sp, mm->saved_auxv, ei_index * sizeof(elf_addr_t)))
+//        return -EFAULT;
+//    return 0;
 }
 
 void start_thread(struct pt_regs *regs,
