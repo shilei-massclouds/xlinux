@@ -319,9 +319,10 @@ static int exec_binprm(struct linux_binprm *bprm)
         if (!bprm->interpreter)
             break;
 
-        panic("%s: 1", __func__);
+        panic("interpreter exists!");
     }
-    panic("%s: !", __func__);
+
+    return 0;
 }
 
 /*
@@ -344,7 +345,8 @@ static int bprm_execve(struct linux_binprm *bprm,
     if (retval < 0)
         panic("exec binprm error!");
 
-    panic("%s: !", __func__);
+    printk("%s: ret(%d)\n", __func__, retval);
+    /* execve succeeded */
     return retval;
 }
 
@@ -391,7 +393,9 @@ int kernel_execve(const char *kernel_filename,
     if (retval < 0)
         panic("out of memory!");
 
+    printk("%s: 1\n", __func__);
     retval = bprm_execve(bprm, fd, filename, 0);
+    printk("%s: !\n", __func__);
 
     panic("%s: kernel_filename(%s)!", __func__, kernel_filename);
     return retval;

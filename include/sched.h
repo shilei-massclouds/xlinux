@@ -8,6 +8,8 @@
 /* Used in tsk->state: */
 #define TASK_UNINTERRUPTIBLE    0x0002
 
+extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
+
 struct task_struct {
     struct thread_info thread_info;
 

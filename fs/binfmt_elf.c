@@ -234,11 +234,10 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
         return -EFAULT;
     mm->env_end = p;
 
-    panic("%s: !", __func__);
-//    /* Put the elf_info on the stack in the right place.  */
-//    if (copy_to_user(sp, mm->saved_auxv, ei_index * sizeof(elf_addr_t)))
-//        return -EFAULT;
-//    return 0;
+    /* Put the elf_info on the stack in the right place.  */
+    if (copy_to_user(sp, mm->saved_auxv, ei_index * sizeof(elf_addr_t)))
+        panic("copy to user error!");
+    return 0;
 }
 
 void start_thread(struct pt_regs *regs,
@@ -460,7 +459,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
     retval = 0;
 
  out:
-    panic("%s: error!", __func__);
     return retval;
 }
 
