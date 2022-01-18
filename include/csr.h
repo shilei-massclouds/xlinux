@@ -63,6 +63,7 @@
 
 #define SR_IE       SR_SIE
 #define SR_PIE      SR_SPIE
+#define SR_PP       SR_SPP
 #define RV_IRQ_EXT  IRQ_S_EXT
 
 #ifndef __ASSEMBLY__

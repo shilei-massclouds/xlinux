@@ -27,6 +27,7 @@ __aligned(L1_CACHE_BYTES) = {
     .thread_info = INIT_THREAD_INFO(init_task),
 
     .stack  = init_stack,
+    .flags  = PF_KTHREAD,
     .fs     = &init_fs,
     .signal = &init_signals,
 };
@@ -67,11 +68,18 @@ EXPORT_SYMBOL(I_BDEV);
 add_to_page_cache_lru_t add_to_page_cache_lru;
 EXPORT_SYMBOL(add_to_page_cache_lru);
 
+/* For sched */
+schedule_tail_t schedule_tail;
+EXPORT_SYMBOL(schedule_tail);
+
 /*
  * Init
  */
 start_kernel_t start_kernel_fn;
 EXPORT_SYMBOL(start_kernel_fn);
+
+extern void ret_from_kernel_thread(void);
+EXPORT_SYMBOL(ret_from_kernel_thread);
 
 void start_kernel(void)
 {

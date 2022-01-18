@@ -155,6 +155,10 @@ typedef __kernel_ptrdiff_t  ptrdiff_t;
 typedef long long           __kernel_loff_t;
 typedef __kernel_loff_t     loff_t;
 
+typedef int __kernel_pid_t;
+typedef __kernel_pid_t  pid_t;
+
+
 #ifndef _SIZE_T
 #define _SIZE_T
 typedef __kernel_size_t     size_t;

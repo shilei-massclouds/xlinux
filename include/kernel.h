@@ -38,6 +38,12 @@
 #define swap(a, b) \
     do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
 
+/**
+ * lower_32_bits - return bits 0-31 of a number
+ * @n: the number we're accessing
+ */
+#define lower_32_bits(n) ((u32)((n) & 0xffffffff))
+
 static inline bool
 IS_ERR(const void *ptr)
 {

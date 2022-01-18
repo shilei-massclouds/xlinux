@@ -145,7 +145,14 @@ restore_all:
 	ld x29, PT_T4(sp)
 	ld x30, PT_T5(sp)
 	ld x31, PT_T6(sp)
-
 	ld x2,  PT_SP(sp)
-
 	sret
+
+.align 2
+.globl ret_from_kernel_thread
+ret_from_kernel_thread:
+    call schedule_tail
+    /* Call fn(arg) */
+    la ra, ret_from_exception
+    move a0, s1
+    jr s0

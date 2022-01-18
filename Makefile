@@ -15,6 +15,7 @@ SUBDIRS := startup lib early_dt \
 	virtio virtio_mmio virtio_blk \
 	workqueue \
 	fork \
+	sched \
 	init
 
 CLEAN_DIRS := $(addprefix _clean_, $(SUBDIRS))

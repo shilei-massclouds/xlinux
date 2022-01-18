@@ -2,7 +2,9 @@
 
 #include <fs.h>
 #include <bug.h>
+#include <fork.h>
 #include <errno.h>
+#include <sched.h>
 #include <limits.h>
 #include <printk.h>
 
@@ -54,7 +56,11 @@ static int kernel_init(void *unused)
 
 void rest_init(void)
 {
-    kernel_init(NULL);
+    int pid;
+
+    pid = kernel_thread(kernel_init, NULL, CLONE_FS);
+
+    panic("Todo: add schedule here!");
 }
 
 void arch_call_rest_init(void)
