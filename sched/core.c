@@ -2,6 +2,8 @@
 
 #include <sched.h>
 #include <export.h>
+#include <sched/rt.h>
+#include <sched/deadline.h>
 
 /**
  * schedule_tail - first thing a freshly forked thread must call.
@@ -61,7 +63,17 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
      */
     p->prio = current->normal_prio;
 
+    if (dl_prio(p->prio))
+        panic("bad prio %d", p->prio);
+    else if (rt_prio(p->prio))
+        panic("no rt sched class!");
+    else
+        p->sched_class = &fair_sched_class;
+
+    p->on_cpu = 0;
+
     panic("%s: !", __func__);
+    return 0;
 }
 EXPORT_SYMBOL(sched_fork);
 

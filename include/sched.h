@@ -90,7 +90,9 @@ struct task_struct {
 
     int prio;
     int normal_prio;
+
     int on_rq;
+    int on_cpu;
 };
 
 static struct rq runqueue;
