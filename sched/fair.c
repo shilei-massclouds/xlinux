@@ -2,6 +2,65 @@
 
 #include <sched.h>
 
+/* Walk up scheduling entities hierarchy */
+#define for_each_sched_entity(se) for(; se; se = se->parent)
+
+/* runqueue on which this entity is (to be) queued */
+static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
+{
+    return se->cfs_rq;
+}
+
+static inline int
+entity_before(struct sched_entity *a, struct sched_entity *b)
+{
+    return (s64)(a->vruntime - b->vruntime) < 0;
+}
+
+/*
+ * Enqueue an entity into the rb-tree:
+ */
+static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+    struct sched_entity *entry;
+    bool leftmost = true;
+    struct rb_node *parent = NULL;
+    struct rb_node **link = &cfs_rq->tasks_timeline.rb_root.rb_node;
+
+    /*
+     * Find the right place in the rbtree:
+     */
+    while (*link) {
+        parent = *link;
+        entry = rb_entry(parent, struct sched_entity, run_node);
+        /*
+         * We dont care about collisions. Nodes with
+         * the same key stay together.
+         */
+        if (entity_before(se, entry)) {
+            link = &parent->rb_left;
+        } else {
+            link = &parent->rb_right;
+            leftmost = false;
+        }
+    }
+
+    rb_link_node(&se->run_node, parent, link);
+    rb_insert_color_cached(&se->run_node, &cfs_rq->tasks_timeline, leftmost);
+}
+
+static void
+enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+{
+    bool curr = cfs_rq->curr == se;
+
+    if (!curr)
+        __enqueue_entity(cfs_rq, se);
+    se->on_rq = 1;
+
+    panic("%s: !", __func__);
+}
+
 /*
  * The enqueue_task method is called before nr_running is
  * increased. Here we update the fair scheduling stats and
@@ -10,6 +69,21 @@
 static void
 enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
+    struct cfs_rq *cfs_rq;
+    struct sched_entity *se = &p->se;
+
+    for_each_sched_entity(se) {
+        if (se->on_rq)
+            break;
+
+        cfs_rq = cfs_rq_of(se);
+        enqueue_entity(cfs_rq, se, flags);
+
+        flags = ENQUEUE_WAKEUP;
+
+        panic("%s: 1", __func__);
+    }
+
     panic("%s: !", __func__);
 }
 

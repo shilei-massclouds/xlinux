@@ -16,6 +16,21 @@ struct rb_root {
     struct rb_node *rb_node;
 };
 
+/*
+ * Leftmost-cached rbtrees.
+ *
+ * We do not cache the rightmost node based on footprint
+ * size vs number of potential users that could benefit
+ * from O(1) rb_last(). Just not worth it, users that want
+ * this feature can always implement the logic explicitly.
+ * Furthermore, users that want to cache both pointers may
+ * find it a bit asymmetric, but that's ok.
+ */
+struct rb_root_cached {
+    struct rb_root rb_root;
+    struct rb_node *rb_leftmost;
+};
+
 struct rb_augment_callbacks {
     void (*propagate)(struct rb_node *node, struct rb_node *stop);
     void (*copy)(struct rb_node *old, struct rb_node *new);
@@ -220,5 +235,15 @@ RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME,                        \
 
 struct rb_node *rb_first(const struct rb_root *root);
 struct rb_node *rb_next(const struct rb_node *node);
+
+static inline void
+rb_insert_color_cached(struct rb_node *node,
+                       struct rb_root_cached *root,
+                       bool leftmost)
+{
+    if (leftmost)
+        root->rb_leftmost = node;
+    rb_insert_color(node, &root->rb_root);
+}
 
 #endif /* _LINUX_RBTREE_H_ */

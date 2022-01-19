@@ -37,6 +37,7 @@
 
 #define TASK_ON_RQ_QUEUED   1
 
+#define ENQUEUE_WAKEUP      0x01
 #define ENQUEUE_NOCLOCK     0x08
 
 struct task_struct;
@@ -64,6 +65,26 @@ struct sched_class {
     void (*enqueue_task)(struct rq *rq, struct task_struct *p, int flags);
 };
 
+/* CFS-related fields in a runqueue */
+struct cfs_rq {
+    struct rb_root_cached tasks_timeline;
+
+    /*
+     * 'curr' points to currently running entity on this cfs_rq.
+     * It is set to NULL otherwise (i.e when none are currently running).
+     */
+    struct sched_entity *curr;
+};
+
+struct sched_entity {
+    struct rb_node run_node;
+    struct sched_entity *parent;
+    struct cfs_rq       *cfs_rq;
+
+    unsigned int on_rq;
+    u64 vruntime;
+};
+
 struct task_struct {
     struct thread_info thread_info;
 
@@ -87,6 +108,7 @@ struct task_struct {
     struct thread_struct thread;
 
     const struct sched_class *sched_class;
+    struct sched_entity se;
 
     int prio;
     int normal_prio;
