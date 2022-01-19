@@ -138,7 +138,7 @@ copy_process(struct pid *pid, struct kernel_clone_args *args)
     if (retval)
         panic("bad fork cleanup io!");
 
-    panic("%s: !", __func__);
+    return p;
 }
 
 /*

@@ -104,4 +104,6 @@ void wake_up_new_task(struct task_struct *p);
 
 int sched_fork(unsigned long clone_flags, struct task_struct *p);
 
+extern const struct sched_class fair_sched_class;
+
 #endif /* _LINUX_SCHED_H */

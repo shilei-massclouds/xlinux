@@ -71,8 +71,6 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
         p->sched_class = &fair_sched_class;
 
     p->on_cpu = 0;
-
-    panic("%s: !", __func__);
     return 0;
 }
 EXPORT_SYMBOL(sched_fork);
