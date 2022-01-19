@@ -30,6 +30,8 @@ __aligned(L1_CACHE_BYTES) = {
     .flags  = PF_KTHREAD,
     .fs     = &init_fs,
     .signal = &init_signals,
+
+    .normal_prio = MAX_PRIO - 20,
 };
 
 /*

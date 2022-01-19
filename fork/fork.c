@@ -129,6 +129,11 @@ copy_process(struct pid *pid, struct kernel_clone_args *args)
     if (!p)
         panic("dup task struct error!");
 
+    /* Perform scheduler related setup. Assign this task to a CPU. */
+    retval = sched_fork(clone_flags, p);
+    if (retval)
+        panic("bad fork!");
+
     retval = copy_thread(clone_flags, args->stack, args->stack_size, p, args->tls);
     if (retval)
         panic("bad fork cleanup io!");
@@ -149,7 +154,13 @@ long _do_fork(struct kernel_clone_args *args)
     struct task_struct *p;
 
     p = copy_process(NULL, args);
+    if (IS_ERR(p))
+        panic("copy process error(%d)", PTR_ERR(p));
+
+    wake_up_new_task(p);
+
     panic("%s: !", __func__);
+    //return nr;
 }
 
 /*
