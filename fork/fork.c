@@ -158,9 +158,7 @@ long _do_fork(struct kernel_clone_args *args)
         panic("copy process error(%d)", PTR_ERR(p));
 
     wake_up_new_task(p);
-
-    panic("%s: !", __func__);
-    //return nr;
+    return 0;
 }
 
 /*

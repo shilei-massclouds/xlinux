@@ -22,6 +22,13 @@ static struct signal_struct init_signals = {
     .rlim   = INIT_RLIMITS,
 };
 
+/*
+ * Default task group.
+ * Every task in system belongs to this group at bootup.
+ */
+struct task_group root_task_group;
+EXPORT_SYMBOL(root_task_group);
+
 struct task_struct init_task
 __aligned(L1_CACHE_BYTES) = {
     .thread_info = INIT_THREAD_INFO(init_task),
@@ -32,6 +39,7 @@ __aligned(L1_CACHE_BYTES) = {
     .signal = &init_signals,
 
     .normal_prio = MAX_PRIO - 20,
+    .sched_task_group = &root_task_group,
 };
 
 /*

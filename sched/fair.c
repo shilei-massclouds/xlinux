@@ -57,8 +57,37 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
     if (!curr)
         __enqueue_entity(cfs_rq, se);
     se->on_rq = 1;
+}
 
-    panic("%s: !", __func__);
+void init_cfs_rq(struct cfs_rq *cfs_rq)
+{
+    cfs_rq->tasks_timeline = RB_ROOT_CACHED;
+}
+
+void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
+                       struct sched_entity *se, int cpu,
+                       struct sched_entity *parent)
+{
+    struct rq *rq = cpu_rq();
+
+    cfs_rq->tg = tg;
+    cfs_rq->rq = rq;
+
+    tg->cfs_rq[cpu] = cfs_rq;
+    tg->se[cpu] = se;
+
+    /* se could be NULL for root_task_group */
+    if (!se)
+        return;
+
+    if (!parent) {
+        se->cfs_rq = &rq->cfs;
+    } else {
+        se->cfs_rq = parent->my_q;
+    }
+
+    se->my_q = cfs_rq;
+    se->parent = parent;
 }
 
 /*
@@ -77,14 +106,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
             break;
 
         cfs_rq = cfs_rq_of(se);
+        printk("%s: cfs_rq(%lx)\n", __func__, cfs_rq);
         enqueue_entity(cfs_rq, se, flags);
 
         flags = ENQUEUE_WAKEUP;
-
-        panic("%s: 1", __func__);
     }
-
-    panic("%s: !", __func__);
 }
 
 /*

@@ -40,6 +40,25 @@
 #define ENQUEUE_WAKEUP      0x01
 #define ENQUEUE_NOCLOCK     0x08
 
+#define SCHED_FIXEDPOINT_SHIFT  10
+#define SCHED_FIXEDPOINT_SCALE  (1L << SCHED_FIXEDPOINT_SHIFT)
+
+#define NICE_0_LOAD_SHIFT \
+    (SCHED_FIXEDPOINT_SHIFT + SCHED_FIXEDPOINT_SHIFT)
+
+/*
+ * Task weight (visible to users) and its load (invisible to users) have
+ * independent resolution, but they should be well calibrated. We use
+ * scale_load() and scale_load_down(w) to convert between them. The
+ * following must be true:
+ *
+ *  scale_load(sched_prio_to_weight[USER_PRIO(NICE_TO_PRIO(0))]) == NICE_0_LOAD
+ *
+ */
+#define NICE_0_LOAD     (1L << NICE_0_LOAD_SHIFT)
+
+#define ROOT_TASK_GROUP_LOAD    NICE_0_LOAD
+
 struct task_struct;
 
 extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
@@ -58,13 +77,6 @@ struct thread_struct {
     struct __riscv_d_ext_state fstate;
 };
 
-struct rq {
-};
-
-struct sched_class {
-    void (*enqueue_task)(struct rq *rq, struct task_struct *p, int flags);
-};
-
 /* CFS-related fields in a runqueue */
 struct cfs_rq {
     struct rb_root_cached tasks_timeline;
@@ -74,12 +86,27 @@ struct cfs_rq {
      * It is set to NULL otherwise (i.e when none are currently running).
      */
     struct sched_entity *curr;
+
+    struct rq *rq;  /* CPU runqueue to which this cfs_rq is attached */
+    struct task_group *tg;  /* group that "owns" this runqueue */
+};
+
+struct rq {
+    struct cfs_rq   cfs;
+};
+
+struct sched_class {
+    void (*enqueue_task)(struct rq *rq, struct task_struct *p, int flags);
 };
 
 struct sched_entity {
     struct rb_node run_node;
+    struct list_head group_node;
     struct sched_entity *parent;
     struct cfs_rq       *cfs_rq;
+
+    /* rq "owned" by this entity/group: */
+    struct cfs_rq *my_q;
 
     unsigned int on_rq;
     u64 vruntime;
@@ -115,6 +142,17 @@ struct task_struct {
 
     int on_rq;
     int on_cpu;
+
+    struct task_group *sched_task_group;
+};
+
+/* Task group related information */
+struct task_group {
+    /* schedulable entities of this group on each CPU */
+    struct sched_entity **se;
+    /* runqueue "owned" by this group on each CPU */
+    struct cfs_rq       **cfs_rq;
+    unsigned long       shares;
 };
 
 static struct rq runqueue;
@@ -127,5 +165,31 @@ void wake_up_new_task(struct task_struct *p);
 int sched_fork(unsigned long clone_flags, struct task_struct *p);
 
 extern const struct sched_class fair_sched_class;
+
+void init_cfs_rq(struct cfs_rq *cfs_rq);
+
+static inline struct task_group *task_group(struct task_struct *p)
+{
+    return p->sched_task_group;
+}
+
+static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
+{
+    struct task_group *tg = task_group(p);
+
+    //set_task_rq_fair(&p->se, p->se.cfs_rq, tg->cfs_rq[cpu]);
+    p->se.cfs_rq = tg->cfs_rq[cpu];
+    p->se.parent = tg->se[cpu];
+}
+
+static inline void
+__set_task_cpu(struct task_struct *p, unsigned int cpu)
+{
+    set_task_rq(p, cpu);
+}
+
+void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
+                       struct sched_entity *se, int cpu,
+                       struct sched_entity *parent);
 
 #endif /* _LINUX_SCHED_H */
