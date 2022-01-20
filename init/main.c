@@ -62,7 +62,13 @@ void rest_init(void)
     pid = kernel_thread(kernel_init, NULL, CLONE_FS);
     printk("%s: 2\n", __func__);
 
-    panic("Todo: add schedule here!");
+    /*
+     * The boot idle thread must execute schedule()
+     * at least once to get things moving:
+     */
+    schedule_preempt_disabled();
+
+    panic("Call into cpu_idle with preempt disabled.");
 }
 
 void arch_call_rest_init(void)

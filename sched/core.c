@@ -5,6 +5,7 @@
 #include <export.h>
 #include <cpumask.h>
 #include <sched/rt.h>
+#include <asm-switch_to.h>
 #include <sched/deadline.h>
 
 extern struct task_group root_task_group;
@@ -140,6 +141,123 @@ sched_create_group(void)
     return tg;
 }
 
+static inline struct task_struct *
+pick_next_task(struct rq *rq, struct task_struct *prev)
+{
+    struct task_struct *p;
+    const struct sched_class *class;
+
+    /*
+     * Optimization: we know that if all tasks are in the fair class we can
+     * call that function directly, but only if the @prev task wasn't of a
+     * higher scheduling class, because otherwise those loose the
+     * opportunity to pull in more work from other CPUs.
+     */
+    if (likely(prev->sched_class <= &fair_sched_class)) {
+
+        p = pick_next_task_fair(rq, prev);
+        if (unlikely(p == RETRY_TASK))
+            panic("need to retry task!");
+
+        return p;
+    }
+
+    panic("%s: !", __func__);
+}
+
+static inline void prepare_task(struct task_struct *next)
+{
+    /*
+     * Claim the task as running, we do this before switching to it
+     * such that any running task will have this set.
+     *
+     * See the ttwu() WF_ON_CPU case and its ordering comment.
+     */
+    next->on_cpu = 1;
+}
+
+static inline void
+prepare_task_switch(struct rq *rq,
+                    struct task_struct *prev,
+                    struct task_struct *next)
+{
+    prepare_task(next);
+}
+
+static struct rq *
+context_switch(struct rq *rq, struct task_struct *prev,
+               struct task_struct *next)
+{
+    prepare_task_switch(rq, prev, next);
+
+    printk("switch ...\n");
+
+    /* Here we just switch the register state and the stack. */
+    switch_to(prev, next, prev);
+
+    printk("switch ok!\n");
+
+    panic("%s: !", __func__);
+}
+
+static void __schedule(bool preempt)
+{
+    struct rq *rq;
+    struct task_struct *prev, *next;
+
+    rq = cpu_rq();
+    prev = rq->curr;
+
+    next = pick_next_task(rq, prev);
+
+    if (likely(prev != next)) {
+        /*
+         * RCU users of rcu_dereference(rq->curr) may not see
+         * changes to task_struct made by pick_next_task().
+         */
+        rq->curr = next;
+
+        /* Also unlocks the rq: */
+        rq = context_switch(rq, prev, next);
+    } else {
+        panic("still IS idle task!");
+    }
+
+    panic("%s: !", __func__);
+}
+
+void schedule(void)
+{
+    __schedule(false);
+}
+EXPORT_SYMBOL(schedule);
+
+/**
+ * schedule_preempt_disabled - called with preemption disabled
+ *
+ * Returns with preemption disabled. Note: preempt_count must be 1
+ */
+void schedule_preempt_disabled(void)
+{
+    schedule();
+}
+EXPORT_SYMBOL(schedule_preempt_disabled);
+
+void init_idle(struct task_struct *idle, int cpu)
+{
+    struct rq *rq = cpu_rq();
+
+    __sched_fork(0, idle);
+
+    idle->state = TASK_RUNNING;
+    idle->flags |= PF_IDLE;
+
+    rq->idle = idle;
+    rq->curr = idle;
+    idle->on_rq = TASK_ON_RQ_QUEUED;
+    idle->on_cpu = 1;
+}
+
 void sched_init(void)
 {
     struct rq *rq;
@@ -164,6 +282,14 @@ void sched_init(void)
     task_group_cache = KMEM_CACHE(task_group, 0);
 
     sched_create_group();
+
+    /*
+     * Make us the idle thread. Technically, schedule() should not be
+     * called from this thread, however somewhere below it might be,
+     * but because we are the idle thread, we just pick up running again
+     * when this runqueue becomes "idle".
+     */
+    init_idle(current, 0);
 }
 
 static int

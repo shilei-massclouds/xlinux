@@ -33,6 +33,9 @@ struct rb_root_cached {
 
 #define RB_ROOT_CACHED (struct rb_root_cached) { {NULL, }, NULL }
 
+/* Same as rb_first(), but O(1) */
+#define rb_first_cached(root)   (root)->rb_leftmost
+
 struct rb_augment_callbacks {
     void (*propagate)(struct rb_node *node, struct rb_node *stop);
     void (*copy)(struct rb_node *old, struct rb_node *new);
@@ -247,5 +250,14 @@ rb_insert_color_cached(struct rb_node *node,
         root->rb_leftmost = node;
     rb_insert_color(node, &root->rb_root);
 }
+
+static inline void
+rb_erase_cached(struct rb_node *node, struct rb_root_cached *root)
+{
+    if (root->rb_leftmost == node)
+        root->rb_leftmost = rb_next(node);
+    rb_erase(node, &root->rb_root);
+}
+
 
 #endif /* _LINUX_RBTREE_H_ */

@@ -90,6 +90,85 @@ void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
     se->parent = parent;
 }
 
+struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
+{
+    struct rb_node *left = rb_first_cached(&cfs_rq->tasks_timeline);
+
+    if (!left)
+        return NULL;
+
+    return rb_entry(left, struct sched_entity, run_node);
+}
+
+static struct sched_entity *
+pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+{
+    struct sched_entity *se;
+    struct sched_entity *left = __pick_first_entity(cfs_rq);
+
+    /*
+     * If curr is set we have to see if its left of the leftmost entity
+     * still in the tree, provided there was anything in the tree at all.
+     */
+    if (!left || (curr && entity_before(curr, left)))
+        left = curr;
+
+    se = left; /* ideally we run the leftmost entity */
+    return se;
+}
+
+static inline struct task_struct *task_of(struct sched_entity *se)
+{
+    BUG_ON(!entity_is_task(se));
+    return container_of(se, struct task_struct, se);
+}
+
+static void
+__dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+    rb_erase_cached(&se->run_node, &cfs_rq->tasks_timeline);
+}
+
+static void
+set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+    /* 'current' is not kept within the tree. */
+    if (se->on_rq) {
+        /*
+         * Any task has to be enqueued before it get to execute on
+         * a CPU. So account for the time it spent waiting on the
+         * runqueue.
+         */
+        __dequeue_entity(cfs_rq, se);
+    }
+
+    cfs_rq->curr = se;
+}
+
+/* runqueue "owned" by this group */
+static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
+{
+    return grp->my_q;
+}
+
+struct task_struct *
+pick_next_task_fair(struct rq *rq, struct task_struct *prev)
+{
+    struct task_struct *p;
+    struct sched_entity *se;
+    struct cfs_rq *cfs_rq = &rq->cfs;
+
+    do {
+        se = pick_next_entity(cfs_rq, NULL);
+        set_next_entity(cfs_rq, se);
+        cfs_rq = group_cfs_rq(se);
+        printk("%s: 1\n", __func__);
+    } while (cfs_rq);
+
+    p = task_of(se);
+    return p;
+}
+
 /*
  * The enqueue_task method is called before nr_running is
  * increased. Here we update the fair scheduling stats and

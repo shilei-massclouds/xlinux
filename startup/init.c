@@ -82,6 +82,10 @@ EXPORT_SYMBOL(add_to_page_cache_lru);
 schedule_tail_t schedule_tail;
 EXPORT_SYMBOL(schedule_tail);
 
+extern struct task_struct *
+__switch_to(struct task_struct *, struct task_struct *);
+EXPORT_SYMBOL(__switch_to);
+
 /*
  * Init
  */

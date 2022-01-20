@@ -30,6 +30,7 @@
 
 #define TASK_NEW    0x0800
 
+#define PF_IDLE     0x00000002  /* I am an IDLE thread */
 #define PF_KTHREAD  0x00200000  /* I am a kernel thread */
 
 #define cpu_rq()    (&runqueue)
@@ -58,6 +59,8 @@
 #define NICE_0_LOAD     (1L << NICE_0_LOAD_SHIFT)
 
 #define ROOT_TASK_GROUP_LOAD    NICE_0_LOAD
+
+#define RETRY_TASK      ((void *)-1UL)
 
 struct task_struct;
 
@@ -93,6 +96,9 @@ struct cfs_rq {
 
 struct rq {
     struct cfs_rq   cfs;
+
+    struct task_struct *curr;
+    struct task_struct *idle;
 };
 
 struct sched_class {
@@ -191,5 +197,13 @@ __set_task_cpu(struct task_struct *p, unsigned int cpu)
 void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
                        struct sched_entity *se, int cpu,
                        struct sched_entity *parent);
+
+void schedule_preempt_disabled(void);
+
+struct task_struct *
+pick_next_task_fair(struct rq *rq, struct task_struct *prev);
+
+/* An entity is a task if it doesn't "own" a runqueue */
+#define entity_is_task(se)  (!se->my_q)
 
 #endif /* _LINUX_SCHED_H */
