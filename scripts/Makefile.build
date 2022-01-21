@@ -9,8 +9,8 @@ include $(curdir)/Makefile
 
 mod_lds := scripts/module.lds
 elf_lds := $(curdir)/$(elf_lds)
-_target	:= $(curdir)/$(obj).$(target_y)
-_test	:= $(curdir)/test_$(obj).ko
+_target	:= $(if $(target_y), $(curdir)/$(obj).$(target_y))
+_test	:= $(if $(target_y), $(curdir)/test_$(obj).ko)
 obj_y	:= $(addprefix $(curdir)/, $(obj_y))
 extra_y := $(addprefix $(curdir)/, $(extra_y))
 test_y	:= $(filter $(curdir)/test%.o, \
@@ -23,6 +23,10 @@ $(curdir)/%.o: $(curdir)/%.S
 $(curdir)/%.o: $(curdir)/%.c
 	@printf "CC\t$<\n"
 	$(CC) $(CFLAGS) $(CFLAGS_$(@F)) $(INCLUDES) -c -o $@ $<
+
+$(curdir)/%.s: $(curdir)/%.c
+	@printf "CC\t$<\n"
+	$(CC) $(CFLAGS) $(CFLAGS_$(@F)) $(INCLUDES) -S -o $@ $<
 
 $(curdir)/%.lds: $(curdir)/%.lds.S
 	@printf "AS\t$<\n"

@@ -54,3 +54,4 @@ dkms.conf
 *.lds
 tags
 *.swp
+*.s
