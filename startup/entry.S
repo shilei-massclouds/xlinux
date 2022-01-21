@@ -97,6 +97,7 @@ _save_context:
 	jr a1
 1:
     /* Todo: For exception */
+    csrw 0x0, s4
     sbreak
 
 ret_from_exception:
@@ -106,8 +107,20 @@ ret_from_exception:
 	bnez s0, restore_all
 
 resume_userspace:
-    /* Todo: For userspace */
-    sbreak
+    /* Interrupts must be disabled here so flags are checked atomically */
+    ld s0, TASK_TI_FLAGS(tp)    /* current_thread_info->flags */
+    andi s1, s0, _TIF_WORK_MASK
+    bnez s1, work_pending
+
+    /* Save unwound kernel stack pointer in thread_info */
+    addi s0, sp, PT_SIZE_ON_STACK
+    sd s0, TASK_TI_KERNEL_SP(tp)
+
+    /*
+     * Save TP into the scratch register , so we can find the kernel data
+     * structures again.
+     */
+    csrw CSR_SCRATCH, tp
 
 restore_all:
 	ld a0, PT_STATUS(sp)
@@ -147,6 +160,11 @@ restore_all:
 	ld x30, PT_T5(sp)
 	ld x31, PT_T6(sp)
 	ld x2,  PT_SP(sp)
+    csrw 0x0, 0x1F
+	sret
+
+work_pending:
+    /* Todo: */
 	sret
 
 .align 2

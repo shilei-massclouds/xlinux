@@ -16,10 +16,9 @@
 #define CSR_SATP        0x180
 
 #define CSR_IE      CSR_SIE
-
 #define CSR_IP      CSR_SIP
-
 #define CSR_STATUS	CSR_SSTATUS
+#define CSR_SCRATCH CSR_SSCRATCH
 
 /* Status register flags */
 #define SR_SIE		_AC(0x00000002, UL) /* Supervisor Interrupt Enable */

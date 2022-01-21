@@ -393,11 +393,9 @@ int kernel_execve(const char *kernel_filename,
     if (retval < 0)
         panic("out of memory!");
 
-    printk("%s: 1\n", __func__);
     retval = bprm_execve(bprm, fd, filename, 0);
     printk("%s: !\n", __func__);
 
-    panic("%s: kernel_filename(%s)!", __func__, kernel_filename);
     return retval;
 }
 EXPORT_SYMBOL(kernel_execve);

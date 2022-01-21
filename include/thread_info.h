@@ -15,6 +15,17 @@
 
 #define THREADINFO_GFP      (GFP_KERNEL_ACCOUNT | __GFP_ZERO)
 
+#define TIF_NOTIFY_RESUME   1   /* callback before returning to user */
+#define TIF_SIGPENDING      2   /* signal pending */
+#define TIF_NEED_RESCHED    3   /* rescheduling necessary */
+
+#define _TIF_NOTIFY_RESUME  (1 << TIF_NOTIFY_RESUME)
+#define _TIF_SIGPENDING     (1 << TIF_SIGPENDING)
+#define _TIF_NEED_RESCHED   (1 << TIF_NEED_RESCHED)
+
+#define _TIF_WORK_MASK \
+    (_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | _TIF_NEED_RESCHED)
+
 #ifndef __ASSEMBLY__
 
 typedef struct {
