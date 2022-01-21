@@ -4,6 +4,7 @@ target_y := bin
 
 obj_y := core.o
 obj_y += entry.o
+obj_y += traps.o
 obj_y += uaccess.o
 obj_y += memset.o
 obj_y += memcpy.o

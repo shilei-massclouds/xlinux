@@ -33,6 +33,9 @@ EXPORT_SYMBOL(va_pa_offset);
 phys_addr_t dtb_early_pa __initdata;
 EXPORT_SYMBOL(dtb_early_pa);
 
+do_page_fault_t do_page_fault_func;
+EXPORT_SYMBOL(do_page_fault_func);
+
 extern char _start[];
 
 void setup_early_pgd(uintptr_t dtb_pa)
@@ -68,3 +71,8 @@ asm_copy_to_user(void *to, const void *from, unsigned long n)
     return __asm_copy_to_user(to, from, n);
 }
 EXPORT_SYMBOL(asm_copy_to_user);
+
+void do_page_fault(struct pt_regs *regs)
+{
+    do_page_fault_func(regs);
+}

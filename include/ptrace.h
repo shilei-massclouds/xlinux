@@ -92,6 +92,7 @@ struct pt_regs {
 };
 
 #define current_pt_regs() task_pt_regs(current)
+#define user_mode(regs) (((regs)->status & SR_PP) == 0)
 
 #endif /* __ASSEMBLY__ */
 

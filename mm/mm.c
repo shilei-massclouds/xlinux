@@ -12,6 +12,8 @@
 
 static phys_alloc_t phys_alloc_fn;
 
+extern do_page_fault_t do_page_fault_func;
+
 void *dtb_early_va;
 EXPORT_SYMBOL(dtb_early_va);
 
@@ -182,12 +184,26 @@ setup_vm_final(struct memblock_region *regions,
 }
 EXPORT_SYMBOL(setup_vm_final);
 
+void _do_page_fault(struct pt_regs *regs)
+{
+    unsigned int flags = FAULT_FLAG_DEFAULT;
+
+    if (user_mode(regs))
+        flags |= FAULT_FLAG_USER;
+
+    panic("%s: !", __func__);
+}
+
 static int
 init_module(void)
 {
     printk("module[mm]: init begin ...\n");
+
+    do_page_fault_func = _do_page_fault;
+
     clear_flash_pgd();
     setup_fixmap_pgd();
+
     printk("module[mm]: init end!\n");
 
     return 0;

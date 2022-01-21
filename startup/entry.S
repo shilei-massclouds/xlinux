@@ -5,6 +5,9 @@
 #include <asm-offsets.h>
 #include <thread_info.h>
 
+#define RISCV_PTR       .dword
+#define RISCV_LGPTR     3
+
 .align 2
 .globl handle_exception
 handle_exception:
@@ -96,8 +99,35 @@ _save_context:
 	ld a1, (a1)
 	jr a1
 1:
-    /* Todo: For exception */
-    csrw 0x0, s4
+    /*
+     * Exceptions run with interrupts enabled or disabled depending on the
+     * state of SR_PIE in m/sstatus.
+     */
+    andi t0, s1, SR_PIE
+    beqz t0, 1f
+    csrs CSR_STATUS, SR_IE
+
+1:
+    la ra, ret_from_exception
+    /* Handle syscalls */
+    li t0, EXC_SYSCALL
+    beq s4, t0, handle_syscall
+
+    /* Handle other exceptions */
+    slli t0, s4, RISCV_LGPTR
+    la t1, excp_vect_table
+    la t2, excp_vect_table_end
+    move a0, sp /* pt_regs */
+    add t0, t1, t0
+    /* Check if exception code lies within bounds */
+    bgeu t0, t2, 1f
+    ld t0, 0(t0)
+    jr t0
+1:
+    tail do_trap_unknown
+
+handle_syscall:
+    csrw 0x0, 0x13
     sbreak
 
 ret_from_exception:
@@ -230,3 +260,26 @@ __switch_to:
     /* The offset of thread_info in task_struct is zero. */
     move tp, a1
     ret
+
+.section .rodata
+/* Exception vector table */
+.align 2
+.globl excp_vect_table
+excp_vect_table:
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown   /* system call, gets intercepted */
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_page_fault     /* instruction page fault */
+    RISCV_PTR do_page_fault     /* load page fault */
+    RISCV_PTR do_trap_unknown
+    RISCV_PTR do_trap_unknown   /* store page fault */
+excp_vect_table_end:

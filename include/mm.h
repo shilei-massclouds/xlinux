@@ -87,12 +87,23 @@
 #define FOLL_LONGTERM   0x10000 /* mapping lifetime is indefinite: see below */
 #define FOLL_PIN        0x40000 /* pages must be released via unpin_user_page */
 
-#define FAULT_FLAG_WRITE        0x01
-#define FAULT_FLAG_ALLOW_RETRY  0x04
-#define FAULT_FLAG_RETRY_NOWAIT 0x08
-#define FAULT_FLAG_KILLABLE     0x10
-#define FAULT_FLAG_TRIED        0x20
-#define FAULT_FLAG_REMOTE       0x80
+#define FAULT_FLAG_WRITE            0x01
+#define FAULT_FLAG_ALLOW_RETRY      0x04
+#define FAULT_FLAG_RETRY_NOWAIT     0x08
+#define FAULT_FLAG_KILLABLE         0x10
+#define FAULT_FLAG_TRIED            0x20
+#define FAULT_FLAG_USER             0x40
+#define FAULT_FLAG_REMOTE           0x80
+#define FAULT_FLAG_INTERRUPTIBLE    0x200
+
+/*
+ * The default fault flags that should be used by most of the
+ * arch-specific page fault handlers.
+ */
+#define FAULT_FLAG_DEFAULT \
+    (FAULT_FLAG_ALLOW_RETRY | \
+     FAULT_FLAG_KILLABLE | \
+     FAULT_FLAG_INTERRUPTIBLE)
 
 extern struct mm_struct init_mm;
 
@@ -150,6 +161,8 @@ extern pgd_t swapper_pg_dir[];
 extern phys_addr_t dtb_early_pa;
 
 typedef phys_addr_t (*phys_alloc_t)(phys_addr_t size, phys_addr_t align);
+
+typedef void (*do_page_fault_t)(struct pt_regs *);
 
 void
 setup_fixmap_pgd(void);

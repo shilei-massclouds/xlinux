@@ -3,7 +3,8 @@
 #include <page.h>
 #include <csr.h>
 
-#define RISCV_SZPTR             8
+#define RISCV_SZPTR     8
+
 #define RISCV_HEADER_VERSION    2
 #define RISCV_TEXT_OFFSET       0x200000
 #define RISCV_IMAGE_MAGIC       "RISCV\0\0\0"
