@@ -297,7 +297,7 @@ init_module(void)
 {
     printk("module[sched]: init begin ...\n");
 
-    schedule_tail = _schedule_tail;
+    schedule_tail_func = _schedule_tail;
 
     sched_init();
 

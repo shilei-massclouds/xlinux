@@ -164,7 +164,7 @@ struct task_group {
 static struct rq runqueue;
 
 typedef void (*schedule_tail_t)(struct task_struct *);
-extern schedule_tail_t schedule_tail;
+extern schedule_tail_t schedule_tail_func;
 
 void wake_up_new_task(struct task_struct *p);
 

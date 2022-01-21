@@ -79,8 +79,8 @@ add_to_page_cache_lru_t add_to_page_cache_lru;
 EXPORT_SYMBOL(add_to_page_cache_lru);
 
 /* For sched */
-schedule_tail_t schedule_tail;
-EXPORT_SYMBOL(schedule_tail);
+schedule_tail_t schedule_tail_func;
+EXPORT_SYMBOL(schedule_tail_func);
 
 extern struct task_struct *
 __switch_to(struct task_struct *, struct task_struct *);
@@ -94,6 +94,11 @@ EXPORT_SYMBOL(start_kernel_fn);
 
 extern void ret_from_kernel_thread(void);
 EXPORT_SYMBOL(ret_from_kernel_thread);
+
+void schedule_tail(struct task_struct *p)
+{
+    schedule_tail_func(p);
+}
 
 void start_kernel(void)
 {
