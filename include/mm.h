@@ -313,10 +313,6 @@ pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
         NULL: pmd_offset(pgd, address);
 }
 
-vm_fault_t
-handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
-                unsigned int flags, struct pt_regs *regs);
-
 int __pte_alloc(struct mm_struct *mm, pmd_t *pmd);
 
 #define pte_alloc(mm, pmd) \
@@ -371,5 +367,13 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 
 int vm_brk_flags(unsigned long addr, unsigned long request,
                  unsigned long flags);
+
+struct vm_area_struct *
+find_vma(struct mm_struct *mm, unsigned long addr);
+
+typedef vm_fault_t
+(*handle_mm_fault_t)(struct vm_area_struct *vma, unsigned long address,
+                     unsigned int flags, struct pt_regs *regs);
+extern handle_mm_fault_t handle_mm_fault;
 
 #endif /* _RISCV_MM_H_ */

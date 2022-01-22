@@ -6,6 +6,7 @@
 #include <export.h>
 #include <fixmap.h>
 #include <kernel.h>
+#include <signal.h>
 #include <string.h>
 #include <pgtable.h>
 #include <mm_types.h>
@@ -16,6 +17,9 @@ extern do_page_fault_t do_page_fault_func;
 
 void *dtb_early_va;
 EXPORT_SYMBOL(dtb_early_va);
+
+handle_mm_fault_t handle_mm_fault;
+EXPORT_SYMBOL(handle_mm_fault);
 
 struct mm_struct init_mm = {
     .pgd    = swapper_pg_dir,
@@ -186,10 +190,64 @@ EXPORT_SYMBOL(setup_vm_final);
 
 void _do_page_fault(struct pt_regs *regs)
 {
+    struct mm_struct *mm;
+    struct task_struct *tsk;
+    struct vm_area_struct *vma;
+    unsigned long addr, cause;
+    vm_fault_t fault;
+    int code = SEGV_MAPERR;
     unsigned int flags = FAULT_FLAG_DEFAULT;
+
+    cause = regs->cause;
+    addr = regs->badaddr;
+
+    tsk = current;
+    mm = tsk->mm;
 
     if (user_mode(regs))
         flags |= FAULT_FLAG_USER;
+
+    vma = find_vma(mm, addr);
+    if (unlikely(!vma))
+        panic("bad area!");
+    if (likely(vma->vm_start <= addr))
+        goto good_area;
+    if (unlikely(!(vma->vm_flags & VM_GROWSDOWN)))
+        panic("bad vm_flags!");
+    if (unlikely(expand_stack(vma, addr)))
+        panic("expand stack error!");
+
+    /*
+     * Ok, we have a good vm_area for this memory access, so
+     * we can handle it.
+     */
+ good_area:
+    code = SEGV_ACCERR;
+
+    switch (cause) {
+    case EXC_INST_PAGE_FAULT:
+        if (!(vma->vm_flags & VM_EXEC))
+            panic("bad vm_flags!");
+        break;
+    case EXC_LOAD_PAGE_FAULT:
+        if (!(vma->vm_flags & VM_READ))
+            panic("bad vm_flags!");
+        break;
+    case EXC_STORE_PAGE_FAULT:
+        if (!(vma->vm_flags & VM_WRITE))
+            panic("bad vm_flags!");
+        flags |= FAULT_FLAG_WRITE;
+        break;
+    default:
+        panic("%s: unhandled cause %lu", __func__, cause);
+    }
+
+    /*
+     * If for any reason at all we could not handle the fault,
+     * make sure we exit gracefully rather than endlessly redo
+     * the fault.
+     */
+    fault = handle_mm_fault(vma, addr, flags, regs);
 
     panic("%s: !", __func__);
 }

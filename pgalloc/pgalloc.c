@@ -123,12 +123,11 @@ __handle_mm_fault(struct vm_area_struct *vma,
 }
 
 vm_fault_t
-handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
-                unsigned int flags, struct pt_regs *regs)
+_handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+                 unsigned int flags, struct pt_regs *regs)
 {
     return __handle_mm_fault(vma, address, flags);
 }
-EXPORT_SYMBOL(handle_mm_fault);
 
 struct page *
 vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
@@ -144,6 +143,9 @@ static int
 init_module(void)
 {
     printk("module[pgalloc]: init begin ...\n");
+
+    handle_mm_fault = _handle_mm_fault;
+
     printk("module[pgalloc]: init end!\n");
 
     return 0;
