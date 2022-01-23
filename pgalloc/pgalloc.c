@@ -5,6 +5,7 @@
 #include <export.h>
 #include <ptrace.h>
 #include <highmem.h>
+#include <pagemap.h>
 #include <pgalloc.h>
 #include <pgtable.h>
 
@@ -18,13 +19,8 @@ int __pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
     if (!new)
         return -ENOMEM;
 
-    printk("%s: 1\n", __func__);
-    if (!pgd_present(*pgd)) {
-        printk("%s: 1.5\n", __func__);
+    if (!pgd_present(*pgd))
         pgd_populate(mm, pgd, new);
-    }
-    printk("%s: 2\n", __func__);
-
     return 0;
 }
 EXPORT_SYMBOL(__pmd_alloc);
@@ -70,8 +66,26 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
     return 0;
 }
 
+static vm_fault_t do_read_fault(struct vm_fault *vmf)
+{
+    panic("%s: !", __func__);
+}
+
 static vm_fault_t do_fault(struct vm_fault *vmf)
 {
+    vm_fault_t ret;
+    struct vm_area_struct *vma = vmf->vma;
+
+    if (!vma->vm_ops->fault) {
+        panic("no fault func!");
+    } else if (!(vmf->flags & FAULT_FLAG_WRITE)) {
+        ret = do_read_fault(vmf);
+    } else if (!(vma->vm_flags & VM_SHARED)) {
+        panic("cow fault!");
+    } else {
+        panic("shared fault!");
+    }
+
     panic("%s: !", __func__);
 }
 
@@ -108,21 +122,15 @@ __handle_mm_fault(struct vm_area_struct *vma,
     struct vm_fault vmf = {
         .vma = vma,
         .address = address & PAGE_MASK,
-        /*
         .flags = flags,
         .pgoff = linear_page_index(vma, address),
-        .gfp_mask = __get_fault_gfp_mask(vma),
-        */
     };
 
     pgd = pgd_offset(mm, address);
 
-    printk("%s: 1\n", __func__);
     vmf.pmd = pmd_alloc(mm, pgd, address);
     if (!vmf.pmd)
         return VM_FAULT_OOM;
-    printk("%s: 2\n", __func__);
-
     return handle_pte_fault(&vmf);
 }
 

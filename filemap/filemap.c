@@ -293,7 +293,7 @@ const struct vm_operations_struct generic_file_vm_ops = {
     */
 };
 
-int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
+int generic_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
     struct address_space *mapping = file->f_mapping;
 

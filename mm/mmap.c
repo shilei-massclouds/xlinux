@@ -375,7 +375,6 @@ mmap_region(struct file *file, unsigned long addr,
     vma->vm_pgoff = pgoff;
 
     if (file) {
-    } else if (vm_flags & VM_SHARED) {
         if (vm_flags & VM_SHARED)
             panic("VM_SHARED!");
 
@@ -391,6 +390,8 @@ mmap_region(struct file *file, unsigned long addr,
 
         addr = vma->vm_start;
         vm_flags = vma->vm_flags;
+    } else if (vm_flags & VM_SHARED) {
+        panic("vm shared!");
     } else {
         panic("bad arg!");
     }

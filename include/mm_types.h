@@ -75,6 +75,7 @@ struct mm_struct {
 
 struct vm_fault {
     struct vm_area_struct *vma; /* Target VMA */
+    unsigned int flags;         /* FAULT_FLAG_xxx flags */
     pgoff_t pgoff;              /* Logical page offset based on vma */
     unsigned long address;      /* Faulting virtual address */
     pmd_t *pmd; /* Pointer to pmd entry matching the 'address' */
