@@ -283,12 +283,17 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 
     panic("%s: !", __func__);
 }
-EXPORT_SYMBOL(filemap_fault);
+
+void filemap_map_pages(struct vm_fault *vmf,
+                       pgoff_t start_pgoff, pgoff_t end_pgoff)
+{
+    panic("%s: !", __func__);
+}
 
 const struct vm_operations_struct generic_file_vm_ops = {
     .fault          = filemap_fault,
-    /*
     .map_pages      = filemap_map_pages,
+    /*
     .page_mkwrite   = filemap_page_mkwrite,
     */
 };

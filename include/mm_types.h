@@ -85,6 +85,8 @@ struct vm_fault {
 
 struct vm_operations_struct {
     vm_fault_t (*fault)(struct vm_fault *vmf);
+    void (*map_pages)(struct vm_fault *vmf,
+                      pgoff_t start_pgoff, pgoff_t end_pgoff);
 };
 
 struct vm_area_struct {
