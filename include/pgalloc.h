@@ -7,9 +7,9 @@
 #ifndef _ASM_RISCV_PGALLOC_H
 #define _ASM_RISCV_PGALLOC_H
 
-#include <mm.h>
 #include <string.h>
 #include <pgtable.h>
+#include <mm_types.h>
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {

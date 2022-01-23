@@ -70,6 +70,11 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
     return 0;
 }
 
+static vm_fault_t do_fault(struct vm_fault *vmf)
+{
+    panic("%s: !", __func__);
+}
+
 static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 {
     if (unlikely(pmd_none(*vmf->pmd))) {
@@ -85,11 +90,10 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
     }
 
     if (!vmf->pte) {
-        if (vma_is_anonymous(vmf->vma)) {
+        if (vma_is_anonymous(vmf->vma))
             return do_anonymous_page(vmf);
-        } else {
-            panic("not anonymous!");
-        }
+        else
+            return do_fault(vmf);
     }
 
     panic("%s: !", __func__);

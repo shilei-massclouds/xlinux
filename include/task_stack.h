@@ -4,7 +4,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <sched.h>
 static inline void *task_stack_page(const struct task_struct *task)
 {
     return task->stack;

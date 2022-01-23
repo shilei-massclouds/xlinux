@@ -9,7 +9,6 @@
 #include <ptrace.h>
 #include <pgtable.h>
 #include <memblock.h>
-#include <mm_types.h>
 #include <resource.h>
 #include <page-flags.h>
 
@@ -106,14 +105,6 @@
      FAULT_FLAG_INTERRUPTIBLE)
 
 extern struct mm_struct init_mm;
-
-struct vm_fault {
-    struct vm_area_struct *vma; /* Target VMA */
-    unsigned long address;      /* Faulting virtual address */
-    pmd_t *pmd; /* Pointer to pmd entry matching the 'address' */
-    pte_t *pte; /* Pointer to pte entry matching the 'address'.
-                   NULL if the page table hasn't been allocated. */
-};
 
 struct alloc_context {
     struct zonelist *zonelist;
@@ -238,67 +229,17 @@ static inline struct page *virt_to_head_page(const void *x)
     return compound_head(page);
 }
 
-static inline void
-vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
-{
-    static const struct vm_operations_struct dummy_vm_ops = {};
-
-    memset(vma, 0, sizeof(*vma));
-    vma->vm_mm = mm;
-    vma->vm_ops = &dummy_vm_ops;
-    //INIT_LIST_HEAD(&vma->anon_vma_chain);
-}
-
-static inline void vma_set_anonymous(struct vm_area_struct *vma)
-{
-    vma->vm_ops = NULL;
-}
-
 int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma);
-
-static inline bool vma_is_anonymous(struct vm_area_struct *vma)
-{
-    return !vma->vm_ops;
-}
 
 void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
                      struct vm_area_struct *prev);
 
 extern unsigned long stack_guard_gap;
 
-static inline unsigned long vm_start_gap(struct vm_area_struct *vma)
-{
-    unsigned long vm_start = vma->vm_start;
-
-    if (vma->vm_flags & VM_GROWSDOWN) {
-        vm_start -= stack_guard_gap;
-        if (vm_start > vma->vm_start)
-            vm_start = 0;
-    }
-    return vm_start;
-}
-
-static inline unsigned long vm_end_gap(struct vm_area_struct *vma)
-{
-    unsigned long vm_end = vma->vm_end;
-
-    if (vma->vm_flags & VM_GROWSUP) {
-        vm_end += stack_guard_gap;
-        if (vm_end < vma->vm_end)
-            vm_end = -PAGE_SIZE;
-    }
-    return vm_end;
-}
-
 long get_user_pages_remote(struct mm_struct *mm,
                            unsigned long start, unsigned long nr_pages,
                            unsigned int gup_flags, struct page **pages,
                            struct vm_area_struct **vmas, int *locked);
-
-static inline unsigned long vma_pages(struct vm_area_struct *vma)
-{
-    return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-}
 
 struct vm_area_struct *
 find_extend_vma(struct mm_struct *mm, unsigned long addr);
@@ -333,17 +274,6 @@ int set_page_dirty(struct page *page);
 
 int expand_stack(struct vm_area_struct *vma, unsigned long address);
 
-unsigned long
-vm_mmap(struct file *file, unsigned long addr,
-        unsigned long len, unsigned long prot,
-        unsigned long flag, unsigned long offset);
-
-unsigned long
-do_mmap(struct file *file, unsigned long addr,
-        unsigned long len, unsigned long prot,
-        unsigned long flags, unsigned long pgoff,
-        unsigned long *populate, struct list_head *uf);
-
 extern int
 __mm_populate(unsigned long addr, unsigned long len, int ignore_errors);
 
@@ -353,27 +283,13 @@ static inline void mm_populate(unsigned long addr, unsigned long len)
     (void) __mm_populate(addr, len, 1);
 }
 
-unsigned long
-vm_mmap_pgoff(struct file *file, unsigned long addr,
-              unsigned long len, unsigned long prot,
-              unsigned long flag, unsigned long pgoff);
-
 void
 arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack);
-
-unsigned long
-get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
-                  unsigned long pgoff, unsigned long flags);
 
 int vm_brk_flags(unsigned long addr, unsigned long request,
                  unsigned long flags);
 
 struct vm_area_struct *
 find_vma(struct mm_struct *mm, unsigned long addr);
-
-typedef vm_fault_t
-(*handle_mm_fault_t)(struct vm_area_struct *vma, unsigned long address,
-                     unsigned int flags, struct pt_regs *regs);
-extern handle_mm_fault_t handle_mm_fault;
 
 #endif /* _RISCV_MM_H_ */

@@ -2,8 +2,6 @@
 #ifndef _ASM_RISCV_PTRACE_H
 #define _ASM_RISCV_PTRACE_H
 
-#include <processor.h>
-
 /* ALIGN(sizeof(struct pt_regs), STACK_ALIGN) */
 #define PT_SIZE_ON_STACK 288
 #define PT_SIZE 288 /* sizeof(struct pt_regs) */

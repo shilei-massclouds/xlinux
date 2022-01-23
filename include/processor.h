@@ -6,13 +6,13 @@
 #ifndef _ASM_RISCV_PROCESSOR_H
 #define _ASM_RISCV_PROCESSOR_H
 
-#include <task_stack.h>
-
 #define STACK_TOP       TASK_SIZE
 #define STACK_TOP_MAX   STACK_TOP
 #define STACK_ALIGN     16
 
 #ifndef __ASSEMBLY__
+
+#include <task_stack.h>
 
 #define task_pt_regs(tsk) \
     ((struct pt_regs *)(task_stack_page(tsk) + THREAD_SIZE \

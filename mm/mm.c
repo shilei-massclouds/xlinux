@@ -8,6 +8,7 @@
 #include <kernel.h>
 #include <signal.h>
 #include <string.h>
+#include <current.h>
 #include <pgtable.h>
 #include <mm_types.h>
 

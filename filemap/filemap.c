@@ -6,6 +6,7 @@
 #include <printk.h>
 #include <xarray.h>
 #include <pagemap.h>
+#include <mm_types.h>
 
 static int
 __add_to_page_cache_locked(struct page *page,
@@ -271,9 +272,22 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 }
 EXPORT_SYMBOL(generic_file_read_iter);
 
+vm_fault_t filemap_fault(struct vm_fault *vmf)
+{
+    struct page *page;
+    pgoff_t offset = vmf->pgoff;
+    struct file *file = vmf->vma->vm_file;
+    struct address_space *mapping = file->f_mapping;
+
+    page = find_get_page(mapping, offset);
+
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(filemap_fault);
+
 const struct vm_operations_struct generic_file_vm_ops = {
-    /*
     .fault          = filemap_fault,
+    /*
     .map_pages      = filemap_map_pages,
     .page_mkwrite   = filemap_page_mkwrite,
     */

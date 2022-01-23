@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <mm.h>
 #include <bug.h>
 #include <errno.h>
 #include <types.h>
 #include <export.h>
 #include <pgtable.h>
+#include <mm_types.h>
 
 static struct page *
 no_page_table(struct vm_area_struct *vma, unsigned int flags)
