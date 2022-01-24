@@ -86,4 +86,6 @@ struct page *
 vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
                pte_t pte);
 
+vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct page *page);
+
 #endif /* _ASM_RISCV_PGALLOC_H */

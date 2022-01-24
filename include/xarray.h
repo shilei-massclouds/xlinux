@@ -222,4 +222,10 @@ xas_next_entry(struct xa_state *xas, unsigned long max)
     for (entry = xas_find(xas, max); entry; \
          entry = xas_next_entry(xas, max))
 
+static inline struct xa_node *
+xa_parent(const struct xarray *xa, const struct xa_node *node)
+{
+    return node->parent;
+}
+
 #endif /* _LINUX_XARRAY_H */

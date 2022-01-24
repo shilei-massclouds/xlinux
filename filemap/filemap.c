@@ -6,6 +6,7 @@
 #include <printk.h>
 #include <xarray.h>
 #include <pagemap.h>
+#include <pgalloc.h>
 #include <mm_types.h>
 
 static int
@@ -288,11 +289,30 @@ void filemap_map_pages(struct vm_fault *vmf,
                        pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
     struct page *page;
+    unsigned long max_idx;
+    pgoff_t last_pgoff = start_pgoff;
     struct file *file = vmf->vma->vm_file;
     struct address_space *mapping = file->f_mapping;
     XA_STATE(xas, &mapping->i_pages, start_pgoff);
 
     xas_for_each(&xas, page, end_pgoff) {
+        if (!PageUptodate(page) || PageReadahead(page))
+            continue;
+
+        if (page->mapping != mapping || !PageUptodate(page))
+            continue;
+
+        max_idx = DIV_ROUND_UP(i_size_read(mapping->host), PAGE_SIZE);
+        if (page->index >= max_idx)
+            continue;
+
+        vmf->address += (xas.xa_index - last_pgoff) << PAGE_SHIFT;
+        if (vmf->pte)
+            vmf->pte += xas.xa_index - last_pgoff;
+        last_pgoff = xas.xa_index;
+        if (alloc_set_pte(vmf, page))
+            continue;
+
         panic("%s: 1", __func__);
     }
     panic("%s: !", __func__);

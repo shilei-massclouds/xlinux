@@ -204,6 +204,12 @@ vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 }
 EXPORT_SYMBOL(vm_normal_page);
 
+vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct page *page)
+{
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(alloc_set_pte);
+
 static int
 init_module(void)
 {
