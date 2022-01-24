@@ -112,6 +112,7 @@ _save_context:
     /* Handle syscalls */
     li t0, EXC_SYSCALL
     beq s4, t0, handle_syscall
+    csrw 0x0, s4
 
     /* Handle other exceptions */
     slli t0, s4, RISCV_LGPTR
@@ -281,5 +282,5 @@ excp_vect_table:
     RISCV_PTR do_page_fault     /* instruction page fault */
     RISCV_PTR do_page_fault     /* load page fault */
     RISCV_PTR do_trap_unknown
-    RISCV_PTR do_trap_unknown   /* store page fault */
+    RISCV_PTR do_page_fault     /* store page fault */
 excp_vect_table_end:

@@ -249,8 +249,8 @@ void _do_page_fault(struct pt_regs *regs)
      * the fault.
      */
     fault = handle_mm_fault(vma, addr, flags, regs);
-
-    panic("%s: !", __func__);
+    //panic("%s: !", __func__);
+    return;
 }
 
 static int

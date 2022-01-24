@@ -102,7 +102,18 @@ static vm_fault_t do_fault_around(struct vm_fault *vmf)
 
     vmf->vma->vm_ops->map_pages(vmf, start_pgoff, end_pgoff);
 
-    panic("%s: !", __func__);
+    /* ->map_pages() haven't done anything useful. Cold page cache? */
+    if (!vmf->pte)
+        panic("no pte!");
+
+    /* check if the page fault is solved */
+    vmf->pte -= (vmf->address >> PAGE_SHIFT) - (address >> PAGE_SHIFT);
+    if (!pte_none(*vmf->pte))
+        ret = VM_FAULT_NOPAGE;
+
+    vmf->address = address;
+    vmf->pte = NULL;
+    return ret;
 }
 
 static vm_fault_t do_read_fault(struct vm_fault *vmf)
@@ -139,7 +150,11 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
         panic("shared fault!");
     }
 
-    panic("%s: !", __func__);
+    /* preallocated pagetable is unused: free it */
+    if (vmf->prealloc_pte) {
+        vmf->prealloc_pte = NULL;
+    }
+    return ret;
 }
 
 static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
