@@ -204,9 +204,61 @@ vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 }
 EXPORT_SYMBOL(vm_normal_page);
 
+static vm_fault_t pte_alloc_one_map(struct vm_fault *vmf)
+{
+    struct vm_area_struct *vma = vmf->vma;
+
+    if (!pmd_none(*vmf->pmd))
+        goto map_pte;
+    if (vmf->prealloc_pte) {
+        if (unlikely(!pmd_none(*vmf->pmd)))
+            goto map_pte;
+
+        pmd_populate(vma->vm_mm, vmf->pmd, vmf->prealloc_pte);
+        vmf->prealloc_pte = NULL;
+    } else if (unlikely(pte_alloc(vma->vm_mm, vmf->pmd))) {
+        return VM_FAULT_OOM;
+    }
+
+ map_pte:
+
+    vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address);
+    return 0;
+}
+
+void page_add_file_rmap(struct page *page, bool compound)
+{
+    /* Todo: */
+}
+
 vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct page *page)
 {
-    panic("%s: !", __func__);
+    pte_t entry;
+    vm_fault_t ret;
+    struct vm_area_struct *vma = vmf->vma;
+    bool write = vmf->flags & FAULT_FLAG_WRITE;
+
+    if (!vmf->pte) {
+        ret = pte_alloc_one_map(vmf);
+        if (ret)
+            return ret;
+    }
+
+    if (unlikely(!pte_none(*vmf->pte)))
+        return VM_FAULT_NOPAGE;
+
+    entry = mk_pte(page, vma->vm_page_prot);
+    entry = pte_sw_mkyoung(entry);
+    if (write)
+        panic("fault write!");
+    /* copy-on-write page */
+    if (write && !(vma->vm_flags & VM_SHARED)) {
+        panic("fault write!");
+    } else {
+        page_add_file_rmap(page, false);
+    }
+    set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
+    return 0;
 }
 EXPORT_SYMBOL(alloc_set_pte);
 

@@ -312,10 +312,7 @@ void filemap_map_pages(struct vm_fault *vmf,
         last_pgoff = xas.xa_index;
         if (alloc_set_pte(vmf, page))
             continue;
-
-        panic("%s: 1", __func__);
     }
-    panic("%s: !", __func__);
 }
 
 const struct vm_operations_struct generic_file_vm_ops = {
