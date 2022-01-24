@@ -7,6 +7,7 @@
 #include <printk.h>
 #include <string.h>
 #include <export.h>
+#include <mempool.h>
 
 /*
  * Test patch to inline a certain number of bi_io_vec's inside the bio
@@ -41,6 +42,40 @@ void bio_init(struct bio *bio, struct bio_vec *table,
 }
 EXPORT_SYMBOL(bio_init);
 
+struct bio_vec *
+bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx, mempool_t *pool)
+{
+    struct bio_vec *bvl;
+
+    /*
+     * see comment near bvec_array define!
+     */
+    switch (nr) {
+    case 1:
+        *idx = 0;
+        break;
+    case 2 ... 4:
+        *idx = 1;
+        break;
+    case 5 ... 16:
+        *idx = 2;
+        break;
+    case 17 ... 64:
+        *idx = 3;
+        break;
+    case 65 ... 128:
+        *idx = 4;
+        break;
+    case 129 ... BIO_MAX_PAGES:
+        *idx = 5;
+        break;
+    default:
+        return NULL;
+    }
+
+    panic("%s: !", __func__);
+}
+
 struct bio *
 bio_alloc_bioset(gfp_t gfp_mask,
                  unsigned int nr_iovecs,
@@ -69,6 +104,22 @@ bio_alloc_bioset(gfp_t gfp_mask,
     bio_init(bio, NULL, 0);
 
     if (nr_iovecs > inline_vecs) {
+        /*
+        unsigned long idx = 0;
+
+        bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx, &bs->bvec_pool);
+        if (!bvl && gfp_mask != saved_gfp) {
+            punt_bios_to_rescuer(bs);
+            gfp_mask = saved_gfp;
+            bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx, &bs->bvec_pool);
+        }
+
+        if (unlikely(!bvl))
+            goto err_free;
+
+        bio->bi_flags |= idx << BVEC_POOL_OFFSET;
+        */
+
         panic("nr_iovecs > incline_vecs");
     } else if (nr_iovecs) {
         bvl = bio->bi_inline_vecs;

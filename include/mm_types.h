@@ -81,6 +81,8 @@ struct vm_fault {
     pmd_t *pmd; /* Pointer to pmd entry matching the 'address' */
     pte_t *pte; /* Pointer to pte entry matching the 'address'.
                    NULL if the page table hasn't been allocated. */
+    pte_t orig_pte;         /* Value of PTE at the time of fault */
+    struct page *cow_page;  /* Page handler may use for COW fault */
     pgtable_t prealloc_pte; /* Pre-allocated pte page table.
                              * vm_ops->map_pages() calls
                              * alloc_set_pte() from atomic context.

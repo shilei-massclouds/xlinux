@@ -135,6 +135,43 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
     panic("%s: !", __func__);
 }
 
+static vm_fault_t __do_fault(struct vm_fault *vmf)
+{
+    vm_fault_t ret;
+    struct vm_area_struct *vma = vmf->vma;
+
+    if (pmd_none(*vmf->pmd) && !vmf->prealloc_pte) {
+        vmf->prealloc_pte = pte_alloc_one(vmf->vma->vm_mm);
+        if (!vmf->prealloc_pte)
+            return VM_FAULT_OOM;
+    }
+
+    ret = vma->vm_ops->fault(vmf);
+    if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY |
+                        VM_FAULT_DONE_COW)))
+        return ret;
+
+    panic("%s: !", __func__);
+}
+
+static vm_fault_t do_cow_fault(struct vm_fault *vmf)
+{
+    vm_fault_t ret;
+    struct vm_area_struct *vma = vmf->vma;
+
+    vmf->cow_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vmf->address);
+    if (!vmf->cow_page)
+        return VM_FAULT_OOM;
+
+    ret = __do_fault(vmf);
+    if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+        panic("bad fault!");
+    if (ret & VM_FAULT_DONE_COW)
+        return ret;
+
+    panic("%s: !", __func__);
+}
+
 static vm_fault_t do_fault(struct vm_fault *vmf)
 {
     vm_fault_t ret;
@@ -145,7 +182,7 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
     } else if (!(vmf->flags & FAULT_FLAG_WRITE)) {
         ret = do_read_fault(vmf);
     } else if (!(vma->vm_flags & VM_SHARED)) {
-        panic("cow fault!");
+        ret = do_cow_fault(vmf);
     } else {
         panic("shared fault!");
     }
@@ -168,7 +205,25 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
          */
         vmf->pte = NULL;
     } else {
-        panic("pmd valid!");
+        /*
+         * A regular pmd is established and it can't morph into a huge
+         * pmd from under us anymore at this point because we hold the
+         * mmap_lock read mode and khugepaged takes it in write mode.
+         * So now it's safe to run pte_offset_map().
+         */
+        vmf->pte = pte_offset_map(vmf->pmd, vmf->address);
+        vmf->orig_pte = *vmf->pte;
+
+        /*
+         * some architectures can have larger ptes than wordsize,
+         * e.g.ppc44x-defconfig has CONFIG_PTE_64BIT=y and
+         * CONFIG_32BIT=y, so READ_ONCE cannot guarantee atomic
+         * accesses.  The code below just needs a consistent view
+         * for the ifs and we later double check anyway with the
+         * ptl lock held. So here a barrier will do.
+         */
+        if (pte_none(vmf->orig_pte))
+            vmf->pte = NULL;
     }
 
     if (!vmf->pte) {

@@ -50,13 +50,31 @@ ext2_block_to_path(struct inode *inode,
     int n = 0;
     int final = 0;
     int ptrs = EXT2_ADDR_PER_BLOCK(inode->i_sb);
+    int ptrs_bits = EXT2_ADDR_PER_BLOCK_BITS(inode->i_sb);
     const long direct_blocks = EXT2_NDIR_BLOCKS;
+    const long indirect_blocks = ptrs;
+    const long double_blocks = (1 << (ptrs_bits * 2));
 
     if (i_block < 0) {
         panic("i_block < 0");
     } else if (i_block < direct_blocks) {
         offsets[n++] = i_block;
         final = direct_blocks;
+    } else if ( (i_block -= direct_blocks) < indirect_blocks) {
+        offsets[n++] = EXT2_IND_BLOCK;
+        offsets[n++] = i_block;
+        final = ptrs;
+    } else if ((i_block -= indirect_blocks) < double_blocks) {
+        offsets[n++] = EXT2_DIND_BLOCK;
+        offsets[n++] = i_block >> ptrs_bits;
+        offsets[n++] = i_block & (ptrs - 1);
+        final = ptrs;
+    } else if (((i_block -= double_blocks) >> (ptrs_bits * 2)) < ptrs) {
+        offsets[n++] = EXT2_TIND_BLOCK;
+        offsets[n++] = i_block >> (ptrs_bits * 2);
+        offsets[n++] = (i_block >> ptrs_bits) & (ptrs - 1);
+        offsets[n++] = i_block & (ptrs - 1);
+        final = ptrs;
     } else {
         panic("i_block(%lu) is too big", i_block);
     }

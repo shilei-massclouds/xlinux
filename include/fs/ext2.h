@@ -34,6 +34,8 @@
 #define EXT2_DIR_REC_LEN(name_len) \
     (((name_len) + 8 + EXT2_DIR_ROUND) & ~EXT2_DIR_ROUND)
 
+#define EXT2_ADDR_PER_BLOCK_BITS(s) (EXT2_SB(s)->s_addr_per_block_bits)
+
 /*
  * The new version of the directory entry.  Since EXT2 structures are
  * stored in intel byte order, and the name_len field could never be
@@ -141,6 +143,7 @@ struct ext2_sb_info {
     int s_desc_per_block_bits;
     int s_inode_size;
     struct buffer_head ** s_group_desc;
+    int s_addr_per_block_bits;
 };
 
 /*

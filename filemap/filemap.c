@@ -8,6 +8,7 @@
 #include <pagemap.h>
 #include <pgalloc.h>
 #include <mm_types.h>
+#include <readahead.h>
 
 static int
 __add_to_page_cache_locked(struct page *page,
@@ -273,14 +274,76 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 }
 EXPORT_SYMBOL(generic_file_read_iter);
 
+static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
+                            struct file *fpin)
+{
+    int flags = vmf->flags;
+
+    if (fpin)
+        return fpin;
+
+    /*
+     * FAULT_FLAG_RETRY_NOWAIT means we don't want to wait on page locks or
+     * anything, so we only pin the file and drop the mmap_lock if only
+     * FAULT_FLAG_ALLOW_RETRY is set, while this is the first attempt.
+     */
+    return vmf->vma->vm_file;
+}
+
+static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
+{
+    struct file *fpin = NULL;
+    pgoff_t offset = vmf->pgoff;
+    struct file *file = vmf->vma->vm_file;
+    struct file_ra_state *ra = &file->f_ra;
+    struct address_space *mapping = file->f_mapping;
+
+    /* If we don't want any read-ahead, don't bother */
+    if (vmf->vma->vm_flags & VM_RAND_READ)
+        return fpin;
+    if (!ra->ra_pages)
+        return fpin;
+
+    if (vmf->vma->vm_flags & VM_SEQ_READ)
+        panic("VM_SEQ_READ");
+
+    /*
+     * mmap read-around
+     */
+    fpin = maybe_unlock_mmap_for_io(vmf, fpin);
+    ra->start = max_t(long, 0, offset - ra->ra_pages / 2);
+    ra->size = ra->ra_pages;
+    ra->async_size = ra->ra_pages / 4;
+    ra_submit(ra, mapping, file);
+    return fpin;
+}
+
 vm_fault_t filemap_fault(struct vm_fault *vmf)
 {
     struct page *page;
+    vm_fault_t ret = 0;
+    struct file *fpin = NULL;
     pgoff_t offset = vmf->pgoff;
     struct file *file = vmf->vma->vm_file;
     struct address_space *mapping = file->f_mapping;
 
     page = find_get_page(mapping, offset);
+    if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
+        panic("page!");
+    } else if (!page) {
+        ret = VM_FAULT_MAJOR;
+        fpin = do_sync_mmap_readahead(vmf);
+        panic("%s: 1", __func__);
+        /*
+        page = pagecache_get_page(mapping, offset,
+                                  FGP_CREAT|FGP_FOR_MMAP, vmf->gfp_mask);
+        if (!page) {
+            if (fpin)
+                goto out_retry;
+            return VM_FAULT_OOM;
+        }
+        */
+    }
 
     panic("%s: !", __func__);
 }

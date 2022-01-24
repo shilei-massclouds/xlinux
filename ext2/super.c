@@ -118,6 +118,7 @@ ext2_fill_super(struct super_block *sb, void *data, int silent)
     sbi->s_desc_per_block = sb->s_blocksize
         / sizeof (struct ext2_group_desc);
     sbi->s_desc_per_block_bits = ilog2(EXT2_DESC_PER_BLOCK(sb));
+    sbi->s_addr_per_block_bits = ilog2(EXT2_ADDR_PER_BLOCK(sb));
 
     if (EXT2_BLOCKS_PER_GROUP(sb) == 0)
         panic("can not find blocks per group!");

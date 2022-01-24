@@ -176,6 +176,7 @@ void __do_page_cache_readahead(struct address_space *mapping,
     page_cache_readahead_unbounded(mapping, file,
                                    index, nr_to_read, lookahead_size);
 }
+EXPORT_SYMBOL(__do_page_cache_readahead);
 
 static int
 init_module(void)
