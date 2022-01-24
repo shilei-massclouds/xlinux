@@ -172,4 +172,54 @@ static inline void xas_set_err(struct xa_state *xas, long err)
 
 void *xa_load(struct xarray *xa, unsigned long index);
 
+void *xas_find(struct xa_state *, unsigned long max);
+
+/* True if the pointer is something other than a node */
+static inline bool xas_not_node(struct xa_node *node)
+{
+    return ((unsigned long)node & 3) || !node;
+}
+
+static inline void *
+xas_next_entry(struct xa_state *xas, unsigned long max)
+{
+    struct xa_node *node = xas->xa_node;
+    void *entry;
+
+    if (unlikely(xas_not_node(node) || node->shift ||
+            xas->xa_offset != (xas->xa_index & XA_CHUNK_MASK)))
+        return xas_find(xas, max);
+
+    do {
+        if (unlikely(xas->xa_index >= max))
+            return xas_find(xas, max);
+        if (unlikely(xas->xa_offset == XA_CHUNK_MASK))
+            return xas_find(xas, max);
+        entry = xa_entry(xas->xa, node, xas->xa_offset + 1);
+        if (unlikely(xa_is_internal(entry)))
+            return xas_find(xas, max);
+        xas->xa_offset++;
+        xas->xa_index++;
+    } while (!entry);
+
+    return entry;
+}
+
+/**
+ * xas_for_each() - Iterate over a range of an XArray.
+ * @xas: XArray operation state.
+ * @entry: Entry retrieved from the array.
+ * @max: Maximum index to retrieve from array.
+ *
+ * The loop body will be executed for each entry present in the xarray
+ * between the current xas position and @max.  @entry will be set to
+ * the entry retrieved from the xarray.  It is safe to delete entries
+ * from the array in the loop body.  You should hold either the RCU lock
+ * or the xa_lock while iterating.  If you need to drop the lock, call
+ * xas_pause() first.
+ */
+#define xas_for_each(xas, entry, max)       \
+    for (entry = xas_find(xas, max); entry; \
+         entry = xas_next_entry(xas, max))
+
 #endif /* _LINUX_XARRAY_H */

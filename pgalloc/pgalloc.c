@@ -9,6 +9,8 @@
 #include <pgalloc.h>
 #include <pgtable.h>
 
+static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
+
 /*
  * Allocate page middle directory.
  * We've already handled the fast-path in-line.
@@ -66,8 +68,59 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
     return 0;
 }
 
+static vm_fault_t do_fault_around(struct vm_fault *vmf)
+{
+    int off;
+    pgoff_t end_pgoff;
+    vm_fault_t ret = 0;
+    pgoff_t start_pgoff = vmf->pgoff;
+    unsigned long address = vmf->address, nr_pages, mask;
+
+    nr_pages = READ_ONCE(fault_around_bytes) >> PAGE_SHIFT;
+    mask = ~(nr_pages * PAGE_SIZE - 1) & PAGE_MASK;
+
+    vmf->address = max(address & mask, vmf->vma->vm_start);
+    off = ((address - vmf->address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
+    start_pgoff -= off;
+
+    /*
+     *  end_pgoff is either the end of the page table, the end of
+     *  the vma or nr_pages from start_pgoff, depending what is nearest.
+     */
+    end_pgoff = start_pgoff -
+        ((vmf->address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+        PTRS_PER_PTE - 1;
+    end_pgoff = min3(end_pgoff,
+                     vma_pages(vmf->vma) + vmf->vma->vm_pgoff - 1,
+                     start_pgoff + nr_pages - 1);
+
+    if (pmd_none(*vmf->pmd)) {
+        vmf->prealloc_pte = pte_alloc_one(vmf->vma->vm_mm);
+        if (!vmf->prealloc_pte)
+            panic("bad memory!");
+    }
+
+    vmf->vma->vm_ops->map_pages(vmf, start_pgoff, end_pgoff);
+
+    panic("%s: !", __func__);
+}
+
 static vm_fault_t do_read_fault(struct vm_fault *vmf)
 {
+    vm_fault_t ret = 0;
+    struct vm_area_struct *vma = vmf->vma;
+
+    /*
+     * Let's call ->map_pages() first and use ->fault() as fallback
+     * if page by the offset is not ready to be mapped (cold cache or
+     * something).
+     */
+    if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT > 1) {
+        ret = do_fault_around(vmf);
+        if (ret)
+            return ret;
+    }
+
     panic("%s: !", __func__);
 }
 

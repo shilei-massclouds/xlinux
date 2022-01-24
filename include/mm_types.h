@@ -81,6 +81,13 @@ struct vm_fault {
     pmd_t *pmd; /* Pointer to pmd entry matching the 'address' */
     pte_t *pte; /* Pointer to pte entry matching the 'address'.
                    NULL if the page table hasn't been allocated. */
+    pgtable_t prealloc_pte; /* Pre-allocated pte page table.
+                             * vm_ops->map_pages() calls
+                             * alloc_set_pte() from atomic context.
+                             * do_fault_around() pre-allocates
+                             * page table to avoid allocation from
+                             * atomic context.
+                             */
 };
 
 struct vm_operations_struct {

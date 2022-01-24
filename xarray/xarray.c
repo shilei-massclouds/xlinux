@@ -258,6 +258,12 @@ xa_node_ctor(void *arg)
     memset(node, 0, sizeof(*node));
 }
 
+void *xas_find(struct xa_state *xas, unsigned long max)
+{
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(xas_find);
+
 void xarray_init(void)
 {
     BUG_ON(XA_CHUNK_SIZE > 255);

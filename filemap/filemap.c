@@ -287,6 +287,14 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 void filemap_map_pages(struct vm_fault *vmf,
                        pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
+    struct page *page;
+    struct file *file = vmf->vma->vm_file;
+    struct address_space *mapping = file->f_mapping;
+    XA_STATE(xas, &mapping->i_pages, start_pgoff);
+
+    xas_for_each(&xas, page, end_pgoff) {
+        panic("%s: 1", __func__);
+    }
     panic("%s: !", __func__);
 }
 
