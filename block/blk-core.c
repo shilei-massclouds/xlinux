@@ -112,14 +112,9 @@ bool blk_update_request(struct request *req, blk_status_t error,
     if (!req->bio)
         return false;
 
-    printk("%s: 0\n", __func__);
-
     while (req->bio) {
         struct bio *bio = req->bio;
         unsigned bio_bytes = min(bio->bi_iter.bi_size, nr_bytes);
-
-        printk("%s: 1 bio(%lx) (%u, %u)\n",
-               __func__, req->bio, bio_bytes, bio->bi_iter.bi_size);
 
         if (bio_bytes == bio->bi_iter.bi_size)
             req->bio = bio->bi_next;
@@ -130,9 +125,6 @@ bool blk_update_request(struct request *req, blk_status_t error,
 
         total_bytes += bio_bytes;
         nr_bytes -= bio_bytes;
-
-        printk("%s: 1 bio(%lx) (%u)\n",
-               __func__, req->bio, nr_bytes);
 
         if (!nr_bytes)
             break;

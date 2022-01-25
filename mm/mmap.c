@@ -487,8 +487,8 @@ do_mmap(struct file *file, unsigned long addr,
 }
 EXPORT_SYMBOL(do_mmap);
 
-static int do_brk_flags(unsigned long addr, unsigned long len,
-                        unsigned long flags, struct list_head *uf)
+int do_brk_flags(unsigned long addr, unsigned long len,
+                 unsigned long flags, struct list_head *uf)
 {
     int error;
     unsigned long mapped_addr;
@@ -497,6 +497,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
     pgoff_t pgoff = addr >> PAGE_SHIFT;
     struct mm_struct *mm = current->mm;
 
+    printk("### %s: 1 (%lx, %lx)\n", __func__, addr, len);
     /* Until we need other flags, refuse anything except VM_EXEC. */
     if ((flags & (~VM_EXEC)) != 0)
         return -EINVAL;
@@ -531,6 +532,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
     mm->data_vm += len >> PAGE_SHIFT;
     return 0;
 }
+EXPORT_SYMBOL(do_brk_flags);
 
 int vm_brk_flags(unsigned long addr, unsigned long request,
                  unsigned long flags)

@@ -128,7 +128,6 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 {
     struct blk_mq_hw_ctx *hctx;
 
-    printk("%s: 1!\n", __func__);
     hctx = container_of(work, struct blk_mq_hw_ctx, run_work.work);
 
     /*
@@ -138,7 +137,6 @@ static void blk_mq_run_work_fn(struct work_struct *work)
         return;
 
     __blk_mq_run_hw_queue(hctx);
-    printk("%s: 2!\n", __func__);
 }
 
 static struct blk_mq_hw_ctx *
@@ -340,8 +338,6 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 
     if (need_run)
         __blk_mq_delay_run_hw_queue(hctx, async, 0);
-
-    printk("%s: need_run(%d)!\n", __func__, need_run);
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
@@ -395,8 +391,6 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 
     /* Insert the request at the IO scheduler queue */
     blk_mq_sched_insert_request(rq, false, true, true);
-
-    printk("%s: !\n", __func__);
     return 0;
 }
 EXPORT_SYMBOL(blk_mq_submit_bio);
@@ -448,9 +442,7 @@ bool blk_mq_complete_request_remote(struct request *rq)
     if (rq->q->nr_hw_queues > 1)
         return false;
 
-    printk("%s: 1\n", __func__);
     blk_mq_trigger_softirq(rq);
-    printk("%s: 2\n", __func__);
     return true;
 }
 EXPORT_SYMBOL(blk_mq_complete_request_remote);

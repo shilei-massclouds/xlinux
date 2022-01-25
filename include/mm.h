@@ -3,6 +3,7 @@
 #define _RISCV_MM_H_
 
 #include <page.h>
+#include <errno.h>
 #include <atomic.h>
 #include <string.h>
 #include <mmzone.h>
@@ -291,5 +292,21 @@ int vm_brk_flags(unsigned long addr, unsigned long request,
 
 struct vm_area_struct *
 find_vma(struct mm_struct *mm, unsigned long addr);
+
+static inline int
+check_data_rlimit(unsigned long rlim,
+                  unsigned long new, unsigned long start,
+                  unsigned long end_data, unsigned long start_data)
+{
+    if (rlim < RLIM_INFINITY) {
+        if (((new - start) + (end_data - start_data)) > rlim)
+            return -ENOSPC;
+    }
+
+    return 0;
+}
+
+int do_brk_flags(unsigned long addr, unsigned long len,
+                 unsigned long flags, struct list_head *uf);
 
 #endif /* _RISCV_MM_H_ */

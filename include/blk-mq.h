@@ -174,7 +174,6 @@ static inline void *blk_mq_rq_to_pdu(struct request *rq)
 static inline struct blk_mq_tags *
 blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
-    printk("%s: step1(%p)\n", __func__, data->hctx);
     if (data->q->elevator)
         return data->hctx->sched_tags;
 
@@ -184,7 +183,6 @@ blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 static inline struct blk_mq_ctx *
 __blk_mq_get_ctx(struct request_queue *q, unsigned int cpu)
 {
-    printk("%s: step1(%p)\n", __func__, q->queue_ctx);
     return q->queue_ctx;
 }
 
@@ -208,7 +206,6 @@ blk_mq_map_queue(struct request_queue *q,
     else if ((flags & REQ_OP_MASK) == REQ_OP_READ)
         type = HCTX_TYPE_READ;
 
-    printk("%s: step1(%d)(%p)\n", __func__, type, ctx->hctxs[type]);
     return ctx->hctxs[type];
 }
 

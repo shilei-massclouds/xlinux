@@ -391,9 +391,6 @@ virtqueue_add_split(struct virtqueue *_vq,
     unsigned int i, n, avail, descs_used, prev, err_idx;
     struct vring_virtqueue *vq = to_vvq(_vq);
 
-    printk("%s: indirect(%d) total_sg(%d) num_free(%u)\n",
-           __func__, vq->indirect, total_sg, vq->vq.num_free);
-
     BUG_ON(!virtqueue_use_indirect(_vq, total_sg));
 
     head = vq->free_head;
@@ -474,8 +471,6 @@ virtqueue_add_split(struct virtqueue *_vq,
     vq->split.vring.avail->idx = vq->split.avail_idx_shadow;
     vq->num_added++;
 
-    printk("%s: num_added(%d)\n", __func__, vq->num_added);
-
     /* This is very unlikely, but theoretically possible.  Kick
      * just in case. */
     if (unlikely(vq->num_added == (1 << 16) - 1))
@@ -551,7 +546,6 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
     if (unlikely(vq->broken))
         return IRQ_HANDLED;
 
-    printk("%s: irq(%d)\n", __func__, irq);
     if (vq->vq.callback)
         vq->vq.callback(&vq->vq);
 
@@ -603,8 +597,6 @@ virtqueue_poll_split(struct virtqueue *_vq, unsigned last_used_idx)
 {
     struct vring_virtqueue *vq = to_vvq(_vq);
 
-    printk("%s: (%x : %x)\n",
-           __func__, last_used_idx, vq->split.vring.used->idx);
     return (u16)last_used_idx != vq->split.vring.used->idx;
 }
 

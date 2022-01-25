@@ -4,6 +4,8 @@
 #include <errno.h>
 #include <export.h>
 #include <ptrace.h>
+#include <signal.h>
+#include <current.h>
 #include <highmem.h>
 #include <pagemap.h>
 #include <pgalloc.h>
@@ -374,7 +376,67 @@ EXPORT_SYMBOL(alloc_set_pte);
 
 long _do_sys_brk(unsigned long brk)
 {
-    panic("%s: !", __func__);
+    bool populate;
+    unsigned long retval;
+    unsigned long min_brk;
+    struct vm_area_struct *next;
+    unsigned long newbrk, oldbrk, origbrk;
+    struct mm_struct *mm = current->mm;
+    LIST_HEAD(uf);
+
+    origbrk = mm->brk;
+
+    min_brk = mm->end_data;
+
+    if (brk < min_brk)
+        goto out;
+
+    /*
+     * Check against rlimit here. If this check is done later after the test
+     * of oldbrk with newbrk then it can escape the test and let the data
+     * segment grow beyond its set limit the in case where the limit is
+     * not page aligned -Ram Gupta
+     */
+    if (check_data_rlimit(rlimit(RLIMIT_DATA), brk, mm->start_brk,
+                          mm->end_data, mm->start_data))
+        goto out;
+
+    newbrk = PAGE_ALIGN(brk);
+    oldbrk = PAGE_ALIGN(mm->brk);
+    if (oldbrk == newbrk) {
+        mm->brk = brk;
+        goto success;
+    }
+
+    /*
+     * Always allow shrinking brk.
+     * __do_munmap() may downgrade mmap_lock to read.
+     */
+    if (brk <= mm->brk)
+        panic("brk <= mm->brk");
+
+    /* Check against existing mmap mappings. */
+    next = find_vma(mm, oldbrk);
+    if (next && newbrk + PAGE_SIZE > vm_start_gap(next))
+        goto out;
+
+    /* Ok, looks good - let it rip. */
+    if (do_brk_flags(oldbrk, newbrk-oldbrk, 0, &uf) < 0)
+        goto out;
+    mm->brk = brk;
+
+    panic("%s: origbrk(%lx)!", __func__, origbrk);
+
+success:
+    populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
+    if (populate)
+        mm_populate(oldbrk, newbrk - oldbrk);
+    return brk;
+
+out:
+    retval = origbrk;
+    panic("%s: finish(%lx)!", __func__, origbrk);
+    return retval;
 }
 
 static int

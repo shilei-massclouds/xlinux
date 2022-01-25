@@ -80,7 +80,6 @@ virtblk_done(struct virtqueue *vq)
     int qid = vq->index;
     struct virtio_blk *vblk = vq->vdev->priv;
 
-    printk("%s: 1\n", __func__);
     do {
         virtqueue_disable_cb(vq);
         while ((vbr = virtqueue_get_buf(vblk->vqs[qid].vq, &len)) != NULL) {
@@ -89,7 +88,6 @@ virtblk_done(struct virtqueue *vq)
             if (likely(!blk_should_fake_timeout(req->q)))
                 blk_mq_complete_request(req);
         }
-        printk("%s: 2\n", __func__);
     } while(!virtqueue_enable_cb(vq));
 }
 
@@ -123,7 +121,6 @@ init_vq(struct virtio_blk *vblk)
         goto out;
     }
 
-    printk("%s: desc(0x%p)!\n", __func__, virtblk_done);
     for (i = 0; i < num_vqs; i++) {
         callbacks[i] = virtblk_done;
         snprintf(vblk->vqs[i].name, VQ_NAME_LEN, "req.%d", i);
@@ -340,14 +337,10 @@ virtblk_add_req(struct virtqueue *vq, struct virtblk_req *vbr,
     struct scatterlist hdr, status, *sgs[3];
     unsigned int num_out = 0, num_in = 0;
 
-    printk("%s: type(%u) ioprio(%u) sector(%lx)\n",
-           __func__, vbr->out_hdr.type, vbr->out_hdr.ioprio, vbr->out_hdr.sector);
     sg_init_one(&hdr, &vbr->out_hdr, sizeof(vbr->out_hdr));
     sgs[num_out++] = &hdr;
 
     if (have_data) {
-        printk("%s: page(%lx) offset(%x) length(%x)\n",
-               __func__, data_sg->page_link, data_sg->offset, data_sg->length);
         if (vbr->out_hdr.type & VIRTIO_BLK_T_OUT)
             sgs[num_out++] = data_sg;
         else
@@ -405,10 +398,6 @@ virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
     if (notify)
         virtqueue_notify(vblk->vqs[0].vq);
 
-    printk("###### %s: end! notify(%d)\n", __func__, notify);
-    printk("%s: op(%d) ioprio(%u) sector(%u) num(%d)!\n",
-           __func__, req_op(req),
-           vbr->out_hdr.ioprio, vbr->out_hdr.sector, num);
     return BLK_STS_OK;
 }
 
@@ -505,7 +494,6 @@ virtblk_probe(struct virtio_device *vdev)
         panic("alloc tag set!");
         */
 
-    printk("##################### %s: step1\n", __func__);
     q = blk_mq_init_queue(&vblk->tag_set);
     if (IS_ERR(q)) {
         err = -ENOMEM;
@@ -526,10 +514,6 @@ virtblk_probe(struct virtio_device *vdev)
 
     /* configure queue flush support */
     virtblk_update_cache_mode(vdev);
-
-    printk("%s: %s sg_elems(%u) major(%x)\n",
-           __func__, vblk->disk->disk_name,
-           vblk->sg_elems, major);
 
     /* Host can optionally specify the block size of the device */
     err = virtio_cread_feature(vdev, VIRTIO_BLK_F_BLK_SIZE,
