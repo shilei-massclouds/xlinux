@@ -8,6 +8,7 @@
 #include <pagemap.h>
 #include <pgalloc.h>
 #include <pgtable.h>
+#include <syscalls.h>
 
 static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
 
@@ -371,12 +372,18 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct page *page)
 }
 EXPORT_SYMBOL(alloc_set_pte);
 
+long _do_sys_brk(unsigned long brk)
+{
+    panic("%s: !", __func__);
+}
+
 static int
 init_module(void)
 {
     printk("module[pgalloc]: init begin ...\n");
 
     handle_mm_fault = _handle_mm_fault;
+    do_sys_brk = _do_sys_brk;
 
     printk("module[pgalloc]: init end!\n");
 

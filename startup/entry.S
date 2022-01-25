@@ -2,6 +2,7 @@
 
 #include <csr.h>
 #include <ptrace.h>
+#include <unistd.h>
 #include <asm-offsets.h>
 #include <thread_info.h>
 
@@ -128,8 +129,50 @@ _save_context:
     tail do_trap_unknown
 
 handle_syscall:
+     /* save the initial A0 value (needed in signal handlers) */
+    sd a0, PT_ORIG_A0(sp)
+    /*
+     * Advance SEPC to avoid executing the original
+     * scall instruction on sret
+     */
+    addi s2, s2, 0x4
+    sd s2, PT_EPC(sp)
+check_syscall_nr:
     csrw 0x0, 0x13
-    sbreak
+    csrw 0x0, a7
+    /* Check to make sure we don't jump to a bogus syscall number. */
+    li t0, __NR_syscalls
+    la s0, sys_ni_syscall
+    /*
+     * Syscall number held in a7.
+     * If syscall number is above allowed value, redirect to ni_syscall.
+     */
+    bge a7, t0, 1f
+    /*
+     * Check if syscall is rejected by tracer, i.e., a7 == -1.
+     * If yes, we pretend it was executed.
+     */
+    li t1, -1
+    beq a7, t1, ret_from_syscall_rejected
+    blt a7, t1, 1f
+    /* Call syscall */
+    la s0, sys_call_table
+    slli t0, a7, RISCV_LGPTR
+    add s0, s0, t0
+    ld s0, 0(s0)
+1:
+    jalr s0
+
+ret_from_syscall:
+    /* Set user a0 to kernel a0 */
+    sd a0, PT_A0(sp)
+    /*
+     * We didn't execute the actual syscall.
+     * Seccomp already set return value for the current task pt_regs.
+     * (If it was configured with SECCOMP_RET_ERRNO/TRACE)
+     */
+
+ret_from_syscall_rejected:
 
 ret_from_exception:
 	ld s0, PT_STATUS(sp)

@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <dcache.h>
 #include <export.h>
+#include <syscalls.h>
 
 static int do_dentry_open(struct file *f,
                           struct inode *inode,
@@ -69,3 +70,14 @@ int generic_file_open(struct inode *inode, struct file *filp)
     return 0;
 }
 EXPORT_SYMBOL(generic_file_open);
+
+long
+_do_sys_open(int dfd, const char *filename, int flags, umode_t mode)
+{
+    panic("%s: !", __func__);
+}
+
+void init_open(void)
+{
+    do_sys_open = _do_sys_open;
+}

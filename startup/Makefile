@@ -12,6 +12,9 @@ obj_y += string.o
 obj_y += mm.o
 obj_y += sbi.o
 obj_y += module.o
+obj_y += sys_ni.o
+obj_y += syscalls.o
+obj_y += syscall_table.o
 obj_y += init.o
 
 extra_y := startup.lds
