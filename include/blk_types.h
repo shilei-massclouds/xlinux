@@ -4,6 +4,9 @@
 
 #include <bvec.h>
 
+#define BVEC_POOL_NR    6
+#define BVEC_POOL_MAX   (BVEC_POOL_NR - 1)
+
 #define REQ_OP_BITS 8
 #define REQ_OP_MASK ((1 << REQ_OP_BITS) - 1)
 

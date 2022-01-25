@@ -16,6 +16,18 @@
 #define BIO_INLINE_VECS     4
 
 /*
+ * if you change this list, also change bvec_alloc or things will
+ * break badly! cannot be bigger than what you can fit into an
+ * unsigned short
+ */
+#define BV(x, n) { .nr_vecs = x, .name = "biovec-"#n }
+static struct biovec_slab bvec_slabs[BVEC_POOL_NR] = {
+    BV(1, 1), BV(4, 4), BV(16, 16), BV(64, 64), BV(128, 128),
+    BV(BIO_MAX_PAGES, max),
+};
+#undef BV
+
+/*
  * fs_bio_set is the bio_set containing bio and
  * iovec memory pools used by IO code
  * that does not need private memory pools.
@@ -104,10 +116,10 @@ bio_alloc_bioset(gfp_t gfp_mask,
     bio_init(bio, NULL, 0);
 
     if (nr_iovecs > inline_vecs) {
-        /*
         unsigned long idx = 0;
 
         bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx, &bs->bvec_pool);
+        /*
         if (!bvl && gfp_mask != saved_gfp) {
             punt_bios_to_rescuer(bs);
             gfp_mask = saved_gfp;
@@ -131,6 +143,17 @@ bio_alloc_bioset(gfp_t gfp_mask,
 }
 EXPORT_SYMBOL(bio_alloc_bioset);
 
+/*
+ * create memory pools for biovec's in a bio_set.
+ * use the global biovec slabs created for general use.
+ */
+int biovec_init_pool(mempool_t *pool, int pool_entries)
+{
+    struct biovec_slab *bp = bvec_slabs + BVEC_POOL_MAX;
+
+    return mempool_init_slab_pool(pool, pool_entries, bp->slab);
+}
+
 int
 bioset_init(struct bio_set *bs,
             unsigned int pool_size,
@@ -148,6 +171,7 @@ bioset_init(struct bio_set *bs,
     if (!bs->bio_slab)
         return -ENOMEM;
 
+    biovec_init_pool(&bs->bvec_pool, pool_size);
     return 0;
 }
 
@@ -192,11 +216,33 @@ void bio_endio(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_endio);
 
+static void biovec_init_slabs(void)
+{
+    int i;
+
+    for (i = 0; i < BVEC_POOL_NR; i++) {
+        int size;
+        struct biovec_slab *bvs = bvec_slabs + i;
+
+        if (bvs->nr_vecs <= BIO_INLINE_VECS) {
+            bvs->slab = NULL;
+            continue;
+        }
+
+        size = bvs->nr_vecs * sizeof(struct bio_vec);
+        bvs->slab = kmem_cache_create(bvs->name, size, 0,
+                                      SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+                                      NULL);
+    }
+}
+
 static int init_bio(void)
 {
     bio_slab_max = 2;
     bio_slab_nr = 0;
     bio_slabs = kcalloc(bio_slab_max, sizeof(struct bio_slab), GFP_KERNEL);
+
+    biovec_init_slabs();
 
     if (bioset_init(&fs_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS))
         panic("bio: can't allocate bios\n");

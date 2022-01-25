@@ -5,6 +5,7 @@
 #include <gfp.h>
 #include <bvec.h>
 #include <limits.h>
+#include <mempool.h>
 #include <blk_types.h>
 
 #define BIO_POOL_SIZE 2
@@ -12,6 +13,12 @@
 #define BIO_MAX_PAGES       256
 
 #define bio_prio(bio)   (bio)->bi_ioprio
+
+struct biovec_slab {
+    int nr_vecs;
+    char *name;
+    struct kmem_cache *slab;
+};
 
 static inline bool bio_no_advance_iter(const struct bio *bio)
 {
@@ -55,6 +62,8 @@ enum {
 struct bio_set {
     struct kmem_cache *bio_slab;
     unsigned int front_pad;
+
+    mempool_t bvec_pool;
 };
 
 struct bio *
