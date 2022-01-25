@@ -116,25 +116,6 @@ static vm_fault_t do_fault_around(struct vm_fault *vmf)
     return ret;
 }
 
-static vm_fault_t do_read_fault(struct vm_fault *vmf)
-{
-    vm_fault_t ret = 0;
-    struct vm_area_struct *vma = vmf->vma;
-
-    /*
-     * Let's call ->map_pages() first and use ->fault() as fallback
-     * if page by the offset is not ready to be mapped (cold cache or
-     * something).
-     */
-    if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT > 1) {
-        ret = do_fault_around(vmf);
-        if (ret)
-            return ret;
-    }
-
-    panic("%s: !", __func__);
-}
-
 static vm_fault_t __do_fault(struct vm_fault *vmf)
 {
     vm_fault_t ret;
@@ -151,7 +132,54 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
                         VM_FAULT_DONE_COW)))
         return ret;
 
-    panic("%s: !", __func__);
+    return ret;
+}
+
+vm_fault_t finish_fault(struct vm_fault *vmf)
+{
+    struct page *page;
+    vm_fault_t ret = 0;
+
+    /* Did we COW the page? */
+    if ((vmf->flags & FAULT_FLAG_WRITE) &&
+        !(vmf->vma->vm_flags & VM_SHARED))
+        page = vmf->cow_page;
+    else
+        page = vmf->page;
+
+    /*
+     * check even for read faults because we might have lost our CoWed
+     * page
+     */
+    if (!(vmf->vma->vm_flags & VM_SHARED))
+        ret = 0;
+    if (!ret)
+        ret = alloc_set_pte(vmf, page);
+    return ret;
+}
+
+static vm_fault_t do_read_fault(struct vm_fault *vmf)
+{
+    vm_fault_t ret = 0;
+    struct vm_area_struct *vma = vmf->vma;
+
+    /*
+     * Let's call ->map_pages() first and use ->fault() as fallback
+     * if page by the offset is not ready to be mapped (cold cache or
+     * something).
+     */
+    if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT > 1) {
+        ret = do_fault_around(vmf);
+        if (ret)
+            return ret;
+    }
+
+    ret = __do_fault(vmf);
+    if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+        return ret;
+
+    ret |= finish_fault(vmf);
+    return ret;
 }
 
 static vm_fault_t do_cow_fault(struct vm_fault *vmf)
@@ -165,11 +193,18 @@ static vm_fault_t do_cow_fault(struct vm_fault *vmf)
 
     ret = __do_fault(vmf);
     if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
-        panic("bad fault!");
+        return ret;
     if (ret & VM_FAULT_DONE_COW)
         return ret;
 
-    panic("%s: !", __func__);
+    copy_user_highpage(vmf->cow_page, vmf->page, vmf->address, vma);
+    __SetPageUptodate(vmf->cow_page);
+
+    ret |= finish_fault(vmf);
+    if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+        panic("uncharge out!");
+
+    return ret;
 }
 
 static vm_fault_t do_fault(struct vm_fault *vmf)
@@ -320,10 +355,14 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct page *page)
     entry = mk_pte(page, vma->vm_page_prot);
     entry = pte_sw_mkyoung(entry);
     if (write)
-        panic("fault write!");
+        entry = maybe_mkwrite(pte_mkdirty(entry), vma);
     /* copy-on-write page */
     if (write && !(vma->vm_flags & VM_SHARED)) {
-        panic("fault write!");
+        /* Todo: */
+        /*
+        page_add_new_anon_rmap(page, vma, vmf->address, false);
+        lru_cache_add_inactive_or_unevictable(page, vma);
+        */
     } else {
         page_add_file_rmap(page, false);
     }

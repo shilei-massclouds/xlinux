@@ -234,4 +234,14 @@ struct page *
 vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
                pte_t pte);
 
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+    return __pte(pte_val(pte) | _PAGE_WRITE);
+}
+
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+    return __pte(pte_val(pte) | _PAGE_DIRTY);
+}
+
 #endif /* _LINUX_PGTABLE_H */

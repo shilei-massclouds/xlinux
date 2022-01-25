@@ -216,4 +216,7 @@ struct page {
 
 #define virt_addr_valid(vaddr)  (pfn_valid(virt_to_pfn(vaddr)))
 
+#define copy_user_page(vto, vfrom, vaddr, topg) \
+    memcpy((vto), (vfrom), PAGE_SIZE)
+
 #endif /* _PAGE_H */

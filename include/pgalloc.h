@@ -88,4 +88,11 @@ vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 
 vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct page *page);
 
+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+{
+    if (likely(vma->vm_flags & VM_WRITE))
+        pte = pte_mkwrite(pte);
+    return pte;
+}
+
 #endif /* _ASM_RISCV_PGALLOC_H */

@@ -11,6 +11,7 @@
 #define FGP_ACCESSED    0x00000001
 #define FGP_LOCK        0x00000002
 #define FGP_CREAT       0x00000004
+#define FGP_FOR_MMAP    0x00000040
 
 #define VM_READAHEAD_PAGES  (SZ_128K / PAGE_SIZE)
 
@@ -135,6 +136,15 @@ linear_page_index(struct vm_area_struct *vma, unsigned long address)
     pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
     pgoff += vma->vm_pgoff;
     return pgoff;
+}
+
+/*
+ * Get the offset in PAGE_SIZE.
+ * (TODO: hugepage should have ->index in PAGE_SIZE)
+ */
+static inline pgoff_t page_to_pgoff(struct page *page)
+{
+    return page->index;
 }
 
 #endif /* _LINUX_PAGEMAP_H */

@@ -44,6 +44,28 @@ mpage_alloc(struct block_device *bdev,
     return bio;
 }
 
+static void mpage_end_io(struct bio *bio)
+{
+    struct bio_vec *bv;
+    struct bvec_iter_all iter_all;
+
+    bio_for_each_segment_all(bv, bio, iter_all) {
+        struct page *page = bv->bv_page;
+        page_endio(page, bio_op(bio),
+                   blk_status_to_errno(bio->bi_status));
+    }
+}
+
+static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
+{
+    bio->bi_end_io = mpage_end_io;
+    bio_set_op_attrs(bio, op, op_flags);
+    printk("################## %s: 1\n", __func__);
+    submit_bio(bio);
+    printk("################## %s: 2\n", __func__);
+    return NULL;
+}
+
 static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 {
     gfp_t gfp;
@@ -178,7 +200,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
     }
 
     if (args->bio && (args->last_block_in_bio != blocks[0] - 1))
-        panic("no support!");
+        args->bio = mpage_bio_submit(REQ_OP_READ, op_flags, args->bio);
 
     if (args->bio == NULL) {
         if (first_hole == blocks_per_page) {
@@ -201,33 +223,11 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
     nblocks = map_bh->b_size >> blkbits;
     if ((buffer_boundary(map_bh) && relative_block == nblocks) ||
         (first_hole != blocks_per_page)) {
-        panic("boundary!");
+        args->bio = mpage_bio_submit(REQ_OP_READ, op_flags, args->bio);
     } else {
         args->last_block_in_bio = blocks[blocks_per_page - 1];
     }
     return args->bio;
-}
-
-static void mpage_end_io(struct bio *bio)
-{
-    struct bio_vec *bv;
-    struct bvec_iter_all iter_all;
-
-    bio_for_each_segment_all(bv, bio, iter_all) {
-        struct page *page = bv->bv_page;
-        page_endio(page, bio_op(bio),
-                   blk_status_to_errno(bio->bi_status));
-    }
-}
-
-static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
-{
-    bio->bi_end_io = mpage_end_io;
-    bio_set_op_attrs(bio, op, op_flags);
-    printk("################## %s: 1\n", __func__);
-    submit_bio(bio);
-    printk("################## %s: 2\n", __func__);
-    return NULL;
 }
 
 int mpage_readpage(struct page *page, get_block_t get_block)

@@ -80,8 +80,6 @@ read_pages(struct readahead_control *rac, struct list_head *pages,
     struct page *page;
     const struct address_space_operations *aops = rac->mapping->a_ops;
 
-    BUG_ON(skip_page);
-
     if (!readahead_count(rac))
         goto out;
 
@@ -126,8 +124,10 @@ void page_cache_readahead_unbounded(struct address_space *mapping,
 
         BUG_ON(index + i != rac._index + rac._nr_pages);
 
-        if (page)
-            panic("page NOT NULL!");
+        if (page) {
+            read_pages(&rac, &page_pool, true);
+            continue;
+        }
 
         page = __page_cache_alloc(gfp_mask);
         if (!page)

@@ -49,4 +49,17 @@ static inline void *kmap(struct page *page)
     return page_address(page);
 }
 
+static inline void
+copy_user_highpage(struct page *to, struct page *from,
+                   unsigned long vaddr, struct vm_area_struct *vma)
+{
+    char *vfrom, *vto;
+
+    vfrom = kmap_atomic(from);
+    vto = kmap_atomic(to);
+    copy_user_page(vto, vfrom, vaddr, to);
+    kunmap_atomic(vto);
+    kunmap_atomic(vfrom);
+}
+
 #endif /* _LINUX_HIGHMEM_H */

@@ -318,34 +318,106 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
     return fpin;
 }
 
+/*
+ * Asynchronous readahead happens when we find the page and PG_readahead,
+ * so we want to possibly extend the readahead further.  We return the file that
+ * was pinned if we have to drop the mmap_lock in order to do IO.
+ */
+static struct file *
+do_async_mmap_readahead(struct vm_fault *vmf, struct page *page)
+{
+    struct file *file = vmf->vma->vm_file;
+    struct file_ra_state *ra = &file->f_ra;
+    struct address_space *mapping = file->f_mapping;
+    struct file *fpin = NULL;
+    pgoff_t offset = vmf->pgoff;
+
+    /* If we don't want any read-ahead, don't bother */
+    if (vmf->vma->vm_flags & VM_RAND_READ || !ra->ra_pages)
+        return fpin;
+
+    return fpin;
+    panic("%s: !", __func__);
+    /*
+    if (PageReadahead(page)) {
+        fpin = maybe_unlock_mmap_for_io(vmf, fpin);
+        page_cache_async_readahead(mapping, ra, file,
+                                   page, offset, ra->ra_pages);
+    }
+    return fpin;
+    */
+}
+
 vm_fault_t filemap_fault(struct vm_fault *vmf)
 {
+    pgoff_t max_off;
     struct page *page;
     vm_fault_t ret = 0;
     struct file *fpin = NULL;
     pgoff_t offset = vmf->pgoff;
     struct file *file = vmf->vma->vm_file;
     struct address_space *mapping = file->f_mapping;
+    struct inode *inode = mapping->host;
+
+    max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+    if (unlikely(offset >= max_off))
+        return VM_FAULT_SIGBUS;
 
     page = find_get_page(mapping, offset);
     if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
-        panic("page!");
+        /*
+         * We found the page, so try async readahead before
+         * waiting for the lock.
+         */
+        fpin = do_async_mmap_readahead(vmf, page);
     } else if (!page) {
         ret = VM_FAULT_MAJOR;
         fpin = do_sync_mmap_readahead(vmf);
-        panic("%s: 1", __func__);
-        /*
         page = pagecache_get_page(mapping, offset,
-                                  FGP_CREAT|FGP_FOR_MMAP, vmf->gfp_mask);
+                                  FGP_CREAT|FGP_FOR_MMAP, GFP_KERNEL);
         if (!page) {
             if (fpin)
-                goto out_retry;
+                panic("fpin NOT NULL!");
+
             return VM_FAULT_OOM;
         }
-        */
     }
 
-    panic("%s: !", __func__);
+    BUG_ON(page_to_pgoff(page) != offset);
+
+    /*
+     * We have a locked page in the page cache, now we need to check
+     * that it's up-to-date. If not, it is going to be due to an error.
+     */
+    if (unlikely(!PageUptodate(page)))
+        panic("page not uptodate!");
+
+    /*
+     * We've made it this far and we had to drop our mmap_lock, now is the
+     * time to return to the upper layer and have it re-find the vma and
+     * redo the fault.
+     */
+    if (fpin)
+        goto out_retry;
+
+    /*
+     * Found the page and have a reference on it.
+     * We must recheck i_size under page lock.
+     */
+    max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+    if (unlikely(offset >= max_off))
+        panic("bad offset!");
+
+    vmf->page = page;
+    return ret | VM_FAULT_LOCKED;
+
+ out_retry:
+    /*
+     * We dropped the mmap_lock, we need to return to the fault handler to
+     * re-find the vma and come back and find our hopefully still populated
+     * page.
+     */
+    return ret | VM_FAULT_RETRY;
 }
 
 void filemap_map_pages(struct vm_fault *vmf,

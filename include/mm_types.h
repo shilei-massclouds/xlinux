@@ -83,6 +83,11 @@ struct vm_fault {
                    NULL if the page table hasn't been allocated. */
     pte_t orig_pte;         /* Value of PTE at the time of fault */
     struct page *cow_page;  /* Page handler may use for COW fault */
+    struct page *page;      /* ->fault handlers should return a
+                             * page here, unless VM_FAULT_NOPAGE
+                             * is set (which is also implied by
+                             * VM_FAULT_ERROR).
+                             */
     pgtable_t prealloc_pte; /* Pre-allocated pte page table.
                              * vm_ops->map_pages() calls
                              * alloc_set_pte() from atomic context.
