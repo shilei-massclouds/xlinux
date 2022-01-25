@@ -9,7 +9,7 @@ PREDIRS := prebuilt
 SUBDIRS := startup lib early_dt \
 	rbtree radix_tree hashtable bitmap xarray scatterlist \
 	mm pgalloc gup memblock buddy slab kalloc filemap \
-	vma ioremap devres \
+	vma ioremap devres mempool \
 	of of_irq platform kobject \
 	dcache fs ramfs rootfs ext2 \
 	irq softirq intc plic \

@@ -7,6 +7,14 @@
 #define BVEC_POOL_NR    6
 #define BVEC_POOL_MAX   (BVEC_POOL_NR - 1)
 
+/*
+ * Top 3 bits of bio flags indicate the pool the bvecs came from.  We add
+ * 1 to the actual index so that 0 indicates that there are no bvecs to be
+ * freed.
+ */
+#define BVEC_POOL_BITS      (3)
+#define BVEC_POOL_OFFSET    (16 - BVEC_POOL_BITS)
+
 #define REQ_OP_BITS 8
 #define REQ_OP_MASK ((1 << REQ_OP_BITS) - 1)
 
@@ -135,6 +143,8 @@ struct bio {
     struct bvec_iter bi_iter;
 
     u8 bi_partno;
+
+    struct bio_set *bi_pool;
 
     unsigned short bi_vcnt;     /* how many bio_vec's */
 

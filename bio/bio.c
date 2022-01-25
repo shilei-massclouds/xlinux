@@ -85,7 +85,31 @@ bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx, mempool_t *pool)
         return NULL;
     }
 
-    panic("%s: !", __func__);
+    if (*idx == BVEC_POOL_MAX) {
+        panic("BVEC_POOL_MAX!");
+    } else {
+        struct biovec_slab *bvs = bvec_slabs + *idx;
+        gfp_t __gfp_mask = gfp_mask & ~(__GFP_DIRECT_RECLAIM | __GFP_IO);
+
+        /*
+         * Make this allocation restricted and don't dump info on
+         * allocation failures, since we'll fallback to the mempool
+         * in case of failure.
+         */
+        __gfp_mask |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
+
+        /*
+         * Try a slab allocation. If this fails and __GFP_DIRECT_RECLAIM
+         * is set, retry with the 1-entry mempool
+         */
+        bvl = kmem_cache_alloc(bvs->slab, __gfp_mask);
+        if (unlikely(!bvl && (gfp_mask & __GFP_DIRECT_RECLAIM)))
+            panic("bad bvl!");
+
+    }
+
+    (*idx)++;
+    return bvl;
 }
 
 struct bio *
@@ -98,6 +122,7 @@ bio_alloc_bioset(gfp_t gfp_mask,
     unsigned front_pad;
     unsigned inline_vecs;
     struct bio_vec *bvl = NULL;
+    gfp_t saved_gfp = gfp_mask;
 
     printk("%s: bs(0x%p) nr_iovecs(%u)\n", __func__, bs, nr_iovecs);
 
@@ -119,24 +144,24 @@ bio_alloc_bioset(gfp_t gfp_mask,
         unsigned long idx = 0;
 
         bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx, &bs->bvec_pool);
-        /*
         if (!bvl && gfp_mask != saved_gfp) {
+            panic("%s: 1", __func__);
+            /*
             punt_bios_to_rescuer(bs);
             gfp_mask = saved_gfp;
             bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx, &bs->bvec_pool);
+            */
         }
 
         if (unlikely(!bvl))
-            goto err_free;
+            panic("bad bvl!");
 
         bio->bi_flags |= idx << BVEC_POOL_OFFSET;
-        */
-
-        panic("nr_iovecs > incline_vecs");
     } else if (nr_iovecs) {
         bvl = bio->bi_inline_vecs;
     }
 
+    bio->bi_pool = bs;
     bio->bi_max_vecs = nr_iovecs;
     bio->bi_io_vec = bvl;
     return bio;

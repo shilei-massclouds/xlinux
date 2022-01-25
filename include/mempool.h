@@ -6,6 +6,13 @@ typedef void * (mempool_alloc_t)(gfp_t gfp_mask, void *pool_data);
 typedef void (mempool_free_t)(void *element, void *pool_data);
 
 typedef struct mempool_s {
+    int min_nr;         /* nr of elements at *elements */
+    int curr_nr;        /* Current nr of elements at *elements */
+    void **elements;
+
+    void *pool_data;
+    mempool_alloc_t *alloc;
+    mempool_free_t *free;
 } mempool_t;
 
 int mempool_init(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
