@@ -286,8 +286,6 @@ vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
             break;
         case FORMAT_TYPE_PTR:
             str = pointer(fmt, str, end, va_arg(args, void *), spec);
-            while (isalnum(*fmt))
-                fmt++;
             break;
         default:
             switch (spec.type) {
