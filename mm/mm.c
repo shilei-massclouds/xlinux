@@ -55,22 +55,6 @@ setup_fixmap_pgd(void)
 EXPORT_SYMBOL(setup_fixmap_pgd);
 
 void
-setup_flash_pgd(void)
-{
-    uintptr_t pgd_idx = pgd_index(FLASH_VA);
-    BUG_ON(!pgd_none(swapper_pg_dir[pgd_idx]));
-    swapper_pg_dir[pgd_idx] = pfn_pgd(PFN_DOWN(FLASH_PA), PAGE_KERNEL);
-}
-
-void
-clear_flash_pgd(void)
-{
-    uintptr_t pgd_idx = pgd_index(FLASH_VA);
-    swapper_pg_dir[pgd_idx] = __pgd(0);
-}
-EXPORT_SYMBOL(clear_flash_pgd);
-
-void
 __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 {
     unsigned long addr = fix_to_virt(idx);
@@ -155,9 +139,6 @@ setup_vm_final(struct memblock_region *regions,
 	struct memblock_region *reg;
 
     phys_alloc_fn = alloc;
-
-	/* Setup swapper PGD for flash */
-    setup_flash_pgd();
 
 	/* Setup swapper PGD for fixmap */
 	create_pgd_mapping(swapper_pg_dir,
@@ -260,7 +241,6 @@ init_module(void)
 
     do_page_fault_func = _do_page_fault;
 
-    clear_flash_pgd();
     setup_fixmap_pgd();
 
     printk("module[mm]: init end!\n");
