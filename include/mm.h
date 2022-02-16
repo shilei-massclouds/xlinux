@@ -250,7 +250,6 @@ int __pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
 static inline pmd_t *
 pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 {
-    printk("%s: ! (%d)\n", __func__, pgd_none(*pgd));
     return (unlikely(pgd_none(*pgd)) && __pmd_alloc(mm, pgd, address)) ?
         NULL: pmd_offset(pgd, address);
 }

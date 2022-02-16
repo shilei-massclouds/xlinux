@@ -192,7 +192,6 @@ __radix_tree_create(struct radix_tree_root *root,
     if (slotp)
         *slotp = slot;
     return 0;
-    panic("%s: (%u, %u, %u)!", __func__, index, shift, maxindex);
 }
 
 static inline int
