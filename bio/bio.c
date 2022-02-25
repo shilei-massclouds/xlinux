@@ -41,9 +41,6 @@ struct bio_slab {
     char name[8];
 };
 
-static struct bio_slab *bio_slabs;
-static unsigned int bio_slab_nr, bio_slab_max;
-
 void bio_init(struct bio *bio, struct bio_vec *table,
               unsigned short max_vecs)
 {
@@ -263,10 +260,6 @@ static void biovec_init_slabs(void)
 
 static int init_bio(void)
 {
-    bio_slab_max = 2;
-    bio_slab_nr = 0;
-    bio_slabs = kcalloc(bio_slab_max, sizeof(struct bio_slab), GFP_KERNEL);
-
     biovec_init_slabs();
 
     if (bioset_init(&fs_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS))

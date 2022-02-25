@@ -42,6 +42,7 @@ blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx,
 
         list_del_init(&rq->queuelist);
         bd.rq = rq;
+        bd.last = true;
 
         ret = q->mq_ops->queue_rq(hctx, &bd);
         switch (ret) {

@@ -210,7 +210,6 @@ vm_setup_vq(struct virtio_device *vdev, unsigned index,
         panic("No argument!");
     }
 
-
     /* Create the vring */
     vq = vring_create_virtqueue(index, num, VIRTIO_MMIO_VRING_ALIGN,
                                 vdev, true, true, ctx, vm_notify,

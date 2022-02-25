@@ -256,7 +256,6 @@ vring_create_virtqueue_split(unsigned int index,
     to_vvq(vq)->split.queue_dma_addr = dma_addr;
     to_vvq(vq)->split.queue_size_in_bytes = queue_size_in_bytes;
     to_vvq(vq)->we_own_ring = true;
-
     return vq;
 }
 

@@ -266,7 +266,6 @@ __of_address_to_resource(struct device_node *dev,
     r->end = taddr + size - 1;
     r->flags = flags;
     r->name = name ? name : dev->full_name;
-
     return 0;
 }
 

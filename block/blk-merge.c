@@ -38,13 +38,10 @@ __blk_bios_map_sg(struct request_queue *q,
 
     for_each_bio(bio) {
         bio_for_each_bvec(bvec, bio, iter) {
-            if (bvec.bv_offset + bvec.bv_len <= PAGE_SIZE) {
-                printk("%s: 1 (%u, %u)\n",
-                       __func__, bvec.bv_offset, bvec.bv_len);
+            if (bvec.bv_offset + bvec.bv_len <= PAGE_SIZE)
                 nsegs += __blk_bvec_map_sg(bvec, sglist, sg);
-            } else {
+            else
                 panic("over PAGE_SIZE!");
-            }
         }
     }
 
@@ -62,7 +59,6 @@ __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 
     BUG_ON(*last_sg == NULL);
     sg_mark_end(*last_sg);
-
     return nsegs;
 }
 EXPORT_SYMBOL(__blk_rq_map_sg);

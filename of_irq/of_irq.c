@@ -117,7 +117,7 @@ int of_irq_parse_raw(const u32 *addr, struct of_phandle_args *out_irq)
          * then we are done
          */
         if (of_property_read_bool(ipar, "interrupt-controller")) {
-            printk(" -> got it !\n");
+            printk(" -> got it!\n");
             return 0;
         }
         panic("%s: !", __func__);
@@ -259,6 +259,8 @@ unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
     if (of_irq_parse_one(dev, index, &oirq))
         return 0;
 
+    printk("%s: index(%d) before irq_create_of_mapping...\n",
+           __func__, index);
     return irq_create_of_mapping(&oirq);
 }
 EXPORT_SYMBOL(irq_of_parse_and_map);

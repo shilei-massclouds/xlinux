@@ -100,13 +100,17 @@ irq_domain_translate(struct irq_domain *d,
                      struct irq_fwspec *fwspec,
                      irq_hw_number_t *hwirq, unsigned int *type)
 {
+    printk("%s: 1 ops(%lx) translate\n", __func__, d->ops);
     if (d->ops->translate)
         return d->ops->translate(d, fwspec, hwirq, type);
-    if (d->ops->xlate)
+    if (d->ops->xlate) {
+        printk("%s: 2 xlate (%x)\n", __func__, fwspec->param[0]);
         return d->ops->xlate(d, to_of_node(fwspec->fwnode),
                              fwspec->param, fwspec->param_count,
                              hwirq, type);
+    }
 
+    printk("%s: 3 no\n", __func__);
     /* If domain has no translation, then we assume interrupt line */
     *hwirq = fwspec->param[0];
     return 0;
@@ -219,6 +223,7 @@ __irq_domain_add(struct fwnode_handle *fwnode, int size,
     domain->revmap_size = size;
     irq_domain_check_hierarchy(domain);
 
+    printk("%s: ops(%lx)\n", __func__, ops);
     list_add(&domain->link, &irq_domain_list);
     return domain;
 }

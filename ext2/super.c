@@ -155,7 +155,6 @@ ext2_fill_super(struct super_block *sb, void *data, int silent)
     if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size)
         panic("error: corrupt root inode, run e2fsck");
 
-    printk("%s: step3\n", __func__);
     sb->s_root = d_make_root(root);
     if (!sb->s_root)
         panic("no root!");

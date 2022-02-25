@@ -205,12 +205,16 @@ plic_init(struct device_node *node, struct device_node *parent)
         if (parent.args[0] != RV_IRQ_EXT)
             continue;
 
+        printk("%s 1: ==========================\n", __func__);
         /* Find parent domain and register chained handler */
         if (!plic_parent_irq && irq_find_host(parent.np)) {
+            printk("%s 1: +++++++++++++\n", __func__);
             plic_parent_irq = irq_of_parse_and_map(node, i);
+            printk("%s 2: +++++++++++++\n", __func__);
             if (plic_parent_irq)
                 irq_set_chained_handler(plic_parent_irq, plic_handle_irq);
         }
+        printk("%s 2: ==========================\n", __func__);
 
         plic_handler.hart_base =
             priv->regs + CONTEXT_BASE + i * CONTEXT_PER_HART;

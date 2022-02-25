@@ -90,14 +90,14 @@ riscv_intc_init(struct device_node *node,
 static int
 init_module(void)
 {
-    struct of_device_id match = {
-        .compatible = "riscv,cpu-intc",
-        .data = riscv_intc_init,
+    struct of_device_id matchs[] = {
+        { .compatible = "riscv,cpu-intc", .data = riscv_intc_init},
+        {},
     };
 
     printk("module[intc]: init begin ...\n");
 
-    of_irq_init(&match);
+    of_irq_init(matchs);
 
     intc_initialized = true;
 
