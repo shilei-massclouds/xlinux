@@ -227,11 +227,6 @@ EXPORT_SYMBOL(vm_get_page_prot);
 int expand_downwards(struct vm_area_struct *vma,
                      unsigned long address)
 {
-    struct vm_area_struct *prev;
-
-    /* Enforce stack_guard_gap */
-    prev = vma->vm_prev;
-
     /* We must make sure the anon_vma is allocated. */
     /*
     if (unlikely(anon_vma_prepare(vma)))
@@ -239,11 +234,9 @@ int expand_downwards(struct vm_area_struct *vma,
         */
 
     if (address < vma->vm_start) {
-        unsigned long size, grow;
+        unsigned long grow;
 
-        size = vma->vm_end - address;
         grow = (vma->vm_start - address) >> PAGE_SHIFT;
-
         if (grow <= vma->vm_pgoff) {
             vma->vm_start = address;
             vma->vm_pgoff -= grow;

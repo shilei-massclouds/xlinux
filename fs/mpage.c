@@ -60,9 +60,7 @@ static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
 {
     bio->bi_end_io = mpage_end_io;
     bio_set_op_attrs(bio, op, op_flags);
-    printk("################## %s: 1\n", __func__);
     submit_bio(bio);
-    printk("################## %s: 2\n", __func__);
     return NULL;
 }
 
@@ -142,12 +140,8 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 
         if (block_in_file < last_block) {
             map_bh->b_size = (last_block-block_in_file) << blkbits;
-            printk("%s 1.1: host(%lx) key %x\n",
-                   __func__, inode, *(EXT2_I(inode)->i_data));
             if (args->get_block(inode, block_in_file, map_bh, 0))
                 panic("confused!");
-            printk("%s 1.2: b_blocknr(%lx)\n",
-                   __func__, map_bh->b_blocknr);
             args->first_logical_block = block_in_file;
         }
 
@@ -183,10 +177,6 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
             } else if (page_block == blocks_per_page)
                 break;
             blocks[page_block] = map_bh->b_blocknr + relative_block;
-
-            printk("%s 1.6: block(%lx) page_block(%u) b_blocknr(%lx)\n",
-                   __func__, blocks[page_block], page_block, map_bh->b_blocknr);
-
             page_block++;
             block_in_file++;
         }

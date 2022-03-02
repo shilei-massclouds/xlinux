@@ -114,7 +114,6 @@ dup_task_struct(struct task_struct *orig)
      * functions again.
      */
     tsk->stack = stack;
-
     return tsk;
 }
 

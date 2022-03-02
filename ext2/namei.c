@@ -11,11 +11,12 @@ ext2_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
     ino_t ino;
     struct inode *inode;
 
-    printk("%s: 1\n", __func__);
     if (dentry->d_name.len > EXT2_NAME_LEN)
         return ERR_PTR(-ENAMETOOLONG);
 
+    printk("%s: ===================== 1\n", __func__);
     res = ext2_inode_by_name(dir, &dentry->d_name, &ino);
+    printk("%s: ===================== 2\n", __func__);
     if (res) {
         panic("lookup inode by name error!");
     } else {

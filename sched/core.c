@@ -121,7 +121,6 @@ int alloc_fair_sched_group(struct task_group *tg)
 
     init_cfs_rq(cfs_rq);
     init_tg_cfs_entry(tg, cfs_rq, se, 0, NULL);
-
     return 1;
 }
 
@@ -195,9 +194,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
     /* Here we just switch the register state and the stack. */
     switch_to(prev, next, prev);
 
-    printk("switch ok!\n");
-
-    panic("%s: !", __func__);
+    panic("Never reach here!");
 }
 
 static void __schedule(bool preempt)

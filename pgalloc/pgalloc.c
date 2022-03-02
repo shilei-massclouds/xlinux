@@ -417,6 +417,10 @@ long _do_sys_brk(unsigned long brk)
 
     /* Check against existing mmap mappings. */
     next = find_vma(mm, oldbrk);
+
+    printk("%s: brk(%lx) min_brk(%lx) next(%lx) newbrk(%lx)\n",
+           __func__, brk, min_brk, next, newbrk);
+
     if (next && newbrk + PAGE_SIZE > vm_start_gap(next))
         goto out;
 

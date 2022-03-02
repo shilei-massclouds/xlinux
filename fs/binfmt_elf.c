@@ -266,7 +266,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
     int bss_prot = 0;
     int load_addr_set = 0;
     unsigned long interp_load_addr = 0;
-    unsigned long load_addr = 0, load_bias = 0;
+    unsigned long load_addr = 0;
     int executable_stack = EXSTACK_DEFAULT;
     struct elf_phdr *elf_property_phdata = NULL;
     struct elfhdr *elf_ex = (struct elfhdr *)bprm->buf;
@@ -322,6 +322,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
     if (interpreter)
         panic("is interpreter!");
 
+    printk("%s: p(%lx)!\n", __func__, bprm->p);
     retval = begin_new_exec(bprm);
     if (retval)
         panic("begin new exec error!");
@@ -353,6 +354,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
         if (elf_ppnt->p_type != PT_LOAD)
             continue;
 
+        printk("%s: p_type(%x) p_vaddr(%lx)\n",
+               __func__, elf_ppnt->p_type, elf_ppnt->p_vaddr);
+
         if (unlikely (elf_brk > elf_bss))
             panic("bad elf_brk or elf_bss!");
 
@@ -368,7 +372,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
             panic("bad e_type ET_DYN!");
         }
 
-        error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
+        error = elf_map(bprm->file, vaddr, elf_ppnt,
                         elf_prot, elf_flags, total_size);
         if (BAD_ADDR(error))
             panic("elf map error!");
@@ -411,13 +415,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
         }
     }
 
-    e_entry = elf_ex->e_entry + load_bias;
-    elf_bss += load_bias;
-    elf_brk += load_bias;
-    start_code += load_bias;
-    end_code += load_bias;
-    start_data += load_bias;
-    end_data += load_bias;
+    printk("%s: code(%lx, %lx) data(%lx, %lx) bss(%lx) brk(%lx)\n",
+           __func__, start_code, end_code, start_data, end_data, elf_bss, elf_brk);
+
+    e_entry = elf_ex->e_entry;
 
     /* Calling set_brk effectively mmaps the pages that we need
      * for the bss and break sections.  We must do this before

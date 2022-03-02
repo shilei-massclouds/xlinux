@@ -143,4 +143,17 @@ copy_to_user(void *to, const void *from, unsigned long n)
     return _copy_to_user(to, from, n);
 }
 
+/*
+ * Force the uaccess routines to be wired up for actual userspace access,
+ * overriding any possible set_fs(KERNEL_DS) still lingering around.
+ * Undone using force_uaccess_end below.
+ */
+static inline mm_segment_t force_uaccess_begin(void)
+{
+    mm_segment_t fs = get_fs();
+
+    set_fs(USER_DS);
+    return fs;
+}
+
 #endif /* _ASM_RISCV_UACCESS_H */

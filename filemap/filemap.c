@@ -88,8 +88,7 @@ EXPORT_SYMBOL(pagecache_get_page);
 static struct page *wait_on_page_read(struct page *page)
 {
     if (!IS_ERR(page)) {
-        if (!PageUptodate(page))
-            panic("page NOT uptodate!");
+        while (!PageUptodate(page));
     }
     return page;
 }
@@ -104,9 +103,7 @@ do_read_cache_page(struct address_space *mapping,
     int err;
     struct page *page;
 
-    printk("%s: 1 index(%lu)\n", __func__, index);
     page = find_get_page(mapping, index);
-    printk("%s: page(%lx)\n", __func__, page);
     if (!page) {
         page = __page_cache_alloc(gfp);
         if (!page)
@@ -207,7 +204,7 @@ ssize_t generic_file_buffered_read(struct kiocb *iocb,
         if (PageReadahead(page))
             panic("page readahead!");
         if (!PageUptodate(page))
-            panic("page is NOT uptodate!");
+            while (!PageUptodate(page));
 
         /*
          * i_size must be checked after we know the page is Uptodate.

@@ -15,6 +15,7 @@
 #include <binfmts.h>
 #include <current.h>
 #include <highmem.h>
+#include <uaccess.h>
 #include <resource.h>
 #include <processor.h>
 #include <mmu_context.h>
@@ -70,6 +71,9 @@ static int bprm_mm_init(struct linux_binprm *bprm)
     err = -ENOMEM;
     if (!mm)
         panic("no memory!");
+
+    /* Save current stack limit for all calculations made during exec. */
+    bprm->rlim_stack = current->signal->rlim[RLIMIT_STACK];
 
     err = __bprm_mm_init(bprm);
     if (err)
@@ -135,7 +139,7 @@ static int bprm_stack_limits(struct linux_binprm *bprm)
      *    to work from.
      */
     limit = _STK_LIM / 4 * 3;
-    //limit = min(limit, bprm->rlim_stack.rlim_cur / 4);
+    limit = min(limit, bprm->rlim_stack.rlim_cur / 4);
     /*
      * We've historically supported up to 32 pages (ARG_MAX)
      * of argument strings even with small stacks
@@ -312,7 +316,6 @@ static int exec_binprm(struct linux_binprm *bprm)
         if (depth > 5)
             return -ELOOP;
 
-        printk("%s: 1!\n", __func__);
         ret = search_binary_handler(bprm);
         if (ret < 0)
             panic("can not find handler!");
@@ -345,7 +348,6 @@ static int bprm_execve(struct linux_binprm *bprm,
     if (retval < 0)
         panic("exec binprm error!");
 
-    printk("%s: ret(%d)\n", __func__, retval);
     /* execve succeeded */
     return retval;
 }
@@ -394,8 +396,6 @@ int kernel_execve(const char *kernel_filename,
         panic("out of memory!");
 
     retval = bprm_execve(bprm, fd, filename, 0);
-    printk("%s: !\n", __func__);
-
     return retval;
 }
 EXPORT_SYMBOL(kernel_execve);
@@ -447,6 +447,12 @@ int begin_new_exec(struct linux_binprm *bprm)
 
     bprm->mm = NULL;
 
+    /*
+     * Ensure that the uaccess routines can actually operate on userspace
+     * pointers:
+     */
+    force_uaccess_begin();
+
     return 0;
 }
 
@@ -480,21 +486,16 @@ int setup_arg_pages(struct linux_binprm *bprm,
     unsigned long vm_flags;
     unsigned long stack_base;
     unsigned long stack_size;
-    unsigned long stack_shift;
     unsigned long stack_expand;
+    unsigned long rlim_stack;
     struct mm_struct *mm = current->mm;
     struct vm_area_struct *vma = bprm->vma;
 
     stack_top = PAGE_ALIGN(stack_top);
 
-    stack_shift = vma->vm_end - stack_top;
-
-    bprm->p -= stack_shift;
     mm->arg_start = bprm->p;
 
-    if (bprm->loader)
-        bprm->loader -= stack_shift;
-    bprm->exec -= stack_shift;
+    printk("%s: ### p(%lx)\n", __func__, bprm->p);
 
     vm_flags = VM_STACK_FLAGS;
 
@@ -514,21 +515,28 @@ int setup_arg_pages(struct linux_binprm *bprm,
         panic("process '%lx' started with executable stack", bprm->file);
     }
 
-    /* Move stack pages down in memory. */
-    if (stack_shift) {
-        ret = shift_arg_pages(vma, stack_shift);
-        if (ret)
-            panic("shift arg pages error!");
-    }
-
     /* mprotect_fixup is overkill to remove the temporary stack flags */
     vma->vm_flags &= ~VM_STACK_INCOMPLETE_SETUP;
 
     stack_expand = 131072UL; /* randomly 32*4k (or 2*64k) pages */
     stack_size = vma->vm_end - vma->vm_start;
-    stack_base = vma->vm_start - stack_expand;
+
+    /*
+     * Align this down to a page boundary as expand_stack
+     * will align it up.
+     */
+    rlim_stack = bprm->rlim_stack.rlim_cur & PAGE_MASK;
+
+    if (stack_size + stack_expand > rlim_stack)
+        stack_base = vma->vm_end - rlim_stack;
+    else
+        stack_base = vma->vm_start - stack_expand;
 
     current->mm->start_stack = bprm->p;
+
+    printk("%s: ### p(%lx) stack_base(%lx) rlim_stack(%lx)\n",
+           __func__, bprm->p, stack_base, rlim_stack);
+
     ret = expand_stack(vma, stack_base);
     if (ret)
         ret = -EFAULT;
