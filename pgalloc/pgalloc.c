@@ -441,8 +441,6 @@ long _do_sys_brk(unsigned long brk)
         goto out;
     mm->brk = brk;
 
-    panic("%s: origbrk(%lx)!", __func__, origbrk);
-
 success:
     populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
     if (populate)
@@ -451,7 +449,6 @@ success:
 
 out:
     retval = origbrk;
-    panic("%s: finish(%lx)!", __func__, origbrk);
     return retval;
 }
 
