@@ -308,4 +308,9 @@ check_data_rlimit(unsigned long rlim,
 int do_brk_flags(unsigned long addr, unsigned long len,
                  unsigned long flags, struct list_head *uf);
 
+static inline bool want_init_on_alloc(gfp_t flags)
+{
+    return flags & __GFP_ZERO;
+}
+
 #endif /* _RISCV_MM_H_ */

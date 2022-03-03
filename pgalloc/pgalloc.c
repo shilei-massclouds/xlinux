@@ -51,6 +51,9 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
     struct page *page;
     struct vm_area_struct *vma = vmf->vma;
 
+    printk("%s: addr(%lx) pgoff(%lx) flags(%x)\n",
+           __func__, vmf->address, vmf->pgoff, vmf->flags);
+
     if (pte_alloc(vma->vm_mm, vmf->pmd))
         return VM_FAULT_OOM;
 
@@ -166,6 +169,9 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
     vm_fault_t ret = 0;
     struct vm_area_struct *vma = vmf->vma;
 
+    printk("%s: addr(%lx) pgoff(%lx) flags(%x)\n",
+           __func__, vmf->address, vmf->pgoff, vmf->flags);
+
     /*
      * Let's call ->map_pages() first and use ->fault() as fallback
      * if page by the offset is not ready to be mapped (cold cache or
@@ -189,6 +195,9 @@ static vm_fault_t do_cow_fault(struct vm_fault *vmf)
 {
     vm_fault_t ret;
     struct vm_area_struct *vma = vmf->vma;
+
+    printk("%s: addr(%lx) pgoff(%lx) flags(%x)\n",
+           __func__, vmf->address, vmf->pgoff, vmf->flags);
 
     vmf->cow_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vmf->address);
     if (!vmf->cow_page)
@@ -388,6 +397,9 @@ long _do_sys_brk(unsigned long brk)
 
     min_brk = mm->end_data;
 
+    printk("%s 1: brk(%lx) min_brk(%lx) origbrk(%lx)\n",
+           __func__, brk, min_brk, origbrk);
+
     if (brk < min_brk)
         goto out;
 
@@ -418,7 +430,7 @@ long _do_sys_brk(unsigned long brk)
     /* Check against existing mmap mappings. */
     next = find_vma(mm, oldbrk);
 
-    printk("%s: brk(%lx) min_brk(%lx) next(%lx) newbrk(%lx)\n",
+    printk("%s 2: brk(%lx) min_brk(%lx) next(%lx) newbrk(%lx)\n",
            __func__, brk, min_brk, next, newbrk);
 
     if (next && newbrk + PAGE_SIZE > vm_start_gap(next))

@@ -5,6 +5,26 @@
 #include <mm.h>
 #include <mm_types.h>
 
+static inline void *kmap_atomic(struct page *page)
+{
+    return page_address(page);
+}
+#define kmap_atomic_prot(page, prot)    kmap_atomic(page)
+
+/*
+ * Prevent people trying to call kunmap_atomic() as if it were kunmap()
+ * kunmap_atomic() should get the return value of kmap_atomic, not the page.
+ */
+#define kunmap_atomic(addr)
+
+static inline void
+clear_user_highpage(struct page *page, unsigned long vaddr)
+{
+    void *addr = kmap_atomic(page);
+    clear_user_page(addr, vaddr, page);
+    kunmap_atomic(addr);
+}
+
 static inline struct page *
 __alloc_zeroed_user_highpage(gfp_t movableflags,
                              struct vm_area_struct *vma,
@@ -12,6 +32,9 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
 {
     struct page *page = alloc_page_vma(GFP_HIGHUSER | movableflags,
                                        vma, vaddr);
+
+    if (page)
+        clear_user_highpage(page, vaddr);
 
     return page;
 }
@@ -32,18 +55,6 @@ alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
     return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
 }
 
-static inline void *kmap_atomic(struct page *page)
-{
-    return page_address(page);
-}
-#define kmap_atomic_prot(page, prot)    kmap_atomic(page)
-
-/*
- * Prevent people trying to call kunmap_atomic() as if it were kunmap()
- * kunmap_atomic() should get the return value of kmap_atomic, not the page.
- */
-#define kunmap_atomic(addr)
-
 static inline void *kmap(struct page *page)
 {
     return page_address(page);
@@ -60,6 +71,13 @@ copy_user_highpage(struct page *to, struct page *from,
     copy_user_page(vto, vfrom, vaddr, to);
     kunmap_atomic(vto);
     kunmap_atomic(vfrom);
+}
+
+static inline void clear_highpage(struct page *page)
+{
+    void *kaddr = kmap_atomic(page);
+    clear_page(kaddr);
+    kunmap_atomic(kaddr);
 }
 
 #endif /* _LINUX_HIGHMEM_H */

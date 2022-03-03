@@ -219,4 +219,9 @@ struct page {
 #define copy_user_page(vto, vfrom, vaddr, topg) \
     memcpy((vto), (vfrom), PAGE_SIZE)
 
+#define clear_user_page(pgaddr, vaddr, page) \
+    memset((pgaddr), 0, PAGE_SIZE)
+
+#define clear_page(pgaddr) memset((pgaddr), 0, PAGE_SIZE)
+
 #endif /* _PAGE_H */

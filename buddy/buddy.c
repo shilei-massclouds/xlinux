@@ -11,6 +11,7 @@
 #include <string.h>
 #include <mmzone.h>
 #include <printk.h>
+#include <highmem.h>
 #include <memblock.h>
 #include <mm_types.h>
 #include <page_ref.h>
@@ -812,6 +813,22 @@ rmqueue(struct zone *preferred_zone,
     return page;
 }
 
+static void kernel_init_free_pages(struct page *page, int numpages)
+{
+    int i;
+
+    for (i = 0; i < numpages; i++)
+        clear_highpage(page + i);
+}
+
+static void
+prep_new_page(struct page *page, unsigned int order,
+              gfp_t gfp_flags, unsigned int alloc_flags)
+{
+    if (want_init_on_alloc(gfp_flags))
+        kernel_init_free_pages(page, 1 << order);
+}
+
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
@@ -834,6 +851,8 @@ get_page_from_freelist(gfp_t gfp_mask,
         page = rmqueue(ac->preferred_zoneref->zone, zone, order,
                        gfp_mask, alloc_flags);
         if (page) {
+            prep_new_page(page, order, gfp_mask, alloc_flags);
+
             return page;
         }
 

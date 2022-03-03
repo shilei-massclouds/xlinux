@@ -250,6 +250,24 @@ void start_thread(struct pt_regs *regs,
     set_fs(USER_DS);
 }
 
+/* We need to explicitly zero any fractional pages
+   after the data section (i.e. bss).  This would
+   contain the junk from the file that should not
+   be in memory
+ */
+static int padzero(unsigned long elf_bss)
+{
+    unsigned long nbyte;
+
+    nbyte = ELF_PAGEOFFSET(elf_bss);
+    if (nbyte) {
+        nbyte = ELF_MIN_ALIGN - nbyte;
+        if (clear_user((void *) elf_bss, nbyte))
+            return -EFAULT;
+    }
+    return 0;
+}
+
 static int load_elf_binary(struct linux_binprm *bprm)
 {
     int i;
@@ -428,6 +446,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
     retval = set_brk(elf_bss, elf_brk, bss_prot);
     if (retval)
         panic("set brk error!");
+
+    if (likely(elf_bss != elf_brk) && unlikely(padzero(elf_bss)))
+        panic("pad zero to bss error!");
 
     if (interpreter) {
         panic("interpreter!");
