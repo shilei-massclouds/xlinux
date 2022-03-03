@@ -195,7 +195,8 @@ void _do_page_fault(struct pt_regs *regs)
     if (likely(vma->vm_start <= addr))
         goto good_area;
     if (unlikely(!(vma->vm_flags & VM_GROWSDOWN)))
-        panic("bad vm_flags!");
+        panic("addr[%lx, %lx]: cause(%lx) bad vm_flags!",
+              vma->vm_start, addr, cause);
     if (unlikely(expand_stack(vma, addr)))
         panic("expand stack error!");
 

@@ -22,6 +22,7 @@
 
 #define STACK_ADD(sp, items) ((elf_addr_t *)(sp) - (items))
 #define STACK_ROUND(sp, items) (((unsigned long) (sp - items)) &~ 15UL)
+#define STACK_ALLOC(sp, len) ({ sp -= len ; sp; })
 
 #define BAD_ADDR(x) (unlikely((unsigned long)(x) >= TASK_SIZE))
 
@@ -148,7 +149,9 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
     elf_addr_t *elf_info;
     elf_addr_t *u_platform;
     elf_addr_t *u_base_platform;
+    elf_addr_t *u_rand_bytes;
     struct vm_area_struct *vma;
+    unsigned char k_rand_bytes[16];
     int argc = bprm->argc;
     int envc = bprm->envc;
     unsigned long p = bprm->p;
@@ -156,6 +159,14 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 
     u_platform = NULL;
     u_base_platform = NULL;
+
+    /*
+     * Generate 16 random bytes for userspace PRNG seeding.
+     */
+    //get_random_bytes(k_rand_bytes, sizeof(k_rand_bytes));
+    u_rand_bytes = (elf_addr_t *) STACK_ALLOC(p, sizeof(k_rand_bytes));
+    if (copy_to_user(u_rand_bytes, k_rand_bytes, sizeof(k_rand_bytes)))
+        return -EFAULT;
 
     /* Create the ELF interpreter info */
     elf_info = (elf_addr_t *)mm->saved_auxv;
@@ -174,6 +185,7 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
     NEW_AUX_ENT(AT_FLAGS, 0);
     NEW_AUX_ENT(AT_ENTRY, e_entry);
     NEW_AUX_ENT(AT_SECURE, bprm->secureexec);
+    NEW_AUX_ENT(AT_RANDOM, (elf_addr_t)(unsigned long)u_rand_bytes);
     NEW_AUX_ENT(AT_EXECFN, bprm->exec);
 #undef NEW_AUX_ENT
 
