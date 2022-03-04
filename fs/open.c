@@ -74,7 +74,7 @@ EXPORT_SYMBOL(generic_file_open);
 long
 _do_sys_open(int dfd, const char *filename, int flags, umode_t mode)
 {
-    panic("%s: !", __func__);
+    panic("%s: filename(%s) flags(%x) mode(%x)!", __func__, filename, flags, mode);
 }
 
 void init_open(void)
