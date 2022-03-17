@@ -192,8 +192,6 @@ void mnt_set_mountpoint(struct mount *mnt,
 
 static void __attach_mnt(struct mount *mnt, struct mount *parent)
 {
-    printk("<<<<<<<<< %s: (%lx, %lx)!\n",
-           __func__, &parent->mnt, mnt->mnt_mountpoint);
     hlist_add_head(&mnt->mnt_hash, m_hash(&parent->mnt, mnt->mnt_mountpoint));
     list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 }
@@ -220,9 +218,10 @@ static struct mountpoint *unhash_mnt(struct mount *mnt)
     return mp;
 }
 
-static void attach_mnt(struct mount *mnt,
-            struct mount *parent,
-            struct mountpoint *mp)
+static void
+attach_mnt(struct mount *mnt,
+           struct mount *parent,
+           struct mountpoint *mp)
 {
     mnt_set_mountpoint(parent, mp, mnt);
     __attach_mnt(mnt, parent);
@@ -307,7 +306,6 @@ do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 
     error = do_add_mount(real_mount(mnt), mp, mountpoint, mnt_flags);
     unlock_mount(mp);
-
     return error;
 }
 

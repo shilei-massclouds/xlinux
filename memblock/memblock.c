@@ -189,10 +189,6 @@ repeat:
 int
 memblock_add(phys_addr_t base, phys_addr_t size)
 {
-	phys_addr_t end = base + size - 1;
-
-    pr_debug("%s: [%lx-%lx]\n", __func__, base, size);
-
 	return memblock_add_range(&memblock.memory, base, size);
 }
 EXPORT_SYMBOL(memblock_add);
@@ -349,10 +345,6 @@ __next_mem_range_rev(u64 *idx,
 int
 memblock_reserve(phys_addr_t base, phys_addr_t size)
 {
-	phys_addr_t end = base + size - 1;
-
-	pr_debug("%s: [%lx-%lx]\n", __func__, base, end);
-
 	return memblock_add_range(&memblock.reserved, base, size);
 }
 

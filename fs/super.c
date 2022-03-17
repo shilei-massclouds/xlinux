@@ -165,7 +165,6 @@ mount_bdev(struct file_system_type *fs_type,
     if (IS_ERR(s))
         panic("bad super!");
 
-    printk("%s: step1 (%p)\n", __func__, s->s_inodes.prev);
     s->s_mode = mode;
     snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
     sb_set_blocksize(s, block_size(bdev));

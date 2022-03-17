@@ -747,11 +747,6 @@ rmqueue_bulk(struct zone *zone,
     return alloced;
 }
 
-static inline bool check_new_pcp(struct page *page)
-{
-    return false;
-}
-
 /* Remove page from the per-cpu list, caller must protect the list */
 static struct page *
 __rmqueue_pcplist(struct zone *zone,
@@ -761,18 +756,15 @@ __rmqueue_pcplist(struct zone *zone,
 {
     struct page *page;
 
-    do {
-        if (list_empty(list)) {
-            pcp->count += rmqueue_bulk(zone, 0, pcp->batch, list, alloc_flags);
-            if (unlikely(list_empty(list)))
-                return NULL;
-        }
+    if (list_empty(list)) {
+        pcp->count += rmqueue_bulk(zone, 0, pcp->batch, list, alloc_flags);
+        if (unlikely(list_empty(list)))
+            return NULL;
+    }
 
-        page = list_first_entry(list, struct page, lru);
-        list_del(&page->lru);
-        pcp->count--;
-    } while (check_new_pcp(page));
-
+    page = list_first_entry(list, struct page, lru);
+    list_del(&page->lru);
+    pcp->count--;
     return page;
 }
 
