@@ -134,6 +134,9 @@ struct task_struct {
 
     struct fs_struct *fs;
 
+    /* Namespaces: */
+    struct nsproxy *nsproxy;
+
     /* Signal handlers: */
     struct signal_struct *signal;
 

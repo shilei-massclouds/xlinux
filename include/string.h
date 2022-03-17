@@ -81,4 +81,6 @@ sprintf(char *buf, const char *fmt, ...);
 
 int scnprintf(char *buf, size_t size, const char *fmt, ...);
 
+long strncpy_from_user(char *dst, const char *src, long count);
+
 #endif /* _LINUX_STRING_H */

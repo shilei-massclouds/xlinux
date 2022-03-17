@@ -4,6 +4,7 @@
 #define _LINUX_SYSCALLS_H
 
 #include <types.h>
+#include <utsname.h>
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
@@ -63,6 +64,17 @@ long sys_openat(int dfd, const char *filename, int flags, umode_t mode);
 
 typedef long (*do_sys_brk_t)(unsigned long brk);
 extern do_sys_brk_t do_sys_brk;
+
+typedef long (*do_sys_readlinkat_t)(int dfd, const char *pathname,
+                                    char *buf, int bufsiz);
+extern do_sys_readlinkat_t do_sys_readlinkat;
+
+long sys_readlinkat(int dfd, const char *pathname, char *buf, int bufsiz);
+
+long sys_newuname(struct new_utsname *name);
+
+typedef long (*do_sys_newuname_t)(struct new_utsname *name);
+extern do_sys_newuname_t do_sys_newuname;
 
 long sys_brk(unsigned long brk);
 

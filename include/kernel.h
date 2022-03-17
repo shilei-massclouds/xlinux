@@ -4,6 +4,14 @@
 
 #include <types.h>
 
+/**
+ * REPEAT_BYTE - repeat the value @x multiple times as an unsigned long value
+ * @x: value to repeat
+ *
+ * NOTE: @x is not checked for > 0xff; larger values produce odd results.
+ */
+#define REPEAT_BYTE(x)  ((~0ul / 0xff) * (x))
+
 #define ALIGN(x, a) _ALIGN((x), (a))
 
 #define __ALIGN_KERNEL_MASK(x, mask)    (((x) + (mask)) & ~(mask))

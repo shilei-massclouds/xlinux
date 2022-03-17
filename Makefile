@@ -18,6 +18,7 @@ SUBDIRS := startup lib early_dt \
 	workqueue \
 	fork \
 	sched \
+	sys \
 	init
 
 CLEAN_DIRS := $(addprefix _clean_, $(SUBDIRS))

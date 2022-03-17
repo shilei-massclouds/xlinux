@@ -2,8 +2,10 @@
 
 #include <fs.h>
 #include <errno.h>
+#include <namei.h>
 #include <export.h>
 #include <uaccess.h>
+#include <syscalls.h>
 #include <thread_info.h>
 
 static ssize_t
@@ -54,3 +56,24 @@ kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
     return __kernel_read(file, buf, count, pos);
 }
 EXPORT_SYMBOL(kernel_read);
+
+long
+_do_sys_readlinkat(int dfd, const char *pathname, char *buf, int bufsiz)
+{
+    int error;
+    struct path path;
+    int empty = 0;
+    unsigned int lookup_flags = LOOKUP_EMPTY;
+
+    if (bufsiz <= 0)
+        return -EINVAL;
+
+    error = user_path_at_empty(dfd, pathname, lookup_flags, &path, &empty);
+
+    panic("%s: pathname(%s)!", __func__, pathname);
+}
+
+void init_read_write(void)
+{
+    do_sys_readlinkat = _do_sys_readlinkat;
+}

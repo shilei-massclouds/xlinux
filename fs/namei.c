@@ -695,3 +695,37 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
     return filp;
 }
 EXPORT_SYMBOL(do_filp_open);
+
+struct filename *
+getname_flags(const char *filename, int flags, int *empty)
+{
+    int len;
+    char *kname;
+    struct filename *result;
+
+    result = __getname();
+    if (unlikely(!result))
+        return ERR_PTR(-ENOMEM);
+
+    /*
+     * First, try to embed the struct filename inside the names_cache
+     * allocation
+     */
+    kname = (char *)result->iname;
+    result->name = kname;
+
+    len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
+    if (unlikely(len < 0))
+        panic("strncpy from user error!");
+
+    panic("%s: filename(%s)", __func__, filename);
+}
+
+int
+user_path_at_empty(int dfd, const char *name, unsigned flags,
+                   struct path *path, int *empty)
+{
+    return filename_lookup(dfd, getname_flags(name, flags, empty),
+                           flags, path, NULL);
+}
+EXPORT_SYMBOL(user_path_at_empty);

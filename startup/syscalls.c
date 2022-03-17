@@ -12,6 +12,23 @@ SYSCALL_DEFINE4(openat, int, dfd, const char *, filename, int, flags,
     return do_sys_open(dfd, filename, flags, mode);
 }
 
+do_sys_readlinkat_t do_sys_readlinkat;
+EXPORT_SYMBOL(do_sys_readlinkat);
+
+SYSCALL_DEFINE4(readlinkat, int, dfd, const char *, pathname,
+                char *, buf, int, bufsiz)
+{
+    return do_sys_readlinkat(dfd, pathname, buf, bufsiz);
+}
+
+do_sys_newuname_t do_sys_newuname;
+EXPORT_SYMBOL(do_sys_newuname);
+
+SYSCALL_DEFINE1(newuname, struct new_utsname *, name)
+{
+    return do_sys_newuname(name);
+}
+
 do_sys_brk_t do_sys_brk;
 EXPORT_SYMBOL(do_sys_brk);
 

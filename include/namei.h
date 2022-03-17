@@ -25,6 +25,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 #define LOOKUP_EXCL         0x0400  /* ... in exclusive creation */
 #define LOOKUP_JUMPED       0x1000
 #define LOOKUP_ROOT         0x2000
+#define LOOKUP_EMPTY        0x4000  /* accept empty path [user_... only] */
 #define LOOKUP_NO_XDEV      0x040000 /* No mountpoint crossing. */
 #define LOOKUP_IN_ROOT      0x100000 /* Treat dirfd as fs root. */
 
@@ -42,5 +43,9 @@ int
 kern_path(const char *name, unsigned int flags, struct path *path);
 
 struct filename *getname_kernel(const char *filename);
+
+int
+user_path_at_empty(int dfd, const char *name, unsigned flags,
+                   struct path *path, int *empty);
 
 #endif /* _LINUX_NAMEI_H */

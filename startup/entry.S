@@ -113,7 +113,6 @@ _save_context:
     /* Handle syscalls */
     li t0, EXC_SYSCALL
     beq s4, t0, handle_syscall
-    csrw 0x0, s4
 
     /* Handle other exceptions */
     slli t0, s4, RISCV_LGPTR
@@ -138,7 +137,6 @@ handle_syscall:
     addi s2, s2, 0x4
     sd s2, PT_EPC(sp)
 check_syscall_nr:
-    csrw 0x0, 0x13
     csrw 0x0, a7
     /* Check to make sure we don't jump to a bogus syscall number. */
     li t0, __NR_syscalls
@@ -234,7 +232,6 @@ restore_all:
 	ld x30, PT_T5(sp)
 	ld x31, PT_T6(sp)
 	ld x2,  PT_SP(sp)
-    csrw 0x0, 0x1F
 	sret
 
 work_pending:

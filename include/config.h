@@ -13,4 +13,6 @@
 
 #define COMMAND_LINE_SIZE   512
 
+#define CONFIG_DEFAULT_HOSTNAME "(none)"
+
 #endif  /* _CONFIG_H */

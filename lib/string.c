@@ -3,6 +3,8 @@
 #include <types.h>
 #include <string.h>
 #include <export.h>
+#include <uaccess.h>
+#include <word-at-a-time.h>
 
 const unsigned char _ctype[] = {
 _C,_C,_C,_C,_C,_C,_C,_C,                /* 0-7 */
@@ -284,3 +286,66 @@ strcpy(char *dest, const char *src)
     return tmp;
 }
 EXPORT_SYMBOL(strcpy);
+
+/*
+ * Do a strncpy, return length of string without final '\0'.
+ * 'count' is the user-supplied count (return 'count' if we
+ * hit it), 'max' is the address space maximum (and we return
+ * -EFAULT if we hit it).
+ */
+static inline long
+do_strncpy_from_user(char *dst, const char *src,
+                     unsigned long count, unsigned long max)
+{
+    unsigned long res = 0;
+    const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
+
+    while (max >= sizeof(unsigned long)) {
+        unsigned long c, data;
+
+        /* Fall back to byte-at-a-time if we get a page fault */
+        unsafe_get_user(c, (unsigned long *)(src+res));
+
+        *(unsigned long *)(dst+res) = c;
+        if (has_zero(c, &data, &constants)) {
+            data = prep_zero_mask(c, data, &constants);
+            data = create_zero_mask(data);
+            return res + find_zero(data);
+        }
+        res += sizeof(unsigned long);
+        max -= sizeof(unsigned long);
+    }
+
+    panic("%s: !", __func__);
+}
+
+long strncpy_from_user(char *dst, const char *src, long count)
+{
+    unsigned long max_addr;
+    unsigned long src_addr;
+
+    if (unlikely(count <= 0))
+        return 0;
+
+    max_addr = user_addr_max();
+    src_addr = (unsigned long)src;
+    if (likely(src_addr < max_addr)) {
+        long retval;
+        unsigned long max = max_addr - src_addr;
+
+        /*
+         * Truncate 'max' to the user-specified limit, so that
+         * we only have one limit we need to check in the loop
+         */
+        if (max > count)
+            max = count;
+
+        if (user_read_access_begin(src, max)) {
+            retval = do_strncpy_from_user(dst, src, count, max);
+            user_read_access_end();
+            return retval;
+        }
+    }
+    return -EFAULT;
+}
+EXPORT_SYMBOL(strncpy_from_user);

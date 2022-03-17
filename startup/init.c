@@ -2,6 +2,7 @@
 
 #include <bug.h>
 #include <sbi.h>
+#include <uts.h>
 #include <fork.h>
 #include <slab.h>
 #include <sched.h>
@@ -10,6 +11,8 @@
 #include <ptrace.h>
 #include <signal.h>
 #include <filemap.h>
+#include <nsproxy.h>
+#include <utsname.h>
 
 void (*handle_arch_irq)(struct pt_regs *);
 EXPORT_SYMBOL(handle_arch_irq);
@@ -29,6 +32,21 @@ static struct signal_struct init_signals = {
 struct task_group root_task_group;
 EXPORT_SYMBOL(root_task_group);
 
+struct uts_namespace init_uts_ns = {
+    .name = {
+        .sysname    = UTS_SYSNAME,
+        .nodename   = UTS_NODENAME,
+        .release    = UTS_RELEASE,
+        .version    = UTS_VERSION,
+        .machine    = UTS_MACHINE,
+        .domainname = UTS_DOMAINNAME,
+    },
+};
+
+struct nsproxy init_nsproxy = {
+    .uts_ns = &init_uts_ns,
+};
+
 struct task_struct init_task
 __aligned(L1_CACHE_BYTES) = {
     .thread_info = INIT_THREAD_INFO(init_task),
@@ -37,6 +55,7 @@ __aligned(L1_CACHE_BYTES) = {
     .flags  = PF_KTHREAD,
     .fs     = &init_fs,
     .signal = &init_signals,
+    .nsproxy = &init_nsproxy,
 
     .normal_prio = MAX_PRIO - 20,
     .sched_task_group = &root_task_group,

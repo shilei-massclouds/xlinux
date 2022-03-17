@@ -11,6 +11,7 @@
 #include <string.h>
 
 extern void init_open(void);
+extern void init_read_write(void);
 extern void files_init(void);
 extern void buffer_init(void);
 extern void block_dev_init(void);
@@ -263,6 +264,7 @@ init_module(void)
     printk("module[fs]: init begin ...\n");
     BUG_ON(!slab_is_available());
     init_open();
+    init_read_write();
     inode_init();
     mnt_init();
     BUG_ON(!names_cachep);
