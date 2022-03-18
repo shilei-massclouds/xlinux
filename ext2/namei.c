@@ -26,6 +26,7 @@ ext2_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
         if (inode == ERR_PTR(-ESTALE))
             panic("deleted inode referenced: %lu", (unsigned long) ino);
     }
+    printk("%s: ===================== 3 inode(%lx)\n", __func__, inode);
     return d_splice_alias(inode, dentry);
 }
 

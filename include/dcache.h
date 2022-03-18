@@ -12,6 +12,12 @@
 #define DCACHE_OP_COMPARE       0x00000002
 #define DCACHE_MOUNTED          0x00010000 /* is a mountpoint */
 #define DCACHE_NEED_AUTOMOUNT   0x00020000 /* handle automount on this dir */
+#define DCACHE_MISS_TYPE        0x00000000 /* Negative dentry (maybe fallthru to nowhere) */
+#define DCACHE_DIRECTORY_TYPE   0x00200000 /* Normal directory */
+#define DCACHE_REGULAR_TYPE     0x00400000 /* Regular file type (or fallthru to such) */
+#define DCACHE_SPECIAL_TYPE     0x00500000 /* Other file type (or fallthru to such) */
+#define DCACHE_ENTRY_TYPE       0x00700000
+#define DCACHE_FALLTHRU         0x01000000 /* Fall through to lower layer */
 #define DCACHE_PAR_LOOKUP       0x10000000 /* being looked up (with parent locked shared) */
 #define DCACHE_MANAGE_TRANSIT   0x00040000 /* manage transit from this dirent */
 #define DCACHE_MANAGED_DENTRY \
@@ -61,6 +67,9 @@ d_lookup(const struct dentry *parent, const struct qstr *name);
 
 struct dentry *
 __d_lookup(const struct dentry *parent, const struct qstr *name);
+
+struct dentry *
+__d_lookup_rcu(const struct dentry *parent, const struct qstr *name);
 
 struct dentry *
 d_alloc(struct dentry * parent, const struct qstr *name);
@@ -118,5 +127,18 @@ static inline void d_lookup_done(struct dentry *dentry)
 int d_set_mounted(struct dentry *dentry);
 
 struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry);
+
+/*
+ * Directory cache entry type accessor functions.
+ */
+static inline unsigned __d_entry_type(const struct dentry *dentry)
+{
+    return dentry->d_flags & DCACHE_ENTRY_TYPE;
+}
+
+static inline bool d_can_lookup(const struct dentry *dentry)
+{
+    return __d_entry_type(dentry) == DCACHE_DIRECTORY_TYPE;
+}
 
 #endif /* _LINUX_DCACHE_H */

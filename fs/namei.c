@@ -150,15 +150,34 @@ path_init(struct nameidata *nd, unsigned flags)
     return s;
 }
 
+static int unlazy_walk(struct nameidata *nd)
+{
+    struct dentry *parent = nd->path.dentry;
+    BUG_ON(!(nd->flags & LOOKUP_RCU));
+
+    nd->flags &= ~LOOKUP_RCU;
+    BUG_ON(nd->inode != parent->d_inode);
+    return 0;
+}
+
 static struct dentry *
 lookup_fast(struct nameidata *nd, struct inode **inode)
 {
     struct dentry *dentry;
     struct dentry *parent = nd->path.dentry;
 
-    dentry = __d_lookup(parent, &nd->last);
-    if (unlikely(!dentry))
-        return NULL;
+    if (nd->flags & LOOKUP_RCU) {
+        dentry = __d_lookup_rcu(parent, &nd->last);
+        if (unlikely(!dentry)) {
+            if (unlazy_walk(nd))
+                return ERR_PTR(-ECHILD);
+            return NULL;
+        }
+    } else {
+        dentry = __d_lookup(parent, &nd->last);
+        if (unlikely(!dentry))
+            return NULL;
+    }
 
     *inode = d_backing_inode(dentry);
     return dentry;
@@ -208,14 +227,15 @@ handle_mounts(struct nameidata *nd, struct dentry *dentry,
 {
     path->mnt = nd->path.mnt;
     path->dentry = dentry;
+    printk("%s: 1 dir(%s) flags(%lx)\n",
+           __func__, path->dentry->d_name.name, nd->flags);
     if (nd->flags & LOOKUP_RCU) {
         if (unlikely(!*inode))
             return -ENOENT;
         if (likely(__follow_mount_rcu(nd, path, inode)))
             return 0;
-    } else {
-        panic("no flag LOOKUP_RCU!");
     }
+
     *inode = d_backing_inode(path->dentry);
     return 0;
 }
@@ -226,8 +246,8 @@ step_into(struct nameidata *nd, struct dentry *dentry, struct inode *inode)
     struct path path;
     handle_mounts(nd, dentry, &path, &inode);
 
-    printk("%s: dentry(%s) inode(%u)\n",
-           __func__, dentry->d_name.name, inode->i_ino);
+    printk("%s: dentry(%s) inode(%lx)\n",
+           __func__, dentry->d_name.name, inode);
 
     nd->path = path;
     nd->inode = inode;
@@ -260,7 +280,8 @@ __lookup_slow(const struct qstr *name, struct dentry *dir,
     if (unlikely(!d_in_lookup(dentry))) {
         panic("not in lookup!");
     } else {
-        printk("%s: 1 dir(%s)\n", __func__, dir->d_name.name);
+        printk("%s: 1 dir(%s) inode(%lx)\n",
+               __func__, dir->d_name.name, inode);
         old = inode->i_op->lookup(inode, dentry, flags);
         printk("%s: 2\n", __func__);
         d_lookup_done(dentry);
@@ -300,6 +321,7 @@ walk_component(struct nameidata *nd)
         return ERR_CAST(dentry);
     if (unlikely(!dentry)) {
         dentry = lookup_slow(&nd->last, nd->path.dentry, nd->flags);
+        printk("%s: 1 dentry(%lx)\n", __func__, dentry);
         if (IS_ERR(dentry))
             return ERR_CAST(dentry);
     }
@@ -328,6 +350,7 @@ link_path_walk(const char *name, struct nameidata *nd)
     for (;;) {
         int type;
         u64 hash_len;
+        const char *link;
 
         hash_len = hash_name(nd->path.dentry, name);
         type = LAST_NORM;
@@ -360,7 +383,19 @@ link_path_walk(const char *name, struct nameidata *nd)
         if (unlikely(!*name))
             panic("bad name!");
 
-        walk_component(nd);
+        link = walk_component(nd);
+        if (unlikely(link)) {
+            if (IS_ERR(link))
+                return PTR_ERR(link);
+            panic("bad link!");
+        }
+        if (unlikely(!d_can_lookup(nd->path.dentry))) {
+            if (nd->flags & LOOKUP_RCU) {
+                if (unlazy_walk(nd))
+                    return -ECHILD;
+            }
+            return -ENOTDIR;
+        }
     }
 
     return 0;
@@ -512,8 +547,8 @@ path_lookupat(struct nameidata *nd, unsigned flags, struct path *path)
     int err;
     const char *s = path_init(nd, flags);
 
-    printk(">>>>>>>>>>>>>>>>>> %s 1: name(%s) dir(%s)\n",
-           __func__, s, nd->path.dentry->d_name.name);
+    printk(">>>>>>>>>>>>>>>>>> %s 1: name(%s) dir(%s) flags(%lx)\n",
+           __func__, s, nd->path.dentry->d_name.name, nd->flags);
 
     while (!(err = link_path_walk(s, nd)) &&
            (s = lookup_last(nd)) != NULL)
@@ -544,8 +579,7 @@ filename_lookup(int dfd, struct filename *name, unsigned flags,
     }
     set_nameidata(&nd, dfd, name);
     retval = path_lookupat(&nd, flags | LOOKUP_RCU, path);
-    printk("%s: %s root(%s)\n", __func__, name->name, path->dentry->d_name.name);
-    BUG_ON(retval);
+    printk("%s: %s %d\n", __func__, name->name, retval);
     return retval;
 }
 

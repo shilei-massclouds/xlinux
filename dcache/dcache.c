@@ -89,15 +89,43 @@ EXPORT_SYMBOL(d_alloc_anon);
 
 static inline void
 __d_set_inode_and_type(struct dentry *dentry,
-                       struct inode *inode)
+                       struct inode *inode,
+                       unsigned type_flags)
 {
+    unsigned flags;
+
     dentry->d_inode = inode;
+    flags = READ_ONCE(dentry->d_flags);
+    flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
+    flags |= type_flags;
+    WRITE_ONCE(dentry->d_flags, flags);
+}
+
+static unsigned d_flags_for_inode(struct inode *inode)
+{
+    unsigned add_flags = DCACHE_REGULAR_TYPE;
+
+    if (!inode)
+        return DCACHE_MISS_TYPE;
+
+    if (S_ISDIR(inode->i_mode)) {
+        add_flags = DCACHE_DIRECTORY_TYPE;
+        goto type_determined;
+    }
+
+    if (unlikely(!S_ISREG(inode->i_mode)))
+        add_flags = DCACHE_SPECIAL_TYPE;
+
+ type_determined:
+    return add_flags;
 }
 
 static void
 __d_instantiate(struct dentry *dentry, struct inode *inode)
 {
-    __d_set_inode_and_type(dentry, inode);
+    unsigned add_flags = d_flags_for_inode(inode);
+
+    __d_set_inode_and_type(dentry, inode, add_flags);
 }
 
 void
@@ -198,6 +226,13 @@ __d_lookup(const struct dentry *parent, const struct qstr *name)
 EXPORT_SYMBOL(__d_lookup);
 
 struct dentry *
+__d_lookup_rcu(const struct dentry *parent, const struct qstr *name)
+{
+    return __d_lookup(parent, name);
+}
+EXPORT_SYMBOL(__d_lookup_rcu);
+
+struct dentry *
 d_alloc(struct dentry *parent, const struct qstr *name)
 {
     struct dentry *dentry = __d_alloc(parent->d_sb, name);
@@ -224,8 +259,9 @@ __d_add(struct dentry *dentry, struct inode *inode)
         __d_lookup_done(dentry);
 
     if (inode) {
+        unsigned add_flags = d_flags_for_inode(inode);
         hlist_add_head(&dentry->d_alias, &inode->i_dentry);
-        __d_set_inode_and_type(dentry, inode);
+        __d_set_inode_and_type(dentry, inode, add_flags);
     }
 
     __d_rehash(dentry);

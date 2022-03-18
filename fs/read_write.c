@@ -70,7 +70,7 @@ _do_sys_readlinkat(int dfd, const char *pathname, char *buf, int bufsiz)
 
     error = user_path_at_empty(dfd, pathname, lookup_flags, &path, &empty);
     if (!error) {
-        panic("%s: pathname(%s) NOT implemented!", __func__, pathname);
+        panic("%s: NOT implemented!", __func__);
     }
     return error;
 }
