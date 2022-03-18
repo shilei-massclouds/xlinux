@@ -718,7 +718,42 @@ getname_flags(const char *filename, int flags, int *empty)
     if (unlikely(len < 0))
         panic("strncpy from user error!");
 
-    panic("%s: filename(%s)", __func__, filename);
+    /*
+     * Uh-oh. We have a name that's approaching PATH_MAX. Allocate a
+     * separate struct filename so we can dedicate the entire
+     * names_cache allocation for the pathname, and re-do the copy from
+     * userland.
+     */
+    if (unlikely(len == EMBEDDED_NAME_MAX)) {
+        const size_t size = offsetof(struct filename, iname[1]);
+        kname = (char *)result;
+
+        /*
+         * size is chosen that way we to guarantee that
+         * result->iname[0] is within the same object and that
+         * kname can't be equal to result->iname, no matter what.
+         */
+        result = kzalloc(size, GFP_KERNEL);
+        if (unlikely(!result))
+            panic("out of memory!");
+
+        result->name = kname;
+        len = strncpy_from_user(kname, filename, PATH_MAX);
+        if (unlikely(len < 0))
+            panic("out of memory!");
+
+        if (unlikely(len == PATH_MAX))
+            panic("out of memory!");
+    }
+
+    /* The empty path is special. */
+    if (unlikely(!len)) {
+        if (empty)
+            *empty = 1;
+        if (!(flags & LOOKUP_EMPTY))
+            return ERR_PTR(-ENOENT);
+    }
+    return result;
 }
 
 int

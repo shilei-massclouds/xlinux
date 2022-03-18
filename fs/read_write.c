@@ -69,8 +69,10 @@ _do_sys_readlinkat(int dfd, const char *pathname, char *buf, int bufsiz)
         return -EINVAL;
 
     error = user_path_at_empty(dfd, pathname, lookup_flags, &path, &empty);
-
-    panic("%s: pathname(%s)!", __func__, pathname);
+    if (!error) {
+        panic("%s: pathname(%s) NOT implemented!", __func__, pathname);
+    }
+    return error;
 }
 
 void init_read_write(void)

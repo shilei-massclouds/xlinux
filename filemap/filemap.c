@@ -41,12 +41,10 @@ _add_to_page_cache_lru(struct page *page,
 {
     int ret;
 
-    printk("%s: page(%lx)\n", __func__, page);
     ret = __add_to_page_cache_locked(page, mapping, offset, gfp_mask);
     BUG_ON(ret);
     BUG_ON(PageActive(page));
     //lru_cache_add(page);
-
     return ret;
 }
 

@@ -112,10 +112,15 @@ ext2_find_entry(struct inode *dir, const struct qstr *child,
         if (++n >= npages)
             n = 0;
 
-        panic("%s: NOT found!", __func__);
+        /* next page is past the blocks we've got */
+        if (unlikely(n > (dir->i_blocks >> (PAGE_SHIFT - 9))))
+            panic("dir %lu size %ld exceeds block count %lu",
+                  dir->i_ino, dir->i_size,
+                  (unsigned long long)dir->i_blocks);
+
     } while(n != start);
 
-    panic("%s: !", __func__);
+    return ERR_PTR(-ENOENT);
 
  found:
     *res_page = page;
@@ -131,7 +136,7 @@ int ext2_inode_by_name(struct inode *dir, const struct qstr *child,
 
     de = ext2_find_entry(dir, child, &page);
     if (IS_ERR(de))
-        panic("bad dentry!");
+        return PTR_ERR(de);
 
     *ino = de->inode;
     return 0;

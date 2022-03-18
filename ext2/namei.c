@@ -18,7 +18,9 @@ ext2_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
     res = ext2_inode_by_name(dir, &dentry->d_name, &ino);
     printk("%s: ===================== 2\n", __func__);
     if (res) {
-        panic("lookup inode by name error!");
+        if (res != -ENOENT)
+            return ERR_PTR(res);
+        inode = NULL;
     } else {
         inode = ext2_iget(dir->i_sb, ino);
         if (inode == ERR_PTR(-ESTALE))
