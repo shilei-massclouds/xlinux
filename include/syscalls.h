@@ -85,4 +85,13 @@ typedef long (*do_sys_mprotect_t)(unsigned long start, size_t len,
 
 extern do_sys_mprotect_t do_sys_mprotect;
 
+typedef long (*do_sys_mount_t)(char *dev_name, char *dir_name,
+                               char *type, unsigned long flags,
+                               void *data);
+
+extern do_sys_mount_t do_sys_mount;
+
+long sys_mount(char *dev_name, char *dir_name,
+               char *type, unsigned long flags, void *data);
+
 #endif /* _LINUX_SYSCALLS_H */

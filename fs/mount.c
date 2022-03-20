@@ -9,8 +9,9 @@
 #include <kernel.h>
 #include <printk.h>
 #include <string.h>
-#include <hashtable.h>
 #include <current.h>
+#include <syscalls.h>
+#include <hashtable.h>
 
 static struct kmem_cache *mnt_cache;
 
@@ -500,9 +501,17 @@ kern_mount(struct file_system_type *type)
 }
 EXPORT_SYMBOL(kern_mount);
 
+long _do_sys_mount(char *dev_name, char *dir_name, char *type,
+                   unsigned long flags, void *data)
+{
+    panic("%s: !", __func__);
+}
+
 void
 mnt_init(void)
 {
+    do_sys_mount = _do_sys_mount;
+
     mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct mount),0,
                                   SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 

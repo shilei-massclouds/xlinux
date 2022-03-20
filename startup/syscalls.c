@@ -45,3 +45,12 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 {
     return do_sys_mprotect(start, len, prot);
 }
+
+do_sys_mount_t do_sys_mount;
+EXPORT_SYMBOL(do_sys_mount);
+
+SYSCALL_DEFINE5(mount, char *, dev_name, char *, dir_name,
+                char *, type, unsigned long, flags, void *, data)
+{
+    return do_sys_mount(dev_name, dir_name, type, flags, data);
+}
