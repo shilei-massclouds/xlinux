@@ -78,4 +78,11 @@ extern do_sys_newuname_t do_sys_newuname;
 
 long sys_brk(unsigned long brk);
 
+long sys_mprotect(unsigned long start, size_t len, unsigned long prot);
+
+typedef long (*do_sys_mprotect_t)(unsigned long start, size_t len,
+                                  unsigned long prot);
+
+extern do_sys_mprotect_t do_sys_mprotect;
+
 #endif /* _LINUX_SYSCALLS_H */

@@ -15,3 +15,7 @@ __SYSCALL(__NR_uname, sys_newuname)
 /* mm/nommu.c, also with MMU */
 #define __NR_brk 214
 __SYSCALL(__NR_brk, sys_brk)
+
+/* mm/, CONFIG_MMU only */
+#define __NR_mprotect 226
+__SYSCALL(__NR_mprotect, sys_mprotect)

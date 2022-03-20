@@ -12,6 +12,8 @@
 #include <pgtable.h>
 #include <mm_types.h>
 
+void init_mprotect(void);
+
 static phys_alloc_t phys_alloc_fn;
 
 extern do_page_fault_t do_page_fault_func;
@@ -239,6 +241,8 @@ static int
 init_module(void)
 {
     printk("module[mm]: init begin ...\n");
+
+    init_mprotect();
 
     do_page_fault_func = _do_page_fault;
 

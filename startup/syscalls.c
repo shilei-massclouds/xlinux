@@ -36,3 +36,12 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
     return do_sys_brk(brk);
 }
+
+do_sys_mprotect_t do_sys_mprotect;
+EXPORT_SYMBOL(do_sys_mprotect);
+
+SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+                unsigned long, prot)
+{
+    return do_sys_mprotect(start, len, prot);
+}

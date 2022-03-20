@@ -75,4 +75,16 @@ calc_vm_flag_bits(unsigned long flags)
            _calc_vm_trans(flags, MAP_SYNC,       VM_SYNC      );
 }
 
+/*
+ * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
+ * already been masked out.
+ *
+ * Returns true if the prot flags are valid
+ */
+static inline bool
+arch_validate_prot(unsigned long prot, unsigned long addr)
+{
+    return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
+}
+
 #endif /* __ASM_GENERIC_MMAN_H */
