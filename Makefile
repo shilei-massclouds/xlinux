@@ -11,7 +11,7 @@ SUBDIRS := startup lib early_dt \
 	mm pgalloc gup memblock buddy slab kalloc filemap \
 	vma ioremap devres mempool \
 	of of_irq platform kobject \
-	dcache fs ramfs rootfs ext2 \
+	dcache fs ramfs rootfs procfs ext2 \
 	irq softirq intc plic \
 	block genhd bio iov_iter readahead backing-dev \
 	virtio virtio_mmio virtio_blk \

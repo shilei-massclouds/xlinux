@@ -267,7 +267,6 @@ graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
     if (mnt->mnt.mnt_sb->s_flags & SB_NOUSER)
         return -EINVAL;
 
-    printk("%s: !\n", __func__);
     return attach_recursive_mnt(mnt, p, mp, false);
 }
 
@@ -571,9 +570,7 @@ long _do_sys_mount(char *dev_name, char *dir_name, char *type,
     if (IS_ERR(options))
         return ret;
 
-    ret = do_mount(kernel_dev, dir_name, kernel_type, flags, options);
-    panic("%s: !", __func__);
-    return ret;
+    return do_mount(kernel_dev, dir_name, kernel_type, flags, options);
 }
 
 void
