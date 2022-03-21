@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <types.h>
+#include <bitops.h>
 #include <string.h>
 #include <export.h>
 #include <uaccess.h>
@@ -349,3 +350,82 @@ long strncpy_from_user(char *dst, const char *src, long count)
     return -EFAULT;
 }
 EXPORT_SYMBOL(strncpy_from_user);
+
+static inline long
+do_strnlen_user(const char *src, unsigned long count, unsigned long max)
+{
+    unsigned long c;
+    unsigned long align;
+    unsigned long res = 0;
+    const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
+
+    /*
+     * Do everything aligned. But that means that we
+     * need to also expand the maximum..
+     */
+    align = (sizeof(unsigned long) - 1) & (unsigned long)src;
+    src -= align;
+    max += align;
+
+    unsafe_get_user(c, (unsigned long *)src);
+    c |= aligned_byte_mask(align);
+
+    for (;;) {
+        unsigned long data;
+        if (has_zero(c, &data, &constants)) {
+            data = prep_zero_mask(c, data, &constants);
+            data = create_zero_mask(data);
+            return res + find_zero(data) + 1 - align;
+        }
+        res += sizeof(unsigned long);
+        /* We already handled 'unsigned long' bytes. Did we do it all ? */
+        if (unlikely(max <= sizeof(unsigned long)))
+            break;
+        max -= sizeof(unsigned long);
+        unsafe_get_user(c, (unsigned long *)(src+res));
+    }
+    res -= align;
+
+    /*
+     * Uhhuh. We hit 'max'. But was that the user-specified maximum
+     * too? If so, return the marker for "too long".
+     */
+    if (res >= count)
+        return count+1;
+
+    /*
+     * Nope: we hit the address space limit, and we still had more
+     * characters the caller would have wanted. That's 0.
+     */
+    return 0;
+}
+
+long strnlen_user(const char *str, long count)
+{
+    unsigned long max_addr, src_addr;
+
+    if (unlikely(count <= 0))
+        return 0;
+
+    max_addr = user_addr_max();
+    src_addr = (unsigned long)untagged_addr(str);
+    if (likely(src_addr < max_addr)) {
+        long retval;
+        unsigned long max = max_addr - src_addr;
+
+        /*
+         * Truncate 'max' to the user-specified limit, so that
+         * we only have one limit we need to check in the loop
+         */
+        if (max > count)
+            max = count;
+
+        if (user_read_access_begin(str, max)) {
+            retval = do_strnlen_user(str, count, max);
+            user_read_access_end();
+            return retval;
+        }
+    }
+    return 0;
+}
+EXPORT_SYMBOL(strnlen_user);

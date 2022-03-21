@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <mm.h>
+#include <slab.h>
 #include <export.h>
 #include <current.h>
+#include <uaccess.h>
 #include <mm_types.h>
 #include <processor.h>
 #include <mman-common.h>
@@ -140,3 +142,57 @@ arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
     mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 }
 EXPORT_SYMBOL(arch_pick_mmap_layout);
+
+/**
+ * memdup_user - duplicate memory region from user space
+ *
+ * @src: source address in user space
+ * @len: number of bytes to copy
+ *
+ * Return: an ERR_PTR() on failure.  Result is physically
+ * contiguous, to be freed by kfree().
+ */
+void *memdup_user(const void *src, size_t len)
+{
+    void *p;
+
+    p = kmalloc(len, GFP_USER | __GFP_NOWARN);
+    if (!p)
+        return ERR_PTR(-ENOMEM);
+
+    if (copy_from_user(p, src, len)) {
+        kfree(p);
+        return ERR_PTR(-EFAULT);
+    }
+    return p;
+}
+EXPORT_SYMBOL(memdup_user);
+
+/**
+ * strndup_user - duplicate an existing string from user space
+ * @s: The string to duplicate
+ * @n: Maximum number of bytes to copy, including the trailing NUL.
+ *
+ * Return: newly allocated copy of @s or an ERR_PTR() in case of error
+ */
+char *strndup_user(const char *s, long n)
+{
+    char *p;
+    long length;
+
+    length = strnlen_user(s, n);
+
+    if (!length)
+        return ERR_PTR(-EFAULT);
+
+    if (length > n)
+        return ERR_PTR(-EINVAL);
+
+    p = memdup_user(s, length);
+    if (IS_ERR(p))
+        return p;
+
+    p[length - 1] = '\0';
+    return p;
+}
+EXPORT_SYMBOL(strndup_user);

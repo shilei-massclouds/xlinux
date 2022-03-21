@@ -149,25 +149,22 @@ do {                                        \
     }                           \
 })
 
-/*
- * Unlike strnlen, strnlen_user includes the nul terminator in
- * its returned count. Callers should check for a returned value
- * greater than N as an indication the string is too long.
- */
-static inline long strnlen_user(const char *src, long n)
-{
-    if (!access_ok(src, 1))
-        return 0;
-    return __strnlen_user(src, n);
-}
-
 extern unsigned long
 asm_copy_to_user(void *to, const void *from, unsigned long n);
+
+extern unsigned long
+asm_copy_from_user(void *to, const void *from, unsigned long n);
 
 static inline unsigned long
 raw_copy_to_user(void *to, const void *from, unsigned long n)
 {
     return asm_copy_to_user(to, from, n);
+}
+
+static inline unsigned long
+raw_copy_from_user(void *to, const void *from, unsigned long n)
+{
+    return asm_copy_from_user(to, from, n);
 }
 
 static inline unsigned long
@@ -182,6 +179,24 @@ static __always_inline unsigned long
 copy_to_user(void *to, const void *from, unsigned long n)
 {
     return _copy_to_user(to, from, n);
+}
+
+static inline unsigned long
+_copy_from_user(void *to, const void *from, unsigned long n)
+{
+    unsigned long res = n;
+    if (likely(access_ok(from, n))) {
+        res = raw_copy_from_user(to, from, n);
+    }
+    if (unlikely(res))
+        memset(to + (n - res), 0, res);
+    return res;
+}
+
+static __always_inline unsigned long
+copy_from_user(void *to, const void *from, unsigned long n)
+{
+    return _copy_from_user(to, from, n);
 }
 
 /*

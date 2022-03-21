@@ -5,6 +5,7 @@
 #include <export.h>
 #include <linkage.h>
 #include <pgtable.h>
+#include <uaccess.h>
 
 #ifndef __riscv_cmodel_medany
 #error "Don't use absolute addressing now."
@@ -71,6 +72,16 @@ asm_copy_to_user(void *to, const void *from, unsigned long n)
     return __asm_copy_to_user(to, from, n);
 }
 EXPORT_SYMBOL(asm_copy_to_user);
+
+extern unsigned long
+__asm_copy_from_user(void *to, const void *from, unsigned long n);
+
+unsigned long
+asm_copy_from_user(void *to, const void *from, unsigned long n)
+{
+    return __asm_copy_from_user(to, from, n);
+}
+EXPORT_SYMBOL(asm_copy_from_user);
 
 void do_page_fault(struct pt_regs *regs)
 {

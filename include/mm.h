@@ -313,4 +313,6 @@ static inline bool want_init_on_alloc(gfp_t flags)
     return flags & __GFP_ZERO;
 }
 
+char *strndup_user(const char *s, long n);
+
 #endif /* _RISCV_MM_H_ */

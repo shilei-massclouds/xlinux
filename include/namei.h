@@ -48,4 +48,11 @@ int
 user_path_at_empty(int dfd, const char *name, unsigned flags,
                    struct path *path, int *empty);
 
+static inline int
+user_path_at(int dfd, const char *name, unsigned flags,
+             struct path *path)
+{
+    return user_path_at_empty(dfd, name, flags, path, NULL);
+}
+
 #endif /* _LINUX_NAMEI_H */

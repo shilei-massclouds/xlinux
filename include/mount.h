@@ -76,4 +76,8 @@ static inline int mnt_has_parent(struct mount *mnt)
     return mnt != mnt->mnt_parent;
 }
 
+int
+path_mount(const char *dev_name, struct path *path,
+           const char *type_page, unsigned long flags);
+
 #endif /* _LINUX_MOUNT_H */

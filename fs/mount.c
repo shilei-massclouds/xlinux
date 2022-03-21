@@ -7,9 +7,11 @@
 #include <namei.h>
 #include <export.h>
 #include <kernel.h>
+#include <limits.h>
 #include <printk.h>
 #include <string.h>
 #include <current.h>
+#include <uaccess.h>
 #include <syscalls.h>
 #include <hashtable.h>
 
@@ -501,10 +503,77 @@ kern_mount(struct file_system_type *type)
 }
 EXPORT_SYMBOL(kern_mount);
 
+void *copy_mount_options(const void *data)
+{
+    char *copy;
+    unsigned size;
+
+    if (!data)
+        return NULL;
+
+    copy = kmalloc(PAGE_SIZE, GFP_KERNEL);
+    if (!copy)
+        return ERR_PTR(-ENOMEM);
+
+    size = PAGE_SIZE - offset_in_page(data);
+
+    if (copy_from_user(copy, data, size)) {
+        kfree(copy);
+        return ERR_PTR(-EFAULT);
+    }
+    if (size != PAGE_SIZE) {
+        if (copy_from_user(copy + size, data + size, PAGE_SIZE - size))
+            memset(copy + size, 0, PAGE_SIZE - size);
+    }
+    return copy;
+}
+
+char *copy_mount_string(const void *data)
+{
+    return data ? strndup_user(data, PATH_MAX) : NULL;
+}
+
+long
+do_mount(const char *dev_name, const char *dir_name,
+         const char *type_page, unsigned long flags, void *data_page)
+{
+    int ret;
+    struct path path;
+
+    ret = user_path_at(AT_FDCWD, dir_name, LOOKUP_FOLLOW, &path);
+    if (ret)
+        return ret;
+    ret = path_mount(dev_name, &path, type_page, flags);
+    path_put(&path);
+    return ret;
+}
+
 long _do_sys_mount(char *dev_name, char *dir_name, char *type,
                    unsigned long flags, void *data)
 {
+    int ret;
+    char *kernel_type;
+    char *kernel_dev;
+    void *options;
+
+    kernel_type = copy_mount_string(type);
+    ret = PTR_ERR(kernel_type);
+    if (IS_ERR(kernel_type))
+        return ret;
+
+    kernel_dev = copy_mount_string(dev_name);
+    ret = PTR_ERR(kernel_dev);
+    if (IS_ERR(kernel_dev))
+        return ret;
+
+    options = copy_mount_options(data);
+    ret = PTR_ERR(options);
+    if (IS_ERR(options))
+        return ret;
+
+    ret = do_mount(kernel_dev, dir_name, kernel_type, flags, options);
     panic("%s: !", __func__);
+    return ret;
 }
 
 void

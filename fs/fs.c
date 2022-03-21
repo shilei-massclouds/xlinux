@@ -210,6 +210,7 @@ get_fs_type(const char *name)
     int len = dot ? dot - name : strlen(name);
 
     fs = __get_fs_type(name, len);
+    printk("%s: fs(%s)\n", __func__, name);
     BUG_ON(!fs);
     return fs;
 }

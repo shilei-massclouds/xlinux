@@ -12,7 +12,9 @@
     .endm
 
 .globl __asm_copy_to_user
+.globl __asm_copy_from_user
 __asm_copy_to_user:
+__asm_copy_from_user:
 
     /* Enable access to user memory */
     li t6, SR_SUM
