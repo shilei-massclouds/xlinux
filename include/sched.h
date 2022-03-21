@@ -134,6 +134,9 @@ struct task_struct {
 
     struct fs_struct *fs;
 
+    /* Open file information: */
+    struct files_struct *files;
+
     /* Namespaces: */
     struct nsproxy *nsproxy;
 

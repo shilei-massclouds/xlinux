@@ -16,3 +16,4 @@ obj_y += mpage.o
 obj_y += open.o
 obj_y += read_write.o
 obj_y += binfmt_elf.o
+obj_y += file.o

@@ -55,4 +55,7 @@ user_path_at(int dfd, const char *name, unsigned flags,
     return user_path_at_empty(dfd, name, flags, path, NULL);
 }
 
+struct filename *
+getname_flags(const char *filename, int flags, int *empty);
+
 #endif /* _LINUX_NAMEI_H */

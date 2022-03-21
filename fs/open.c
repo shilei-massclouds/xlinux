@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <fs.h>
+#include <file.h>
 #include <stat.h>
 #include <errno.h>
+#include <namei.h>
 #include <fcntl.h>
 #include <dcache.h>
 #include <export.h>
+#include <fdtable.h>
+#include <openat2.h>
 #include <syscalls.h>
 
 static int do_dentry_open(struct file *f,
@@ -71,10 +75,75 @@ int generic_file_open(struct inode *inode, struct file *filp)
 }
 EXPORT_SYMBOL(generic_file_open);
 
+static struct open_how build_open_how(int flags, umode_t mode)
+{
+    struct open_how how = {
+        .flags = flags,
+        .mode = mode,
+    };
+
+    return how;
+}
+
+struct filename *
+getname(const char *filename)
+{
+    return getname_flags(filename, 0, NULL);
+}
+
+static inline void __clear_open_fd(unsigned int fd, struct fdtable *fdt)
+{
+    __clear_bit(fd, fdt->open_fds);
+    __clear_bit(fd / BITS_PER_LONG, fdt->full_fds_bits);
+}
+
+static void __put_unused_fd(struct files_struct *files, unsigned int fd)
+{
+    struct fdtable *fdt = files_fdtable(files);
+    __clear_open_fd(fd, fdt);
+    if (fd < files->next_fd)
+        files->next_fd = fd;
+}
+
+void put_unused_fd(unsigned int fd)
+{
+    struct files_struct *files = current->files;
+    __put_unused_fd(files, fd);
+}
+EXPORT_SYMBOL(put_unused_fd);
+
+static long
+do_sys_openat2(int dfd, const char *filename, struct open_how *how)
+{
+    int fd;
+    struct open_flags op;
+    struct filename *tmp;
+
+    tmp = getname(filename);
+    if (IS_ERR(tmp))
+        return PTR_ERR(tmp);
+
+    fd = get_unused_fd_flags(how->flags);
+    if (fd >= 0) {
+        struct file *f = do_filp_open(dfd, tmp, &op);
+        if (IS_ERR(f)) {
+            put_unused_fd(fd);
+            fd = PTR_ERR(f);
+        } else {
+            fd_install(fd, f);
+        }
+    }
+
+    printk("%s: fd(%d) filename(%s) flags(%x) mode(%x)!\n",
+          __func__, fd, filename, how->flags, how->mode);
+    return fd;
+}
+
 long
 _do_sys_open(int dfd, const char *filename, int flags, umode_t mode)
 {
-    panic("%s: filename(%s) flags(%x) mode(%x)!", __func__, filename, flags, mode);
+    struct open_how how = build_open_how(flags, mode);
+    return do_sys_openat2(dfd, filename, &how);
 }
 
 void init_open(void)

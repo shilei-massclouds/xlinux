@@ -11,6 +11,7 @@
 #define O_NOCTTY    00000400    /* not fcntl */
 #define O_TRUNC     00001000    /* not fcntl */
 #define O_LARGEFILE 00100000
+#define O_CLOEXEC   02000000    /* set close_on_exec */
 
 #define O_PATH      010000000
 #define __O_TMPFILE 020000000

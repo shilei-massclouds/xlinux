@@ -10,6 +10,7 @@
 #include <kernel.h>
 #include <ptrace.h>
 #include <signal.h>
+#include <fdtable.h>
 #include <filemap.h>
 #include <nsproxy.h>
 #include <utsname.h>
@@ -47,6 +48,17 @@ struct nsproxy init_nsproxy = {
     .uts_ns = &init_uts_ns,
 };
 
+struct files_struct init_files = {
+    .fdt        = &init_files.fdtab,
+    .fdtab      = {
+        .max_fds        = NR_OPEN_DEFAULT,
+        .fd             = &init_files.fd_array[0],
+        .close_on_exec  = init_files.close_on_exec_init,
+        .open_fds   = init_files.open_fds_init,
+        .full_fds_bits  = init_files.full_fds_bits_init,
+    },
+};
+
 struct task_struct init_task
 __aligned(L1_CACHE_BYTES) = {
     .thread_info = INIT_THREAD_INFO(init_task),
@@ -54,6 +66,7 @@ __aligned(L1_CACHE_BYTES) = {
     .stack  = init_stack,
     .flags  = PF_KTHREAD,
     .fs     = &init_fs,
+    .files  = &init_files,
     .signal = &init_signals,
     .nsproxy = &init_nsproxy,
 
