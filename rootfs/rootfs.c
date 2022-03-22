@@ -236,7 +236,15 @@ num_kernel_params = sizeof(kernel_params) / sizeof(struct kernel_param);
 static void
 init_dirs(void)
 {
+    int err;
+
     init_mkdir("dev", S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
+
+    err = init_mknod("/dev/console", S_IFCHR | S_IRUSR | S_IWUSR,
+                     new_encode_dev(MKDEV(5, 1)));
+    if (err < 0)
+        panic("can't create console");
+
     init_mkdir("root", S_IFDIR | S_IRWXU);
 }
 
