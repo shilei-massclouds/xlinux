@@ -35,4 +35,23 @@ struct files_struct {
 
 #define files_fdtable(files) (files)->fdt
 
+/*
+ * The caller must ensure that fd table isn't shared or hold rcu or file lock
+ */
+static inline struct file *
+__fcheck_files(struct files_struct *files, unsigned int fd)
+{
+    struct fdtable *fdt = files->fdt;
+
+    if (fd < fdt->max_fds)
+        return fdt->fd[fd];
+    return NULL;
+}
+
+static inline struct file *
+fcheck_files(struct files_struct *files, unsigned int fd)
+{
+    return __fcheck_files(files, fd);
+}
+
 #endif /* __LINUX_FDTABLE_H */

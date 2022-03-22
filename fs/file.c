@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #include <fs.h>
+#include <file.h>
 #include <export.h>
 #include <signal.h>
 #include <current.h>
@@ -128,3 +129,50 @@ void fd_install(unsigned int fd, struct file *file)
     __fd_install(current->files, fd, file);
 }
 EXPORT_SYMBOL(fd_install);
+
+static struct file *
+__fget_files(struct files_struct *files, unsigned int fd, fmode_t mask,
+             unsigned int refs)
+{
+    struct file *file;
+
+    file = fcheck_files(files, fd);
+    if (file) {
+        /* File object ref couldn't be taken.
+         * dup2() atomicity guarantee is the reason
+         * we loop to catch the new file (or NULL pointer)
+         */
+        if (file->f_mode & mask)
+            file = NULL;
+    }
+
+    return file;
+}
+
+static inline struct file *
+__fget(unsigned int fd, fmode_t mask, unsigned int refs)
+{
+    return __fget_files(current->files, fd, mask, refs);
+}
+
+static unsigned long __fget_light(unsigned int fd, fmode_t mask)
+{
+    struct file *file;
+
+    file = __fget(fd, mask, 1);
+    if (!file)
+        return 0;
+    return FDPUT_FPUT | (unsigned long)file;
+}
+
+unsigned long __fdget(unsigned int fd)
+{
+    return __fget_light(fd, FMODE_PATH);
+}
+EXPORT_SYMBOL(__fdget);
+
+unsigned long __fdget_pos(unsigned int fd)
+{
+    unsigned long v = __fdget(fd);
+    return v;
+}

@@ -8,6 +8,10 @@ __SYSCALL(__NR_mount, sys_mount)
 #define __NR_openat 56
 __SYSCALL(__NR_openat, sys_openat)
 
+/* fs/read_write.c */
+#define __NR_write 64
+__SYSCALL(__NR_write, sys_write)
+
 /* fs/stat.c */
 #define __NR_readlinkat 78
 __SYSCALL(__NR_readlinkat, sys_readlinkat)

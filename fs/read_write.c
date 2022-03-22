@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <fs.h>
+#include <file.h>
 #include <errno.h>
 #include <namei.h>
 #include <export.h>
@@ -75,7 +76,18 @@ _do_sys_readlinkat(int dfd, const char *pathname, char *buf, int bufsiz)
     return error;
 }
 
+long
+_ksys_write(unsigned int fd, const char *buf, size_t count)
+{
+    ssize_t ret = -EBADF;
+    struct fd f = fdget_pos(fd);
+
+    panic("%s: fd(%u) count(%d) file(%lx)!",
+          __func__, fd, count, f.file);
+}
+
 void init_read_write(void)
 {
     do_sys_readlinkat = _do_sys_readlinkat;
+    ksys_write = _ksys_write;
 }

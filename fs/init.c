@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <file.h>
 #include <namei.h>
 #include <export.h>
 #include <current.h>
@@ -37,3 +38,16 @@ int init_chroot(const char *filename)
     return error;
 }
 EXPORT_SYMBOL(init_chroot);
+
+int init_dup(struct file *file)
+{
+    int fd;
+
+    fd = get_unused_fd_flags(0);
+    if (fd < 0)
+        return fd;
+    printk("%s: fd(%d)\n", __func__, fd);
+    fd_install(fd, file);
+    return 0;
+}
+EXPORT_SYMBOL(init_dup);

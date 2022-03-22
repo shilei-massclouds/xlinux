@@ -74,6 +74,9 @@ struct linux_binfmt;
 /* File is huge (eg. /dev/kmem): treat loff_t as unsigned */
 #define FMODE_UNSIGNED_OFFSET   ((__force fmode_t)0x2000)
 
+/* File is opened with O_PATH; almost nothing can be done with it */
+#define FMODE_PATH      ((__force fmode_t)0x4000)
+
 /* File needs atomic accesses to f_pos */
 #define FMODE_ATOMIC_POS        ((__force fmode_t)0x8000)
 
@@ -499,5 +502,9 @@ static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
 void set_binfmt(struct linux_binfmt *new);
 
 void finalize_exec(struct linux_binprm *bprm);
+
+struct file *filp_open(const char *filename, int flags, umode_t mode);
+
+int init_dup(struct file *file);
 
 #endif /* _LINUX_FS_H */

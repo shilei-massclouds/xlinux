@@ -248,6 +248,20 @@ init_dirs(void)
     init_mkdir("root", S_IFDIR | S_IRWXU);
 }
 
+/* Open /dev/console, for stdin/stdout/stderr, this should never fail */
+void console_on_rootfs(void)
+{
+    struct file *file = filp_open("/dev/console", O_RDWR, 0);
+
+    if (IS_ERR(file)) {
+        panic("Warning: unable to open an initial console.");
+        return;
+    }
+    init_dup(file);
+    init_dup(file);
+    init_dup(file);
+}
+
 static int
 init_module(void)
 {
@@ -257,6 +271,7 @@ init_module(void)
     init_mount_tree();
     rootfs_initialized = true;
     init_dirs();
+    console_on_rootfs();
     prepare_namespace();
     printk("module[rootfs]: init end!\n");
     return 0;

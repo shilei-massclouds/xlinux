@@ -94,4 +94,11 @@ extern do_sys_mount_t do_sys_mount;
 long sys_mount(char *dev_name, char *dir_name,
                char *type, unsigned long flags, void *data);
 
+typedef long (*ksys_write_t)(unsigned int fd,
+                             const char *buf, size_t count);
+
+extern ksys_write_t ksys_write;
+
+long sys_write(unsigned int fd, const char *buf, size_t count);
+
 #endif /* _LINUX_SYSCALLS_H */

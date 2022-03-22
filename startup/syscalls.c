@@ -54,3 +54,12 @@ SYSCALL_DEFINE5(mount, char *, dev_name, char *, dir_name,
 {
     return do_sys_mount(dev_name, dir_name, type, flags, data);
 }
+
+ksys_write_t ksys_write;
+EXPORT_SYMBOL(ksys_write);
+
+SYSCALL_DEFINE3(write, unsigned int, fd,
+                const char *, buf, size_t, count)
+{
+    return ksys_write(fd, buf, count);
+}
