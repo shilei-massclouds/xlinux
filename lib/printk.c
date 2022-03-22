@@ -7,6 +7,9 @@
 #define PREFIX_MAX      32
 #define LOG_LINE_MAX    (1024 - PREFIX_MAX)
 
+int preferred_console = -1;
+EXPORT_SYMBOL(preferred_console);
+
 static void
 vprintk_func(const char *fmt, va_list args)
 {

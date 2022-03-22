@@ -15,6 +15,7 @@ extern void init_read_write(void);
 extern void files_init(void);
 extern void buffer_init(void);
 extern void block_dev_init(void);
+extern void chrdev_init(void);
 int init_elf_binfmt(void);
 
 struct file_system_type *file_systems;
@@ -272,6 +273,7 @@ init_module(void)
     bdev_cache_init();
     buffer_init();
     files_init();
+    chrdev_init();
     block_dev_init();
     init_elf_binfmt();
     printk("module[fs]: init end!\n");

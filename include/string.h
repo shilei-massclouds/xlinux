@@ -85,4 +85,9 @@ long strncpy_from_user(char *dst, const char *src, long count);
 
 long strnlen_user(const char *str, long count);
 
+char *strncpy(char *dest, const char *src, size_t count);
+
+unsigned long
+simple_strtoul(const char *cp, char **endp, unsigned int base);
+
 #endif /* _LINUX_STRING_H */

@@ -29,10 +29,15 @@ extern const unsigned char _ctype[];
 #define __ismask(x) (_ctype[(int)(unsigned char)(x)])
 
 #define isalnum(c)  ((__ismask(c)&(_U|_L|_D)) != 0)
+static inline int isdigit(int c)
+{
+    return '0' <= c && c <= '9';
+}
 #define islower(c)  ((__ismask(c)&(_L)) != 0)
 #define isupper(c)  ((__ismask(c)&(_U)) != 0)
 /* Note: isspace() must return false for %NUL-terminator */
 #define isspace(c)  ((__ismask(c)&(_S)) != 0)
+#define isxdigit(c) ((__ismask(c)&(_D|_X)) != 0)
 
 #define NULL ((void *)0)
 
@@ -233,5 +238,14 @@ typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 #define PTR_ALIGN_DOWN(p, a)    ((typeof(p))_ALIGN_DOWN((unsigned long)(p), (a)))
 
 #define IS_ALIGNED(x, a)    (((x) & ((typeof(x))(a) - 1)) == 0)
+
+/*
+ * Fast implementation of tolower() for internal usage. Do not use in your
+ * code.
+ */
+static inline char _tolower(const char c)
+{
+    return c | 0x20;
+}
 
 #endif /* _LINUX_TYPES_H */

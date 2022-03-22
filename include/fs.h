@@ -3,6 +3,7 @@
 #define _LINUX_FS_H
 
 #include <uio.h>
+#include <cdev.h>
 #include <cred.h>
 #include <list.h>
 #include <page.h>
@@ -44,6 +45,8 @@
 #define SB_SUBMOUNT (1<<26)
 #define SB_NOSEC    (1<<28)
 #define SB_NOUSER   (1<<31)
+
+#define WHITEOUT_DEV 0
 
 struct super_block;
 struct buffer_head;
@@ -227,7 +230,10 @@ struct inode {
     unsigned long       i_state;
     struct list_head    i_sb_list;
 
-    struct block_device *i_bdev;
+    union {
+        struct block_device *i_bdev;
+        struct cdev         *i_cdev;
+    };
 };
 
 struct pseudo_fs_context {

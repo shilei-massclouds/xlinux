@@ -31,6 +31,18 @@ EXPORT_SYMBOL(saved_root_name);
 static char *root_device_name;
 int root_mountflags = MS_RDONLY | MS_SILENT;
 
+/*
+ *  Array of consoles built from command line options (console=)
+ */
+
+#define MAX_CMDLINECONSOLES 8
+static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
+
+extern int preferred_console;
+
+int console_set_on_cmdline;
+EXPORT_SYMBOL(console_set_on_cmdline);
+
 static int
 rootfs_init_fs_context(struct fs_context *fc)
 {
@@ -97,6 +109,81 @@ root_dev_setup(char *param, char *value)
 {
     strlcpy(saved_root_name, value, sizeof(saved_root_name));
     return 0;
+}
+
+static int
+__add_preferred_console(char *name, int idx, char *options,
+                        char *brl_options, bool user_specified)
+{
+    int i;
+    struct console_cmdline *c;
+
+    /*
+     *  See if this tty is not yet registered, and
+     *  if we have a slot free.
+     */
+    for (i = 0, c = console_cmdline;
+         i < MAX_CMDLINECONSOLES && c->name[0];
+         i++, c++) {
+        if (strcmp(c->name, name) == 0 && c->index == idx) {
+            if (!brl_options)
+                preferred_console = i;
+            if (user_specified)
+                c->user_specified = true;
+            return 0;
+        }
+    }
+    if (i == MAX_CMDLINECONSOLES)
+        return -E2BIG;
+    if (!brl_options)
+        preferred_console = i;
+    strlcpy(c->name, name, sizeof(c->name));
+    c->options = options;
+    c->user_specified = user_specified;
+
+    c->index = idx;
+    printk("%s: [%d] idx(%d) name(%s)\n",
+           __func__, i, c->index, c->name);
+    return 0;
+}
+
+/*
+ * Set up a console.  Called via do_early_param() in init/main.c
+ * for each "console=" parameter in the boot command line.
+ */
+static int
+console_setup(char *param, char *value)
+{
+    char *s;
+    int idx;
+    char *options = NULL;
+    char buf[sizeof(console_cmdline[0].name) + 4]; /* 4 for "ttyS" */
+
+    if (value[0] == 0)
+        return 1;
+
+    /*
+     * Decode str into name, index, options.
+     */
+    if (value[0] >= '0' && value[0] <= '9') {
+        strcpy(buf, "ttyS");
+        strncpy(buf + 4, value, sizeof(buf) - 5);
+    } else {
+        strncpy(buf, value, sizeof(buf) - 1);
+    }
+    buf[sizeof(buf) - 1] = 0;
+    options = strchr(value, ',');
+    if (options)
+        *(options++) = 0;
+    for (s = buf; *s; s++)
+        if (isdigit(*s) || *s == ',')
+            break;
+    idx = simple_strtoul(s, NULL, 10);
+    *s = 0;
+
+    __add_preferred_console(buf, idx, options, NULL, true);
+    console_set_on_cmdline = 1;
+    return 1;
 }
 
 dev_t
@@ -228,6 +315,7 @@ prepare_namespace(void)
 
 static struct kernel_param kernel_params[] = {
     { .name = "root", .setup_func = root_dev_setup, },
+    { .name = "console", .setup_func = console_setup, },
 };
 
 static unsigned int

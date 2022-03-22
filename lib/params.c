@@ -79,10 +79,12 @@ parse_args(char *args,
         args = next_arg(args, &key, &value);
         printk("%s: (%s:%s)\n", __func__, key, value);
         for (i = 0; i < num_params; i++) {
-            if (!strncmp(params->name, key, strlen(params->name)))
-                return params->setup_func(key, value);
+            if (!strncmp(params[i].name, key, strlen(params[i].name))) {
+                if (params[i].setup_func(key, value))
+                    break;
+            }
         }
     }
-    return -1;
+    return 0;
 }
 EXPORT_SYMBOL(parse_args);

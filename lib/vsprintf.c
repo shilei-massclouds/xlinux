@@ -9,6 +9,8 @@
 #include <kernel.h>
 #include <string.h>
 
+#define KSTRTOX_OVERFLOW    (1U << 31)
+
 #define SIGN    1       /* unsigned/signed, must be 1 */
 #define LEFT    2       /* left justified */
 #define PLUS    4       /* show plus */
@@ -403,3 +405,106 @@ int scnprintf(char *buf, size_t size, const char *fmt, ...)
     return i;
 }
 EXPORT_SYMBOL(scnprintf);
+
+const char *
+_parse_integer_fixup_radix(const char *s, unsigned int *base)
+{
+    if (*base == 0) {
+        if (s[0] == '0') {
+            if (_tolower(s[1]) == 'x' && isxdigit(s[2]))
+                *base = 16;
+            else
+                *base = 8;
+        } else
+            *base = 10;
+    }
+    if (*base == 16 && s[0] == '0' && _tolower(s[1]) == 'x')
+        s += 2;
+    return s;
+}
+
+/*
+ * Convert non-negative integer string representation in explicitly given radix
+ * to an integer.
+ * Return number of characters consumed maybe or-ed with overflow bit.
+ * If overflow occurs, result integer (incorrect) is still returned.
+ *
+ * Don't you dare use this function.
+ */
+unsigned int
+_parse_integer(const char *s, unsigned int base, unsigned long long *p)
+{
+    unsigned int rv;
+    unsigned long long res;
+
+    rv = 0;
+    res = 0;
+    while (1) {
+        unsigned int c = *s;
+        unsigned int lc = c | 0x20; /* don't tolower() this line */
+        unsigned int val;
+
+        if ('0' <= c && c <= '9')
+            val = c - '0';
+        else if ('a' <= lc && lc <= 'f')
+            val = lc - 'a' + 10;
+        else
+            break;
+
+        if (val >= base)
+            break;
+        /*
+         * Check for overflow only if we are within range of
+         * it in the max base we support (16)
+         */
+        if (unlikely(res & (~0ull << 60)))
+            panic("overflow!");
+
+        res = res * base + val;
+        rv++;
+        s++;
+    }
+    *p = res;
+    return rv;
+}
+
+/**
+ * simple_strtoull - convert a string to an unsigned long long
+ * @cp: The start of the string
+ * @endp: A pointer to the end of the parsed string will be placed here
+ * @base: The number base to use
+ *
+ * This function has caveats. Please use kstrtoull instead.
+ */
+unsigned long long
+simple_strtoull(const char *cp, char **endp, unsigned int base)
+{
+    unsigned int rv;
+    unsigned long long result;
+
+    cp = _parse_integer_fixup_radix(cp, &base);
+    rv = _parse_integer(cp, base, &result);
+    /* FIXME */
+    cp += (rv & ~KSTRTOX_OVERFLOW);
+
+    if (endp)
+        *endp = (char *)cp;
+
+    return result;
+}
+EXPORT_SYMBOL(simple_strtoull);
+
+/**
+ * simple_strtoul - convert a string to an unsigned long
+ * @cp: The start of the string
+ * @endp: A pointer to the end of the parsed string will be placed here
+ * @base: The number base to use
+ *
+ * This function has caveats. Please use kstrtoul instead.
+ */
+unsigned long
+simple_strtoul(const char *cp, char **endp, unsigned int base)
+{
+    return simple_strtoull(cp, endp, base);
+}
+EXPORT_SYMBOL(simple_strtoul);

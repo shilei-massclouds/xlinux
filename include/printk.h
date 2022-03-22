@@ -28,4 +28,12 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args);
 
 void printk(const char *fmt, ...);
 
+struct console_cmdline
+{
+    char    name[16];       /* Name of the driver       */
+    int     index;          /* Minor dev. to use        */
+    bool    user_specified; /* Specified by command line vs. platform */
+    char    *options;       /* Options for the driver   */
+};
+
 #endif /* _PRINTK_H_ */
