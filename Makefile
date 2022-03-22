@@ -13,6 +13,7 @@ SUBDIRS := startup lib early_dt \
 	of of_irq platform kobject \
 	dcache fs ramfs rootfs procfs ext2 \
 	irq softirq intc plic \
+	serial \
 	block genhd bio iov_iter readahead backing-dev \
 	virtio virtio_mmio virtio_blk \
 	workqueue \

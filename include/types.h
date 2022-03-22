@@ -225,6 +225,15 @@ static inline u32 __swab32p(const u32 *p)
 /* Don't assign or return these: may not be this big! */
 typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 
+/*
+ * Fast implementation of tolower() for internal usage. Do not use in your
+ * code.
+ */
+static inline char _tolower(const char c)
+{
+    return c | 0x20;
+}
+
 #endif /*  __ASSEMBLY__ */
 
 #define be32_to_cpu(x)  swab32((u32)(x))
@@ -238,14 +247,5 @@ typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 #define PTR_ALIGN_DOWN(p, a)    ((typeof(p))_ALIGN_DOWN((unsigned long)(p), (a)))
 
 #define IS_ALIGNED(x, a)    (((x) & ((typeof(x))(a) - 1)) == 0)
-
-/*
- * Fast implementation of tolower() for internal usage. Do not use in your
- * code.
- */
-static inline char _tolower(const char c)
-{
-    return c | 0x20;
-}
 
 #endif /* _LINUX_TYPES_H */

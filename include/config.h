@@ -15,4 +15,6 @@
 
 #define CONFIG_DEFAULT_HOSTNAME "(none)"
 
+#define CONFIG_SERIAL_8250_NR_UARTS 4
+
 #endif  /* _CONFIG_H */

@@ -5,6 +5,7 @@
 
 #include <acgcc.h>
 #include <types.h>
+#include <console.h>
 
 #define _CP_RESET   "\033[0m"
 #define _CP_RED     "\033[31;1m"
@@ -35,5 +36,7 @@ struct console_cmdline
     bool    user_specified; /* Specified by command line vs. platform */
     char    *options;       /* Options for the driver   */
 };
+
+void register_console(struct console *newcon);
 
 #endif /* _PRINTK_H_ */

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
+
+#include <bug.h>
 #include <sbi.h>
 #include <acgcc.h>
 #include <string.h>
@@ -28,3 +30,9 @@ void printk(const char *fmt, ...)
     va_end(args);
 }
 EXPORT_SYMBOL(printk);
+
+void register_console(struct console *newcon)
+{
+    panic("%s: !", __func__);
+}
+EXPORT_SYMBOL(register_console);
