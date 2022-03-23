@@ -260,6 +260,7 @@ __request_region(struct resource *parent,
 
     return res;
 }
+EXPORT_SYMBOL(__request_region);
 
 struct resource *
 __devm_request_region(struct device *dev,

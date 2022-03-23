@@ -4,8 +4,10 @@
 #include <fdt.h>
 #include <slab.h>
 #include <errno.h>
+#include <driver.h>
 #include <export.h>
 #include <string.h>
+#include <mod_devicetable.h>
 
 struct device_node *of_aliases;
 struct device_node *of_chosen;
@@ -582,6 +584,18 @@ of_match_device(const struct of_device_id *matches, const struct device *dev)
     return of_match_node(matches, dev->of_node);
 }
 EXPORT_SYMBOL(of_match_device);
+
+const void *of_device_get_match_data(const struct device *dev)
+{
+    const struct of_device_id *match;
+
+    match = of_match_device(dev->driver->of_match_table, dev);
+    if (!match)
+        return NULL;
+
+    return match->data;
+}
+EXPORT_SYMBOL(of_device_get_match_data);
 
 static int
 init_module(void)

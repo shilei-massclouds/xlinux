@@ -225,4 +225,9 @@ of_property_read_u32(const struct device_node *np,
     return of_property_read_u32_array(np, propname, out_value, 1);
 }
 
+const void *of_device_get_match_data(const struct device *dev);
+
+int of_address_to_resource(struct device_node *dev,
+                           int index, struct resource *r);
+
 #endif /* _LINUX_OF_H */

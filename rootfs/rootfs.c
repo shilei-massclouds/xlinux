@@ -12,21 +12,20 @@
 #include <blkdev.h>
 #include <export.h>
 #include <kernel.h>
-#include <params.h>
 #include <printk.h>
 #include <string.h>
 #include <current.h>
 
 extern char boot_command_line[];
 extern bool ext2_initialized;
+extern bool serial_ready;
 
 dev_t ROOT_DEV;
 
 bool rootfs_initialized = false;
 EXPORT_SYMBOL(rootfs_initialized);
 
-char saved_root_name[64];
-EXPORT_SYMBOL(saved_root_name);
+extern char saved_root_name[64];
 
 static char *root_device_name;
 int root_mountflags = MS_RDONLY | MS_SILENT;
@@ -91,13 +90,6 @@ init_mknod(const char *filename, umode_t mode, unsigned int dev)
     return vfs_mknod(path.dentry->d_inode, dentry, mode, new_decode_dev(dev));
 }
 EXPORT_SYMBOL(init_mknod);
-
-static int
-root_dev_setup(char *param, char *value)
-{
-    strlcpy(saved_root_name, value, sizeof(saved_root_name));
-    return 0;
-}
 
 dev_t
 name_to_dev_t(const char *name)
@@ -226,14 +218,6 @@ prepare_namespace(void)
     init_chroot(".");
 }
 
-static struct kernel_param kernel_params[] = {
-    { .name = "root", .setup_func = root_dev_setup, },
-    { .name = "console", .setup_func = console_setup, },
-};
-
-static unsigned int
-num_kernel_params = sizeof(kernel_params) / sizeof(struct kernel_param);
-
 static void
 init_dirs(void)
 {
@@ -267,8 +251,8 @@ static int
 init_module(void)
 {
     printk("module[rootfs]: init begin ...\n");
+    BUG_ON(!serial_ready);
     BUG_ON(!ext2_initialized);
-    BUG_ON(parse_args(boot_command_line, kernel_params, num_kernel_params));
     init_mount_tree();
     rootfs_initialized = true;
     init_dirs();

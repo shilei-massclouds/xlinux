@@ -3,6 +3,7 @@
 #include <bug.h>
 #include <fdt.h>
 #include <page.h>
+#include <params.h>
 #include <string.h>
 #include <export.h>
 #include <memblock.h>
@@ -493,13 +494,32 @@ early_init_dt_scan_nodes(void)
 }
 EXPORT_SYMBOL(early_init_dt_scan_nodes);
 
+char saved_root_name[64];
+EXPORT_SYMBOL(saved_root_name);
+
+static int
+root_dev_setup(char *param, char *value)
+{
+    strlcpy(saved_root_name, value, sizeof(saved_root_name));
+    return 0;
+}
+
+static struct kernel_param kernel_params[] = {
+    { .name = "root", .setup_func = root_dev_setup, },
+    { .name = "console", .setup_func = console_setup, },
+};
+
+static unsigned int
+num_kernel_params = sizeof(kernel_params) / sizeof(struct kernel_param);
+
 static int
 init_module(void)
 {
     printk("module[early_dt]: init begin ...\n");
     early_init_dt_verify();
     early_init_dt_scan_nodes();
-    printk("module[early_dt]: init end!\n");
 
+    BUG_ON(parse_args(boot_command_line, kernel_params, num_kernel_params));
+    printk("module[early_dt]: init end!\n");
     return 0;
 }

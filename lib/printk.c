@@ -60,10 +60,37 @@ try_enable_new_console(struct console *newcon, bool user_specified)
 
         if (!newcon->match ||
             newcon->match(newcon, c->name, c->index, c->options) != 0) {
+            /* default matching */
+            BUG_ON(sizeof(c->name) != sizeof(newcon->name));
+            if (strcmp(c->name, newcon->name) != 0)
+                continue;
+            if (newcon->index >= 0 &&
+                newcon->index != c->index)
+                continue;
+            if (newcon->index < 0)
+                newcon->index = c->index;
+
+            if (newcon->setup &&
+                (err = newcon->setup(newcon, c->options)) != 0)
+                return err;
         }
+        newcon->flags |= CON_ENABLED;
+        if (i == preferred_console) {
+            newcon->flags |= CON_CONSDEV;
+            has_preferred_console = true;
+        }
+        return 0;
     }
 
-    panic("%s: !", __func__);
+    /*
+     * Some consoles, such as pstore and netconsole, can be enabled even
+     * without matching. Accept the pre-enabled consoles only when match()
+     * and setup() had a chance to be called.
+     */
+    if (newcon->flags & CON_ENABLED && c->user_specified == user_specified)
+        return 0;
+
+    return -ENOENT;
 }
 
 void register_console(struct console *newcon)
@@ -120,6 +147,7 @@ void register_console(struct console *newcon)
     if (err == -ENOENT)
         err = try_enable_new_console(newcon, false);
 
+    printk("%s: err(%d) newcon->flags(%x)\n", __func__, err, newcon->flags);
     /* printk() messages are not printed to the Braille console. */
     if (err || newcon->flags & CON_BRL)
         return;

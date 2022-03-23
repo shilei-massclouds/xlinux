@@ -20,6 +20,16 @@
 #define devm_release_mem_region(dev, start, n) \
     __devm_release_region(dev, &iomem_resource, (start), (n))
 
+#define request_mem_region(start,n,name) \
+    __request_region(&iomem_resource, (start), (n), (name), 0)
+
+extern struct resource iomem_resource;
+
+extern struct resource *
+__request_region(struct resource *,
+                 resource_size_t start, resource_size_t n,
+                 const char *name, int flags);
+
 struct device;
 
 /*
