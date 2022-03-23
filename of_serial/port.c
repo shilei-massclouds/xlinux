@@ -9,3 +9,10 @@ serial8250_console_write(struct uart_8250_port *up,
 {
     panic("%s: !", __func__);
 }
+
+int
+serial8250_console_setup(struct uart_port *port, char *options,
+                         bool probe)
+{
+    return 0;
+}

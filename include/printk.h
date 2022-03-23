@@ -37,6 +37,8 @@ struct console_cmdline
     char    *options;       /* Options for the driver   */
 };
 
+int console_setup(char *param, char *value);
+
 void register_console(struct console *newcon);
 
 #endif /* _PRINTK_H_ */

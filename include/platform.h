@@ -74,4 +74,7 @@ platform_set_drvdata(struct platform_device *pdev, void *data)
 
 int platform_get_irq(struct platform_device *dev, unsigned int num);
 
+struct platform_device *
+platform_device_alloc(const char *name, int id);
+
 #endif /* OF_PLATFORM_H */

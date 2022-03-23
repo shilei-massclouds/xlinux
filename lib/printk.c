@@ -3,14 +3,28 @@
 #include <bug.h>
 #include <sbi.h>
 #include <acgcc.h>
+#include <errno.h>
 #include <string.h>
 #include <export.h>
 
 #define PREFIX_MAX      32
 #define LOG_LINE_MAX    (1024 - PREFIX_MAX)
 
-int preferred_console = -1;
+/*
+ *  Array of consoles built from command line options (console=)
+ */
+
+#define MAX_CMDLINECONSOLES 8
+static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
+
+int console_set_on_cmdline;
+
+static bool has_preferred_console;
+static int preferred_console = -1;
 EXPORT_SYMBOL(preferred_console);
+
+struct console *console_drivers;
+EXPORT_SYMBOL(console_drivers);
 
 static void
 vprintk_func(const char *fmt, va_list args)
@@ -31,8 +45,161 @@ void printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL(printk);
 
+static int
+try_enable_new_console(struct console *newcon, bool user_specified)
+{
+    int i;
+    int err;
+    struct console_cmdline *c;
+
+    for (i = 0, c = console_cmdline;
+         i < MAX_CMDLINECONSOLES && c->name[0];
+         i++, c++) {
+        if (c->user_specified != user_specified)
+            continue;
+
+        if (!newcon->match ||
+            newcon->match(newcon, c->name, c->index, c->options) != 0) {
+        }
+    }
+
+    panic("%s: !", __func__);
+}
+
 void register_console(struct console *newcon)
 {
+    int err;
+    struct console *bcon = NULL;
+
+    for_each_console(bcon) {
+        if (bcon == newcon)
+            panic("console '%s%d' already registered",
+                  bcon->name, bcon->index);
+    }
+
+    /*
+     * before we register a new CON_BOOT console, make sure we don't
+     * already have a valid console
+     */
+    if (newcon->flags & CON_BOOT) {
+        for_each_console(bcon) {
+            if (!(bcon->flags & CON_BOOT))
+                panic("Too late to register bootconsole %s%d",
+                      newcon->name, newcon->index);
+        }
+    }
+
+    if (console_drivers && console_drivers->flags & CON_BOOT)
+        bcon = console_drivers;
+
+    if (!has_preferred_console || bcon || !console_drivers)
+        has_preferred_console = preferred_console >= 0;
+
+    /*
+     *  See if we want to use this console driver. If we
+     *  didn't select a console we take the first one
+     *  that registers here.
+     */
+    if (!has_preferred_console) {
+        if (newcon->index < 0)
+            newcon->index = 0;
+        if (newcon->setup == NULL ||
+            newcon->setup(newcon, NULL) == 0) {
+            newcon->flags |= CON_ENABLED;
+            if (newcon->device) {
+                newcon->flags |= CON_CONSDEV;
+                has_preferred_console = true;
+            }
+        }
+    }
+
+    /* See if this console matches one we selected on the command line */
+    err = try_enable_new_console(newcon, true);
+
+    /* If not, try to match against the platform default(s) */
+    if (err == -ENOENT)
+        err = try_enable_new_console(newcon, false);
+
+    /* printk() messages are not printed to the Braille console. */
+    if (err || newcon->flags & CON_BRL)
+        return;
+
     panic("%s: !", __func__);
 }
 EXPORT_SYMBOL(register_console);
+
+static int
+__add_preferred_console(char *name, int idx, char *options,
+                        char *brl_options, bool user_specified)
+{
+    int i;
+    struct console_cmdline *c;
+
+    /*
+     *  See if this tty is not yet registered, and
+     *  if we have a slot free.
+     */
+    for (i = 0, c = console_cmdline;
+         i < MAX_CMDLINECONSOLES && c->name[0];
+         i++, c++) {
+        if (strcmp(c->name, name) == 0 && c->index == idx) {
+            if (!brl_options)
+                preferred_console = i;
+            if (user_specified)
+                c->user_specified = true;
+            return 0;
+        }
+    }
+    if (i == MAX_CMDLINECONSOLES)
+        return -E2BIG;
+    if (!brl_options)
+        preferred_console = i;
+    strlcpy(c->name, name, sizeof(c->name));
+    c->options = options;
+    c->user_specified = user_specified;
+
+    c->index = idx;
+    printk("%s: [%d] idx(%d) name(%s)\n",
+           __func__, i, c->index, c->name);
+    return 0;
+}
+
+/*
+ * Set up a console.  Called via do_early_param() in init/main.c
+ * for each "console=" parameter in the boot command line.
+ */
+int
+console_setup(char *param, char *value)
+{
+    char *s;
+    int idx;
+    char *options = NULL;
+    char buf[sizeof(console_cmdline[0].name) + 4]; /* 4 for "ttyS" */
+
+    if (value[0] == 0)
+        return 1;
+
+    /*
+     * Decode str into name, index, options.
+     */
+    if (value[0] >= '0' && value[0] <= '9') {
+        strcpy(buf, "ttyS");
+        strncpy(buf + 4, value, sizeof(buf) - 5);
+    } else {
+        strncpy(buf, value, sizeof(buf) - 1);
+    }
+    buf[sizeof(buf) - 1] = 0;
+    options = strchr(value, ',');
+    if (options)
+        *(options++) = 0;
+    for (s = buf; *s; s++)
+        if (isdigit(*s) || *s == ',')
+            break;
+    idx = simple_strtoul(s, NULL, 10);
+    *s = 0;
+
+    __add_preferred_console(buf, idx, options, NULL, true);
+    console_set_on_cmdline = 1;
+    return 1;
+}
+EXPORT_SYMBOL(console_setup);

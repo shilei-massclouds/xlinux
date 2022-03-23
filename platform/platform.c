@@ -69,6 +69,7 @@ platform_device_alloc(const char *name, int id)
 
     return pa ? &pa->pdev : NULL;
 }
+EXPORT_SYMBOL(platform_device_alloc);
 
 static void
 of_device_make_bus_id(struct device *dev)
