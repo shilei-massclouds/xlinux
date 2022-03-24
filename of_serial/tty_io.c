@@ -3,8 +3,80 @@
 #include <tty.h>
 #include <cdev.h>
 #include <slab.h>
+#include <major.h>
 #include <export.h>
 #include <kdev_t.h>
+
+static struct cdev console_cdev;
+
+static struct tty_driver *
+tty_lookup_driver(dev_t device, struct file *filp, int *index)
+{
+    struct tty_driver *driver = NULL;
+
+    switch (device) {
+    case MKDEV(TTYAUX_MAJOR, 1): {
+        struct tty_driver *console_driver = console_device(index);
+        printk("%s: 2\n", __func__);
+        if (console_driver) {
+            printk("%s: 3\n", __func__);
+            driver = console_driver;
+            if (driver && filp) {
+                /* Don't let /dev/console block */
+                filp->f_flags |= O_NONBLOCK;
+                break;
+            }
+        }
+        return ERR_PTR(-ENODEV);
+    }
+    default:
+        panic("no driver!");
+        break;
+    }
+    printk("%s: ! %lx\n", __func__, driver);
+    return driver;
+}
+
+static struct tty_struct *
+tty_open_by_driver(dev_t device, struct file *filp)
+{
+    int index = -1;
+    struct tty_driver *driver = NULL;
+
+    printk("%s: 0\n", __func__);
+    driver = tty_lookup_driver(device, filp, &index);
+
+    if (driver)
+        printk("%s: 1 name(%s,%s) mm(%x,%x)\n",
+               __func__, driver->name, driver->driver_name,
+               driver->major, driver->minor_start);
+
+    panic("%s: device(%lx)!", __func__, device);
+}
+
+static int tty_open(struct inode *inode, struct file *filp)
+{
+    struct tty_struct *tty;
+    dev_t device = inode->i_rdev;
+    printk("%s: dev(%x)\n", __func__, device);
+
+    tty = tty_open_by_driver(device, filp);
+    panic("%s: device(%lx)!", __func__, device);
+}
+
+static const struct file_operations console_fops = {
+    .open       = tty_open,
+    /*
+    .llseek     = no_llseek,
+    .read       = tty_read,
+    .write      = redirected_tty_write,
+    .poll       = tty_poll,
+    .unlocked_ioctl = tty_ioctl,
+    .compat_ioctl   = tty_compat_ioctl,
+    .release    = tty_release,
+    .fasync     = tty_fasync,
+    */
+};
 
 static int
 tty_cdev_add(struct tty_driver *driver, dev_t dev,
@@ -74,6 +146,9 @@ tty_register_device_attr(struct tty_driver *driver,
     dev->parent = device;
     dev_set_name(dev, "%s", name);
     dev_set_drvdata(dev, drvdata);
+
+    printk("%s: devt(%lx) (%lx,%lx)\n",
+           __func__, devt, driver->major, driver->minor_start);
 
     if (!(driver->flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
         retval = tty_cdev_add(driver, devt, index, 1);
@@ -146,3 +221,13 @@ __tty_alloc_driver(unsigned int lines, unsigned long flags)
     return driver;
 }
 EXPORT_SYMBOL(__tty_alloc_driver);
+
+int tty_init(void)
+{
+    cdev_init(&console_cdev, &console_fops);
+    if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
+        register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
+        panic("Couldn't register /dev/console driver\n");
+
+    return 0;
+}

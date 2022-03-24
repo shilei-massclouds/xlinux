@@ -52,4 +52,7 @@ kset_create_and_add(const char *name);
 int
 kobject_init_and_add(struct kobject *kobj, const char *fmt, ...);
 
+struct kobject *
+kobject_get_unless_zero(struct kobject *kobj);
+
 #endif /* _KOBJECT_H_ */

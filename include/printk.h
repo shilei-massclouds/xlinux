@@ -41,4 +41,6 @@ int console_setup(char *param, char *value);
 
 void register_console(struct console *newcon);
 
+struct tty_driver *console_device(int *index);
+
 #endif /* _PRINTK_H_ */

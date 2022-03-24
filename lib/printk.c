@@ -287,3 +287,22 @@ console_setup(char *param, char *value)
     return 1;
 }
 EXPORT_SYMBOL(console_setup);
+
+/*
+ * Return the console tty driver structure and its associated index
+ */
+struct tty_driver *console_device(int *index)
+{
+    struct console *c;
+    struct tty_driver *driver = NULL;
+
+    for_each_console(c) {
+        if (!c->device)
+            continue;
+        driver = c->device(c, index);
+        if (driver)
+            break;
+    }
+    return driver;
+}
+EXPORT_SYMBOL(console_device);

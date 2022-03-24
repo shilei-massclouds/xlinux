@@ -48,6 +48,8 @@
 
 #define WHITEOUT_DEV 0
 
+#define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
+
 struct super_block;
 struct buffer_head;
 struct readahead_control;
@@ -230,6 +232,7 @@ struct inode {
     unsigned long       i_state;
     struct list_head    i_sb_list;
 
+    struct list_head    i_devices;
     union {
         struct block_device *i_bdev;
         struct cdev         *i_cdev;
@@ -512,5 +515,19 @@ void finalize_exec(struct linux_binprm *bprm);
 struct file *filp_open(const char *filename, int flags, umode_t mode);
 
 int init_dup(struct file *file);
+
+/* Alas, no aliases. Too much hassle with bringing module.h everywhere */
+#define fops_get(fops) fops
+
+/*
+ * This one is to be used *ONLY* from ->open() instances.
+ * fops must be non-NULL, pinned down *and* module dependencies
+ * should be sufficient to pin the caller down as well.
+ */
+#define replace_fops(f, fops) \
+    do {    \
+        struct file *__file = (f); \
+        BUG_ON(!(__file->f_op = (fops))); \
+    } while(0)
 
 #endif /* _LINUX_FS_H */

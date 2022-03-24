@@ -15,6 +15,8 @@
 
 #define UART_NR CONFIG_SERIAL_8250_NR_UARTS
 
+extern int tty_init(void);
+
 struct of_serial_info {
     int type;
     int line;
@@ -393,6 +395,7 @@ init_module(void)
 {
     printk("module[of_serial]: init begin ...\n");
 
+    tty_init();
     serial8250_init();
 
     platform_driver_register(&of_platform_serial_driver);

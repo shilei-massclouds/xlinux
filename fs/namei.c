@@ -662,7 +662,8 @@ open_last_lookups(struct nameidata *nd,
         if (likely(dentry))
             goto finish_lookup;
     } else {
-        panic("create things!");
+        panic("create things! open_flag(%lx) (%s)",
+              open_flag, nd->last.name);
     }
 
     dentry = lookup_open(nd, file, op, false);

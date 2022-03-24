@@ -4,9 +4,22 @@
 #include <slab.h>
 #include <device.h>
 #include <export.h>
+#include <kdev_t.h>
+#include <kobject.h>
 #include <kobj_map.h>
 
 static struct kobj_map *cdev_map;
+
+#define CHRDEV_MAJOR_HASH_SIZE 255
+
+static struct char_device_struct {
+    struct char_device_struct *next;
+    unsigned int major;
+    unsigned int baseminor;
+    int minorct;
+    char name[64];
+    struct cdev *cdev;      /* will die */
+} *chrdevs[CHRDEV_MAJOR_HASH_SIZE];
 
 static struct kobject *exact_match(dev_t dev, int *part, void *data)
 {
@@ -28,6 +41,8 @@ int cdev_add(struct cdev *p, dev_t dev, unsigned count)
 {
     int error;
 
+    printk("%s: dev(%lx) count(%u)\n", __func__, dev, count);
+
     p->dev = dev;
     p->count = count;
 
@@ -42,9 +57,20 @@ int cdev_add(struct cdev *p, dev_t dev, unsigned count)
 }
 EXPORT_SYMBOL(cdev_add);
 
+static struct kobject *cdev_get(struct cdev *p)
+{
+    struct kobject *kobj;
+
+    kobj = kobject_get_unless_zero(&p->kobj);
+    return kobj;
+}
+
 static int chrdev_open(struct inode *inode, struct file *filp)
 {
     struct cdev *p;
+    const struct file_operations *fops;
+    int ret = 0;
+    struct cdev *new = NULL;
 
     p = inode->i_cdev;
     if (!p) {
@@ -55,9 +81,34 @@ static int chrdev_open(struct inode *inode, struct file *filp)
             panic("no i_rdev(%lx)", inode->i_rdev);
             return -ENXIO;
         }
-    }
+        new = container_of(kobj, struct cdev, kobj);
+        /* Check i_cdev again in case somebody beat us to it while
+           we dropped the lock. */
+        p = inode->i_cdev;
+        if (!p) {
+            inode->i_cdev = p = new;
+            list_add(&inode->i_devices, &p->list);
+            new = NULL;
+        } else if (!cdev_get(p))
+            ret = -ENXIO;
+    } else if (!cdev_get(p))
+        ret = -ENXIO;
 
-    panic("no char device open!");
+    if (ret)
+        return ret;
+
+    ret = -ENXIO;
+    fops = fops_get(p->ops);
+    if (!fops)
+        panic("no fops!");
+
+    replace_fops(filp, fops);
+    if (filp->f_op->open) {
+        ret = filp->f_op->open(inode, filp);
+        if (ret)
+            panic("no open!");
+    }
+    return 0;
 }
 
 /*
@@ -95,3 +146,55 @@ void chrdev_init(void)
 {
     cdev_map = kobj_map_init(base_probe);
 }
+
+/**
+ * cdev_init() - initialize a cdev structure
+ * @cdev: the structure to initialize
+ * @fops: the file_operations for this device
+ *
+ * Initializes @cdev, remembering @fops, making it ready to add to the
+ * system with cdev_add().
+ */
+void cdev_init(struct cdev *cdev, const struct file_operations *fops)
+{
+    memset(cdev, 0, sizeof *cdev);
+    INIT_LIST_HEAD(&cdev->list);
+    kobject_init(&cdev->kobj);
+    cdev->ops = fops;
+}
+EXPORT_SYMBOL(cdev_init);
+
+static struct char_device_struct *
+__register_chrdev_region(unsigned int major, unsigned int baseminor,
+                         int minorct, const char *name)
+{
+    return NULL;
+}
+
+/**
+ * register_chrdev_region() - register a range of device numbers
+ * @from: the first in the desired range of device numbers; must include
+ *        the major number.
+ * @count: the number of consecutive device numbers required
+ * @name: the name of the device or driver.
+ *
+ * Return value is zero on success, a negative error code on failure.
+ */
+int register_chrdev_region(dev_t from, unsigned count, const char *name)
+{
+    struct char_device_struct *cd;
+    dev_t to = from + count;
+    dev_t n, next;
+
+    for (n = from; n < to; n = next) {
+        next = MKDEV(MAJOR(n)+1, 0);
+        if (next > to)
+            next = to;
+        cd = __register_chrdev_region(MAJOR(n), MINOR(n),
+                                      next - n, name);
+        if (IS_ERR(cd))
+            panic("register error!");
+    }
+    return 0;
+}
+EXPORT_SYMBOL(register_chrdev_region);

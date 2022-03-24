@@ -256,8 +256,11 @@ init_module(void)
     init_mount_tree();
     rootfs_initialized = true;
     init_dirs();
+    printk("%s: 1\n", __func__);
     console_on_rootfs();
+    printk("%s: 2\n", __func__);
     prepare_namespace();
+    printk("%s: 3\n", __func__);
     printk("module[rootfs]: init end!\n");
     return 0;
 }
