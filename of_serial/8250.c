@@ -103,15 +103,12 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
      */
     flags = 0;
 
-    printk("%s: 1\n", __func__);
     if (port->flags & UPF_BOOT_AUTOCONF) {
         if (!(port->flags & UPF_FIXED_TYPE)) {
             port->type = PORT_UNKNOWN;
             flags |= UART_CONFIG_TYPE;
         }
-        printk("%s: 2\n", __func__);
         port->ops->config_port(port, flags);
-        printk("%s: 3\n", __func__);
     }
 
     if (port->type != PORT_UNKNOWN) {
@@ -121,57 +118,64 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
          * successfully registered yet, try to re-register it.
          * It may be that the port was not available.
          */
+        printk("%s: 0\n", __func__);
         if (port->cons && !(port->cons->flags & CON_ENABLED)) {
             register_console(port->cons);
         }
+        printk("%s: 1 cons(%lx)\n", __func__, port->cons);
     }
 }
 
 int
 uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
+    int num_groups;
     struct tty_port *port;
+    struct device *tty_dev;
     struct uart_state *state;
 
     state = drv->state + uport->line;
     port = &state->port;
 
     uport->cons = drv->cons;
-    printk("%s: 2.0 drv->cons(%lx)\n", __func__, drv->cons);
-    printk("%s: mapbase(%lx)\n", __func__, uport->mapbase);
 
+    tty_port_link_device(port, drv->tty_driver, uport->line);
     uart_configure_port(drv, state, uport);
 
-    printk("%s: 2.1 uport(%lx)\n", __func__, uport->cons);
     port->console = uart_console(uport);
-    printk("%s: 3\n", __func__);
+
+    num_groups = 2;
+    /*
+    if (uport->attr_group)
+        num_groups++;
+        */
+
+    uport->tty_groups = kcalloc(num_groups, sizeof(*uport->tty_groups),
+                                GFP_KERNEL);
+    if (!uport->tty_groups)
+        panic("Out of memory!");
+
+    printk("%s: 1\n", __func__);
+    /*
+     * Register the port whether it's detected or not.  This allows
+     * setserial to be used to alter this port's parameters.
+     */
+    tty_dev =
+        tty_port_register_device_attr_serdev(port, drv->tty_driver,
+                                             uport->line, uport->dev,
+                                             port, uport->tty_groups);
+    printk("%s: 5\n", __func__);
+    if (!IS_ERR(tty_dev)) {
+        //device_set_wakeup_capable(tty_dev, 1);
+    } else {
+        panic("Cannot register tty device on line %d\n", uport->line);
+    }
 
     /*
      * Ensure UPF_DEAD is not set.
      */
     uport->flags &= ~UPF_DEAD;
     return 0;
-}
-
-static void
-serial8250_register_ports(struct uart_driver *drv, struct device *dev)
-{
-    int i;
-
-    for (i = 0; i < nr_uarts; i++) {
-        struct uart_8250_port *up = &serial8250_ports[i];
-        printk("%s: mapbase(%lx)\n", __func__, up->port.mapbase);
-
-        if (up->port.type == PORT_8250_CIR)
-            continue;
-
-        if (up->port.dev)
-            continue;
-
-        up->port.dev = dev;
-
-        uart_add_one_port(drv, &up->port);
-    }
 }
 
 static struct uart_8250_port *
@@ -193,6 +197,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
     struct uart_8250_port *uart;
     int ret = -ENOSPC;
 
+    printk("%s: 1\n", __func__);
     uart = serial8250_find_match_or_unused(&up->port);
     if (uart && uart->port.type != PORT_8250_CIR) {
 
@@ -208,6 +213,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
             uart->port.type = up->port.type;
 
         if (uart->port.type != PORT_8250_CIR) {
+            printk("%s: 2\n", __func__);
             ret = uart_add_one_port(&serial8250_reg, &uart->port);
             if (ret)
                 panic("add one port error!");
@@ -221,9 +227,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
             ret = 0;
         }
-        panic("%s: 1", __func__);
     }
-    panic("%s: !", __func__);
+    return ret;
 }
 
 static const struct of_device_id of_platform_serial_table[] = {
@@ -305,7 +310,6 @@ of_platform_serial_probe(struct platform_device *ofdev)
     info->type = port_type;
     info->line = ret;
     platform_set_drvdata(ofdev, info);
-    panic("%s: !", __func__);
     return 0;
 }
 
@@ -346,9 +350,42 @@ static void serial8250_isa_init_ports(void)
     }
 }
 
+int uart_register_driver(struct uart_driver *drv)
+{
+    struct tty_driver *normal;
+
+    /*
+     * Maybe we should be using a slab cache for this, especially if
+     * we have a large number of ports to handle.
+     */
+    drv->state = kcalloc(drv->nr, sizeof(struct uart_state), GFP_KERNEL);
+    if (!drv->state)
+        panic("Out of memory!");
+
+    normal = alloc_tty_driver(drv->nr);
+    if (!normal)
+        panic("Out of memory!");
+
+    drv->tty_driver = normal;
+
+    normal->driver_name = drv->driver_name;
+    normal->name        = drv->dev_name;
+    normal->major       = drv->major;
+    normal->minor_start = drv->minor;
+
+    return 0;
+}
+
 static void serial8250_init(void)
 {
+    int ret;
+
     serial8250_isa_init_ports();
+
+    serial8250_reg.nr = UART_NR;
+    ret = uart_register_driver(&serial8250_reg);
+    if (ret)
+        panic("bad driver!");
 }
 
 static int

@@ -2,6 +2,7 @@
 
 #include <bug.h>
 #include <errno.h>
+#include <export.h>
 #include <ioport.h>
 #include <serial.h>
 #include <ioremap.h>
@@ -73,15 +74,12 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
                 ret = -ENOMEM;
             }
         }
-
-        panic("%s: 1", __func__);
         break;
     default:
         panic("%s: iotype(%d)!", __func__, port->iotype);
     }
 
     return ret;
-
 }
 
 static void serial8250_config_port(struct uart_port *port, int flags)
@@ -99,7 +97,7 @@ static void serial8250_config_port(struct uart_port *port, int flags)
     if (ret < 0)
         panic("bad resource!");
 
-    printk("%s: 2\n", __func__);
+    printk("%s: 2 ret(%d)\n", __func__, ret);
 }
 
 static const struct uart_ops serial8250_pops = {

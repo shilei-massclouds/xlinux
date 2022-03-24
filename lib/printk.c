@@ -93,6 +93,15 @@ try_enable_new_console(struct console *newcon, bool user_specified)
     return -ENOENT;
 }
 
+int unregister_console(struct console *console)
+{
+    printk("%sconsole [%s%d] disabled\n",
+           (console->flags & CON_BOOT) ? "boot" : "" ,
+           console->name, console->index);
+
+    return 0;
+}
+
 void register_console(struct console *newcon)
 {
     int err;
@@ -152,7 +161,54 @@ void register_console(struct console *newcon)
     if (err || newcon->flags & CON_BRL)
         return;
 
-    panic("%s: !", __func__);
+    /*
+     * If we have a bootconsole, and are switching to a real console,
+     * don't print everything out again, since when the boot console, and
+     * the real console are the same physical device, it's annoying to
+     * see the beginning boot messages twice
+     */
+    if (bcon && ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV))
+        newcon->flags &= ~CON_PRINTBUFFER;
+
+    /*
+     *  Put this console in the list - keep the
+     *  preferred driver at the head of the list.
+     */
+    if ((newcon->flags & CON_CONSDEV) || console_drivers == NULL) {
+        printk("%s: 1\n", __func__);
+        newcon->next = console_drivers;
+        console_drivers = newcon;
+        if (newcon->next)
+            newcon->next->flags &= ~CON_CONSDEV;
+        /* Ensure this flag is always set for the head of the list */
+        newcon->flags |= CON_CONSDEV;
+    } else {
+        newcon->next = console_drivers->next;
+        console_drivers->next = newcon;
+    }
+
+    if (newcon->flags & CON_PRINTBUFFER)
+        panic("flags has CON_PRINTBUFFER!");
+
+    /*
+     * By unregistering the bootconsoles after we enable the real console
+     * we get the "console xxx enabled" message on all the consoles -
+     * boot consoles, real consoles, etc - this is to ensure that end
+     * users know there might be something in the kernel's log buffer that
+     * went to the bootconsole (that they do not see on the real console)
+     */
+    printk("%sconsole [%s%d] enabled\n",
+           (newcon->flags & CON_BOOT) ? "boot" : "" ,
+           newcon->name, newcon->index);
+
+    if (bcon && ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV)) {
+        /* We need to iterate through all boot consoles, to make
+         * sure we print everything out, before we unregister them.
+         */
+        for_each_console(bcon)
+            if (bcon->flags & CON_BOOT)
+                unregister_console(bcon);
+    }
 }
 EXPORT_SYMBOL(register_console);
 

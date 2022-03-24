@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <fs.h>
+#include <slab.h>
 #include <device.h>
 #include <export.h>
 #include <kobj_map.h>
@@ -39,6 +40,7 @@ int cdev_add(struct cdev *p, dev_t dev, unsigned count)
 
     return 0;
 }
+EXPORT_SYMBOL(cdev_add);
 
 static int chrdev_open(struct inode *inode, struct file *filp)
 {
@@ -72,6 +74,22 @@ static struct kobject *base_probe(dev_t dev, int *part, void *data)
 {
     return NULL;
 }
+
+/**
+ * cdev_alloc() - allocate a cdev structure
+ *
+ * Allocates and returns a cdev structure, or NULL on failure.
+ */
+struct cdev *cdev_alloc(void)
+{
+    struct cdev *p = kzalloc(sizeof(struct cdev), GFP_KERNEL);
+    if (p) {
+        INIT_LIST_HEAD(&p->list);
+        kobject_init(&p->kobj);
+    }
+    return p;
+}
+EXPORT_SYMBOL(cdev_alloc);
 
 void chrdev_init(void)
 {

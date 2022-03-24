@@ -46,18 +46,21 @@ struct uart_state {
 };
 
 struct uart_driver {
-    const char  *driver_name;
-    const char  *dev_name;
-    int         major;
-    int         minor;
+    const char *driver_name;
+    const char *dev_name;
 
-    struct console      *cons;
+    int major;
+    int minor;
+    int nr;
+
+    struct console *cons;
 
     /*
      * these are private; the low level driver should not
      * touch these; they should be initialised to NULL
      */
-    struct uart_state   *state;
+    struct uart_state *state;
+    struct tty_driver *tty_driver;
 };
 
 typedef unsigned int upf_t;
@@ -95,7 +98,8 @@ struct uart_port {
     resource_size_t mapbase;    /* for ioremap */
     resource_size_t mapsize;
 
-    const struct uart_ops   *ops;
+    const struct uart_ops *ops;
+    const struct attribute_group **tty_groups;  /* all attributes (serial core use only) */
 };
 
 struct uart_8250_port {

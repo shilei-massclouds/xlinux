@@ -13,4 +13,8 @@ struct cdev {
     unsigned int count;
 };
 
+int cdev_add(struct cdev *p, dev_t dev, unsigned count);
+
+struct cdev *cdev_alloc(void);
+
 #endif /* _LINUX_CDEV_H */
