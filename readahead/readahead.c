@@ -15,7 +15,6 @@ void
 file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
 {
     ra->ra_pages = inode_to_bdi(mapping->host)->ra_pages;
-    BUG_ON(!ra->ra_pages);
     ra->prev_pos = -1;
 }
 EXPORT_SYMBOL(file_ra_state_init);

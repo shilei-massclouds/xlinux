@@ -8,4 +8,6 @@ struct backing_dev_info {
     unsigned int capabilities;  /* Device capabilities */
 };
 
+extern struct backing_dev_info noop_backing_dev_info;
+
 #endif /* __LINUX_BACKING_DEV_DEFS_H */

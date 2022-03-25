@@ -701,11 +701,14 @@ path_openat(struct nameidata *nd,
         panic("O_PATH");
     } else {
         const char *s = path_init(nd, flags);
+        printk("####### %s: 1 (%s)\n", __func__, s);
         while (!(error = link_path_walk(s, nd)) &&
                (s = open_last_lookups(nd, file, op)) != NULL)
             ;
+        printk("####### %s: 2 (%s)\n", __func__, s);
         if (!error)
             error = do_open(nd, file, op);
+        printk("####### %s: 3 ret(%d)\n", __func__, error);
     }
 
     if (likely(!error)) {
@@ -726,7 +729,9 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
     int flags = op->lookup_flags;
 
     set_nameidata(&nd, dfd, pathname);
+    printk("####### %s: 1 filename(%s)\n", __func__, pathname->name);
     filp = path_openat(&nd, op, flags | LOOKUP_RCU);
+    printk("####### %s: 2 filename(%s)\n", __func__, pathname->name);
     return filp;
 }
 EXPORT_SYMBOL(do_filp_open);

@@ -45,7 +45,7 @@ static int do_dentry_open(struct file *f,
 
     f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
     file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
-    printk("%s 2\n", __func__);
+    printk("########### %s !\n", __func__);
     return 0;
 }
 
@@ -285,7 +285,9 @@ struct file *filp_open(const char *filename, int flags, umode_t mode)
     struct file *file = ERR_CAST(name);
 
     if (!IS_ERR(name)) {
+        printk("####### %s: 1 filename(%s)\n", __func__, name->name);
         file = file_open_name(name, flags, mode);
+        printk("####### %s: 2\n", __func__);
     }
     return file;
 }

@@ -6,6 +6,7 @@
 #include <blkdev.h>
 #include <dcache.h>
 #include <export.h>
+#include <backing-dev-defs.h>
 
 static LIST_HEAD(super_blocks);
 
@@ -35,6 +36,7 @@ alloc_super(struct file_system_type *type, int flags)
     if (!s)
         return NULL;
 
+    s->s_bdi = &noop_backing_dev_info;
     INIT_LIST_HEAD(&s->s_inodes);
     return s;
 }
