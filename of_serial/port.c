@@ -111,3 +111,56 @@ void serial8250_init_port(struct uart_8250_port *up)
     printk("%s: 1\n", __func__);
     port->ops = &serial8250_pops;
 }
+
+/**
+ *  tty_port_tty_set    -   set the tty of a port
+ *  @port: tty port
+ *  @tty: the tty
+ *
+ *  Associate the port and tty pair. Manages any internal refcounts.
+ *  Pass NULL to deassociate a port
+ */
+void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
+{
+    unsigned long flags;
+
+    port->tty = tty;
+}
+EXPORT_SYMBOL(tty_port_tty_set);
+
+int
+tty_port_block_til_ready(struct tty_port *port,
+                         struct tty_struct *tty, struct file *filp)
+{
+    printk("%s: 1\n", __func__);
+    return 0;
+}
+
+int
+tty_port_open(struct tty_port *port,
+              struct tty_struct *tty,
+              struct file *filp)
+{
+    printk("%s: 1\n", __func__);
+    tty_port_tty_set(port, tty);
+    printk("%s: 2\n", __func__);
+
+    if (!tty_port_initialized(port)) {
+        clear_bit(TTY_IO_ERROR, &tty->flags);
+        if (port->ops->activate) {
+            int retval = port->ops->activate(port, tty);
+            if (retval)
+                return retval;
+        }
+        tty_port_set_initialized(port, 1);
+    }
+    printk("%s: 3\n", __func__);
+    return tty_port_block_til_ready(port, tty, filp);
+}
+EXPORT_SYMBOL(tty_port_open);
+
+void tty_port_init(struct tty_port *port)
+{
+    memset(port, 0, sizeof(*port));
+}
+EXPORT_SYMBOL(tty_port_init);

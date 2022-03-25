@@ -61,12 +61,21 @@ univ8250_console_setup(struct console *co, char *options)
 
 static struct uart_driver serial8250_reg;
 
+struct tty_driver *uart_console_device(struct console *co, int *index)
+{
+    struct uart_driver *p = co->data;
+    *index = co->index;
+    return p->tty_driver;
+}
+EXPORT_SYMBOL(uart_console_device);
+
 static struct console univ8250_console = {
-    .name  = "ttyS",
-    .setup = univ8250_console_setup,
-    .match = univ8250_console_match,
-    .index = -1,
-    .data  = &serial8250_reg,
+    .name   = "ttyS",
+    .device = uart_console_device,
+    .setup  = univ8250_console_setup,
+    .match  = univ8250_console_match,
+    .index  = -1,
+    .data   = &serial8250_reg,
 };
 
 #define SERIAL8250_CONSOLE  (&univ8250_console)
@@ -352,9 +361,59 @@ static void serial8250_isa_init_ports(void)
     }
 }
 
+int
+tty_standard_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+    driver->ttys[tty->index] = tty;
+    return 0;
+}
+EXPORT_SYMBOL(tty_standard_install);
+
+static int
+uart_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+    struct uart_driver *drv = driver->driver_state;
+    struct uart_state *state = drv->state + tty->index;
+
+    tty->driver_data = state;
+
+    return tty_standard_install(driver, tty);
+}
+
+static int uart_open(struct tty_struct *tty, struct file *filp)
+{
+    int retval;
+    printk("%s: 1\n", __func__);
+    struct uart_state *state = tty->driver_data;
+
+    retval = tty_port_open(&state->port, tty, filp);
+    if (retval > 0)
+        retval = 0;
+
+    return retval;
+}
+
+static const struct tty_operations uart_ops = {
+    .install    = uart_install,
+    .open       = uart_open,
+};
+
+static int
+uart_port_activate(struct tty_port *port, struct tty_struct *tty)
+{
+    printk("%s: !\n", __func__);
+    return 0;
+}
+
+static const struct tty_port_operations uart_port_ops = {
+    .activate   = uart_port_activate,
+};
+
 int uart_register_driver(struct uart_driver *drv)
 {
+    int i;
     struct tty_driver *normal;
+    int retval = -ENOMEM;
 
     /*
      * Maybe we should be using a slab cache for this, especially if
@@ -370,10 +429,23 @@ int uart_register_driver(struct uart_driver *drv)
 
     drv->tty_driver = normal;
 
-    normal->driver_name = drv->driver_name;
-    normal->name        = drv->dev_name;
-    normal->major       = drv->major;
-    normal->minor_start = drv->minor;
+    normal->driver_name     = drv->driver_name;
+    normal->name            = drv->dev_name;
+    normal->major           = drv->major;
+    normal->minor_start     = drv->minor;
+    normal->driver_state    = drv;
+    tty_set_operations(normal, &uart_ops);
+
+    /*
+     * Initialise the UART state(s).
+     */
+    for (i = 0; i < drv->nr; i++) {
+        struct uart_state *state = drv->state + i;
+        struct tty_port *port = &state->port;
+
+        tty_port_init(port);
+        port->ops = &uart_port_ops;
+    }
 
     return 0;
 }

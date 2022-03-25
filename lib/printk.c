@@ -299,10 +299,12 @@ struct tty_driver *console_device(int *index)
     for_each_console(c) {
         if (!c->device)
             continue;
+        printk("%s: 0\n", __func__);
         driver = c->device(c, index);
         if (driver)
             break;
     }
+    printk("%s: !\n", __func__);
     return driver;
 }
 EXPORT_SYMBOL(console_device);

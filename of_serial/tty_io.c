@@ -37,31 +37,141 @@ tty_lookup_driver(dev_t device, struct file *filp, int *index)
     return driver;
 }
 
+/**
+ *  tty_driver_lookup_tty() - find an existing tty, if any
+ *  @driver: the driver for the tty
+ *  @idx:    the minor number
+ *
+ *  Return the tty, if found. If not found, return NULL or ERR_PTR() if the
+ *  driver lookup() method returns an error.
+ *
+ *  Locking: tty_mutex must be held. If the tty is found, bump the tty kref.
+ */
+static struct tty_struct *
+tty_driver_lookup_tty(struct tty_driver *driver, struct file *file, int idx)
+{
+    struct tty_struct *tty;
+
+    if (driver->ops->lookup)
+        if (!file)
+            tty = ERR_PTR(-EIO);
+        else
+            tty = driver->ops->lookup(driver, file, idx);
+    else
+        tty = driver->ttys[idx];
+
+    return tty;
+}
+
+struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
+{
+    struct tty_struct *tty;
+
+    tty = kzalloc(sizeof(*tty), GFP_KERNEL);
+    if (!tty)
+        return NULL;
+
+    tty->driver = driver;
+    tty->ops = driver->ops;
+    tty->index = idx;
+    return tty;
+}
+
+static int
+tty_driver_install_tty(struct tty_driver *driver, struct tty_struct *tty)
+{
+    return driver->ops->install ? driver->ops->install(driver, tty) :
+        tty_standard_install(driver, tty);
+}
+
+struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
+{
+    int retval;
+    struct tty_struct *tty;
+
+    tty = alloc_tty_struct(driver, idx);
+    if (!tty)
+        panic("Out of memory!");
+
+    retval = tty_driver_install_tty(driver, tty);
+    if (retval < 0)
+        panic("install tty error!");
+
+    return tty;
+}
+
 static struct tty_struct *
 tty_open_by_driver(dev_t device, struct file *filp)
 {
+    struct tty_struct *tty;
     int index = -1;
     struct tty_driver *driver = NULL;
 
     printk("%s: 0\n", __func__);
     driver = tty_lookup_driver(device, filp, &index);
+    if (IS_ERR_OR_NULL(driver))
+        panic("bad driver!");
 
-    if (driver)
-        printk("%s: 1 name(%s,%s) mm(%x,%x)\n",
-               __func__, driver->name, driver->driver_name,
-               driver->major, driver->minor_start);
+    printk("%s: 1 name(%s,%s) mm(%x,%x)\n",
+           __func__, driver->name, driver->driver_name,
+           driver->major, driver->minor_start);
 
-    panic("%s: device(%lx)!", __func__, device);
+    /* check whether we're reopening an existing tty */
+    tty = tty_driver_lookup_tty(driver, filp, index);
+    if (IS_ERR(tty))
+        panic("bad tty!");
+
+    if (tty) {
+        panic("find tty!");
+    } else {
+        tty = tty_init_dev(driver, index);
+    }
+
+    printk("%s: device(%lx) tty(%lx)!\n", __func__, device, tty);
+    return tty;
 }
+
+/* Associate a new file with the tty structure */
+/*
+void tty_add_file(struct tty_struct *tty, struct file *file)
+{
+    struct tty_file_private *priv = file->private_data;
+
+    priv->tty = tty;
+    priv->file = file;
+
+    list_add(&priv->list, &tty->tty_files);
+}
+*/
 
 static int tty_open(struct inode *inode, struct file *filp)
 {
+    int retval;
     struct tty_struct *tty;
     dev_t device = inode->i_rdev;
-    printk("%s: dev(%x)\n", __func__, device);
+    unsigned saved_flags = filp->f_flags;
 
+    printk("%s: dev(%x)\n", __func__, device);
     tty = tty_open_by_driver(device, filp);
-    panic("%s: device(%lx)!", __func__, device);
+    if (IS_ERR_OR_NULL(tty))
+        panic("open by driver error!");
+
+    printk("%s: 1 ops(%lx)\n", __func__, tty->ops);
+    //tty_add_file(tty, filp);
+
+    if (tty->ops->open)
+        retval = tty->ops->open(tty, filp);
+    else
+        retval = -ENODEV;
+    filp->f_flags = saved_flags;
+    printk("%s: 2\n", __func__);
+
+    if (retval)
+        panic("open tty error!");
+
+    clear_bit(TTY_HUPPED, &tty->flags);
+    printk("%s: device(%lx)!\n", __func__, device);
+    return 0;
 }
 
 static const struct file_operations console_fops = {
@@ -206,6 +316,13 @@ __tty_alloc_driver(unsigned int lines, unsigned long flags)
     driver->num = lines;
     driver->flags = flags;
 
+    if (!(flags & TTY_DRIVER_DEVPTS_MEM)) {
+        driver->ttys = kcalloc(lines, sizeof(*driver->ttys),
+                               GFP_KERNEL);
+        if (!driver->ttys)
+            panic("Out of memory!");
+    }
+
     if (!(flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
         driver->ports = kcalloc(lines, sizeof(*driver->ports),
                                 GFP_KERNEL);
@@ -221,6 +338,14 @@ __tty_alloc_driver(unsigned int lines, unsigned long flags)
     return driver;
 }
 EXPORT_SYMBOL(__tty_alloc_driver);
+
+void
+tty_set_operations(struct tty_driver *driver,
+                   const struct tty_operations *op)
+{
+    driver->ops = op;
+};
+EXPORT_SYMBOL(tty_set_operations);
 
 int tty_init(void)
 {
