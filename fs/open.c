@@ -42,6 +42,9 @@ static int do_dentry_open(struct file *f,
     if ((f->f_mode & FMODE_READ) &&
         likely(f->f_op->read || f->f_op->read_iter))
         f->f_mode |= FMODE_CAN_READ;
+    if ((f->f_mode & FMODE_WRITE) &&
+        likely(f->f_op->write || f->f_op->write_iter))
+        f->f_mode |= FMODE_CAN_WRITE;
 
     f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
     file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
@@ -226,6 +229,7 @@ do_sys_openat2(int dfd, const char *filename, struct open_how *how)
             put_unused_fd(fd);
             fd = PTR_ERR(f);
         } else {
+            printk("========== %s: fd(%d) file(%p)\n", __func__, fd, f);
             fd_install(fd, f);
         }
     }
@@ -292,6 +296,19 @@ struct file *filp_open(const char *filename, int flags, umode_t mode)
     return file;
 }
 EXPORT_SYMBOL(filp_open);
+
+/*
+ * This is used by subsystems that don't want seekable
+ * file descriptors. The function is not supposed to ever fail, the only
+ * reason it returns an 'int' and not 'void' is so that it can be plugged
+ * directly into file_operations structure.
+ */
+int nonseekable_open(struct inode *inode, struct file *filp)
+{
+    filp->f_mode &= ~(FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
+    return 0;
+}
+EXPORT_SYMBOL(nonseekable_open);
 
 long
 _do_sys_open(int dfd, const char *filename, int flags, umode_t mode)

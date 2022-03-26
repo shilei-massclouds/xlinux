@@ -6,6 +6,11 @@
 #include <sysfs.h>
 #include <kernel.h>
 
+#define NR_LDISCS   30
+
+/* line disciplines */
+#define N_TTY       0
+
 /*
  * These bits are used in the flags field of the tty structure.
  *
@@ -16,8 +21,8 @@
  */
 #define TTY_THROTTLED       0   /* Call unthrottle() at threshold min */
 #define TTY_IO_ERROR        1   /* Cause an I/O error (may be no ldisc too) */
+#define TTY_NO_WRITE_SPLIT  17  /* Preserve write boundaries to driver */
 #define TTY_HUPPED          18  /* Post driver->hangup() */
-
 
 /* tty driver types */
 #define TTY_DRIVER_TYPE_PTY         0x0004
@@ -29,8 +34,19 @@ struct tty_struct {
     struct tty_driver *driver;
     const struct tty_operations *ops;
     int index;
+    struct tty_ldisc *ldisc;
     unsigned long flags;
     void *driver_data;
+    unsigned char *write_buf;
+    int write_cnt;
+    struct list_head tty_files;
+};
+
+/* Each of a tty's open files has private_data pointing to tty_file_private */
+struct tty_file_private {
+    struct tty_struct *tty;
+    struct file *file;
+    struct list_head list;
 };
 
 struct tty_operations {
@@ -38,6 +54,9 @@ struct tty_operations {
                                   struct file *filp, int idx);
     int (*install)(struct tty_driver *driver, struct tty_struct *tty);
     int (*open)(struct tty_struct * tty, struct file * filp);
+    int (*write)(struct tty_struct * tty,
+                 const unsigned char *buf, int count);
+    int (*write_room)(struct tty_struct *tty);
 };
 
 struct tty_port;
@@ -150,5 +169,20 @@ tty_port_set_initialized(struct tty_port *port, bool val)
     else
         clear_bit(TTY_PORT_INITIALIZED, &port->iflags);
 }
+
+static inline bool tty_io_error(struct tty_struct *tty)
+{
+    return test_bit(TTY_IO_ERROR, &tty->flags);
+}
+
+static inline void tty_port_set_active(struct tty_port *port, bool val)
+{
+    if (val)
+        set_bit(TTY_PORT_ACTIVE, &port->iflags);
+    else
+        clear_bit(TTY_PORT_ACTIVE, &port->iflags);
+}
+
+#define O_OPOST(tty)    _O_FLAG((tty), OPOST)
 
 #endif /* _LINUX_TTY_H */

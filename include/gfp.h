@@ -181,4 +181,6 @@ node_zonelist(gfp_t flags)
     return NODE_DATA(0)->node_zonelists + gfp_zonelist(flags);
 }
 
+unsigned long get_zeroed_page(gfp_t gfp_mask);
+
 #endif /* __LINUX_GFP_H */

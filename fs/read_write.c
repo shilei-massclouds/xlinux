@@ -76,14 +76,66 @@ _do_sys_readlinkat(int dfd, const char *pathname, char *buf, int bufsiz)
     return error;
 }
 
+/* file_ppos returns &file->f_pos or NULL if file is stream */
+static inline loff_t *file_ppos(struct file *file)
+{
+    return file->f_mode & FMODE_STREAM ? NULL : &file->f_pos;
+}
+
+int
+rw_verify_area(int read_write,
+               struct file *file, const loff_t *ppos, size_t count)
+{
+    return 0;
+}
+
+ssize_t
+vfs_write(struct file *file, const char *buf, size_t count, loff_t *pos)
+{
+    ssize_t ret;
+
+    if (!(file->f_mode & FMODE_WRITE))
+        return -EBADF;
+    if (!(file->f_mode & FMODE_CAN_WRITE))
+        return -EINVAL;
+    if (unlikely(!access_ok(buf, count)))
+        return -EFAULT;
+
+    ret = rw_verify_area(WRITE, file, pos, count);
+    if (ret)
+        return ret;
+    if (count > MAX_RW_COUNT)
+        count = MAX_RW_COUNT;
+    if (file->f_op->write)
+        ret = file->f_op->write(file, buf, count, pos);
+    else if (file->f_op->write_iter)
+        panic("no write_iter!");
+    else
+        ret = -EINVAL;
+    printk("%s: ret(%d)\n", __func__, ret);
+    return ret;
+}
+EXPORT_SYMBOL(vfs_write);
+
 long
 _ksys_write(unsigned int fd, const char *buf, size_t count)
 {
     ssize_t ret = -EBADF;
     struct fd f = fdget_pos(fd);
 
-    panic("%s: fd(%u) count(%d) file(%lx)!",
-          __func__, fd, count, f.file);
+    printk("%s: 1 fd(%u)\n", __func__, fd);
+    if (f.file) {
+        printk("%s: 2\n", __func__);
+        loff_t pos, *ppos = file_ppos(f.file);
+        if (ppos) {
+            pos = *ppos;
+            ppos = &pos;
+        }
+        ret = vfs_write(f.file, buf, count, ppos);
+        if (ret >= 0 && ppos)
+            f.file->f_pos = pos;
+    }
+    return ret;
 }
 
 void init_read_write(void)

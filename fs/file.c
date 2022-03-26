@@ -75,6 +75,7 @@ int __alloc_fd(struct files_struct *files,
     if (fd < fdt->max_fds)
         fd = find_next_fd(fdt, fd);
 
+    printk("%s: fd(%u), end(%u)\n", __func__, fd, end);
     /*
      * N.B. For clone tasks sharing a files structure, this test
      * will limit the total number of files that can be opened.

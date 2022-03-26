@@ -5,3 +5,5 @@ target_y := ko
 obj_y := 8250.o
 obj_y += port.o
 obj_y += tty_io.o
+obj_y += tty_ldisc.o
+obj_y += n_tty.o

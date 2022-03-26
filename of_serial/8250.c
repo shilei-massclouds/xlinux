@@ -15,6 +15,7 @@
 
 #define UART_NR CONFIG_SERIAL_8250_NR_UARTS
 
+extern void n_tty_init(void);
 extern int tty_init(void);
 
 struct of_serial_info {
@@ -147,6 +148,12 @@ uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 
     state = drv->state + uport->line;
     port = &state->port;
+
+    if (state->uart_port)
+        panic("uart_port alreay exists!");
+
+    state->uart_port = uport;
+    uport->state = state;
 
     uport->cons = drv->cons;
 
@@ -393,14 +400,128 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
     return retval;
 }
 
+static int uart_write_room(struct tty_struct *tty)
+{
+    panic("%s: !", __func__);
+}
+
+static void __uart_start(struct tty_struct *tty)
+{
+    struct uart_state *state = tty->driver_data;
+    struct uart_port *port = state->uart_port;
+
+    if (port && !uart_tx_stopped(port))
+        port->ops->start_tx(port);
+}
+
+static int
+uart_write(struct tty_struct *tty, const unsigned char *buf, int count)
+{
+    int c;
+    struct circ_buf *circ;
+    struct uart_port *port;
+    struct uart_state *state = tty->driver_data;
+    int ret = 0;
+
+    /*
+     * This means you called this function _after_ the port was
+     * closed.  No cookie for you.
+     */
+    if (!state)
+        panic("no state!");
+
+    port = state->uart_port;
+    circ = &state->xmit;
+    if (!circ->buf)
+        panic("bad buffer!");
+
+    while (port) {
+        c = CIRC_SPACE_TO_END(circ->head, circ->tail, UART_XMIT_SIZE);
+        if (count < c)
+            c = count;
+        if (c <= 0)
+            break;
+        memcpy(circ->buf + circ->head, buf, c);
+        circ->head = (circ->head + c) & (UART_XMIT_SIZE - 1);
+        buf += c;
+        count -= c;
+        ret += c;
+    }
+
+    __uart_start(tty);
+    return ret;
+}
+
 static const struct tty_operations uart_ops = {
     .install    = uart_install,
     .open       = uart_open,
+    .write      = uart_write,
+    .write_room = uart_write_room,
 };
+
+static int
+uart_port_startup(struct tty_struct *tty,
+                  struct uart_state *state, int init_hw)
+{
+    int retval = 0;
+    unsigned long page;
+    struct uart_port *uport = state->uart_port;
+
+    if (uport->type == PORT_UNKNOWN)
+        return 1;
+
+    /*
+     * Initialise and allocate the transmit and temporary
+     * buffer.
+     */
+    page = get_zeroed_page(GFP_KERNEL);
+    if (!page)
+        panic("Out of memory!");
+
+    if (!state->xmit.buf) {
+        state->xmit.buf = (unsigned char *) page;
+        uart_circ_clear(&state->xmit);
+    } else {
+        panic("xmit buf already init!");
+    }
+
+    retval = uport->ops->startup(uport);
+    if (retval)
+        panic("cant startup!");
+
+    printk("%s: retval(%d)!\n", __func__, retval);
+    return retval;
+}
+
+static int
+uart_startup(struct tty_struct *tty, struct uart_state *state, int init_hw)
+{
+    struct tty_port *port = &state->port;
+    int retval;
+
+    if (tty_port_initialized(port))
+        return 0;
+
+    retval = uart_port_startup(tty, state, init_hw);
+    if (retval)
+        set_bit(TTY_IO_ERROR, &tty->flags);
+
+    return retval;
+}
 
 static int
 uart_port_activate(struct tty_port *port, struct tty_struct *tty)
 {
+    int ret;
+    struct uart_state *state = container_of(port, struct uart_state, port);
+
+    /*
+     * Start up the serial port.
+     */
+    ret = uart_startup(tty, state, 0);
+    if (ret > 0)
+        tty_port_set_active(port, 1);
+
     printk("%s: !\n", __func__);
     return 0;
 }
@@ -467,6 +588,7 @@ init_module(void)
 {
     printk("module[of_serial]: init begin ...\n");
 
+    n_tty_init();
     tty_init();
     serial8250_init();
 

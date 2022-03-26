@@ -6,8 +6,11 @@
 #include <major.h>
 #include <export.h>
 #include <kdev_t.h>
+#include <uaccess.h>
+#include <tty_ldisc.h>
 
 static struct cdev console_cdev;
+static struct file *redirect;
 
 static struct tty_driver *
 tty_lookup_driver(dev_t device, struct file *filp, int *index)
@@ -70,6 +73,10 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
     tty = kzalloc(sizeof(*tty), GFP_KERNEL);
     if (!tty)
         return NULL;
+    if (tty_ldisc_init(tty))
+        panic("init ldisc error!");
+
+    INIT_LIST_HEAD(&tty->tty_files);
 
     tty->driver = driver;
     tty->ops = driver->ops;
@@ -132,7 +139,6 @@ tty_open_by_driver(dev_t device, struct file *filp)
 }
 
 /* Associate a new file with the tty structure */
-/*
 void tty_add_file(struct tty_struct *tty, struct file *file)
 {
     struct tty_file_private *priv = file->private_data;
@@ -142,7 +148,18 @@ void tty_add_file(struct tty_struct *tty, struct file *file)
 
     list_add(&priv->list, &tty->tty_files);
 }
-*/
+
+int tty_alloc_file(struct file *file)
+{
+    struct tty_file_private *priv;
+
+    priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+    if (!priv)
+        return -ENOMEM;
+
+    file->private_data = priv;
+    return 0;
+}
 
 static int tty_open(struct inode *inode, struct file *filp)
 {
@@ -151,13 +168,19 @@ static int tty_open(struct inode *inode, struct file *filp)
     dev_t device = inode->i_rdev;
     unsigned saved_flags = filp->f_flags;
 
+    nonseekable_open(inode, filp);
+
+    retval = tty_alloc_file(filp);
+    if (retval)
+        panic("Out of memory!");
+
     printk("%s: dev(%x)\n", __func__, device);
     tty = tty_open_by_driver(device, filp);
     if (IS_ERR_OR_NULL(tty))
         panic("open by driver error!");
 
     printk("%s: 1 ops(%lx)\n", __func__, tty->ops);
-    //tty_add_file(tty, filp);
+    tty_add_file(tty, filp);
 
     if (tty->ops->open)
         retval = tty->ops->open(tty, filp);
@@ -174,12 +197,118 @@ static int tty_open(struct inode *inode, struct file *filp)
     return 0;
 }
 
+static inline struct tty_struct *file_tty(struct file *file)
+{
+    return ((struct tty_file_private *)file->private_data)->tty;
+}
+
+/*
+ * Split writes up in sane blocksizes to avoid
+ * denial-of-service type attacks
+ */
+static inline ssize_t
+do_tty_write(ssize_t (*write)(struct tty_struct *, struct file *,
+                              const unsigned char *, size_t),
+             struct tty_struct *tty,
+             struct file *file,
+             const char *buf,
+             size_t count)
+{
+    ssize_t ret;
+    unsigned int chunk;
+    ssize_t written = 0;
+
+    chunk = 2048;
+    if (test_bit(TTY_NO_WRITE_SPLIT, &tty->flags))
+        chunk = 65536;
+    if (count < chunk)
+        chunk = count;
+
+    /* write_buf/write_cnt is protected by the atomic_write_lock mutex */
+    if (tty->write_cnt < chunk) {
+        unsigned char *buf_chunk;
+
+        if (chunk < 1024)
+            chunk = 1024;
+
+        buf_chunk = kmalloc(chunk, GFP_KERNEL);
+        if (!buf_chunk)
+            panic("Out of memory!");
+        kfree(tty->write_buf);
+        tty->write_cnt = chunk;
+        tty->write_buf = buf_chunk;
+    }
+
+    /* Do the write .. */
+    for (;;) {
+        size_t size = count;
+        if (size > chunk)
+            size = chunk;
+        ret = -EFAULT;
+        if (copy_from_user(tty->write_buf, buf, size))
+            break;
+        ret = write(tty, file, tty->write_buf, size);
+        if (ret <= 0)
+            break;
+        written += ret;
+        buf += ret;
+        count -= ret;
+        if (!count)
+            break;
+    }
+    if (written) {
+        ret = written;
+    }
+    return ret;
+}
+
+static ssize_t
+tty_write(struct file *file,
+          const char *buf, size_t count, loff_t *ppos)
+{
+    ssize_t ret;
+    struct tty_ldisc *ld;
+    struct tty_struct *tty = file_tty(file);
+
+    if (!tty || !tty->ops->write || tty_io_error(tty))
+        return -EIO;
+    /* Short term debug to catch buggy drivers */
+    if (tty->ops->write_room == NULL)
+        panic("missing write_room method");
+    ld = tty_ldisc_ref_wait(tty);
+    if (!ld)
+        panic("get ld error!");
+    if (!ld->ops->write)
+        ret = -EIO;
+    else
+        ret = do_tty_write(ld->ops->write, tty, file, buf, count);
+
+    return ret;
+}
+
+ssize_t
+redirected_tty_write(struct file *file,
+                     const char *buf, size_t count, loff_t *ppos)
+{
+    struct file *p = NULL;
+
+    if (redirect)
+        p = redirect;
+
+    if (p) {
+        ssize_t res;
+        res = vfs_write(p, buf, count, &p->f_pos);
+        return res;
+    }
+    return tty_write(file, buf, count, ppos);
+}
+
 static const struct file_operations console_fops = {
     .open       = tty_open,
+    .write      = redirected_tty_write,
     /*
     .llseek     = no_llseek,
     .read       = tty_read,
-    .write      = redirected_tty_write,
     .poll       = tty_poll,
     .unlocked_ioctl = tty_ioctl,
     .compat_ioctl   = tty_compat_ioctl,

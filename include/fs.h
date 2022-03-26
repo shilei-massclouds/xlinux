@@ -13,6 +13,9 @@
 #include <xarray.h>
 #include <mm_types.h>
 
+#define INR_OPEN_CUR 1024   /* Initial setting for nfile rlimits */
+#define INR_OPEN_MAX 4096   /* Hard limit for nfile rlimits */
+
 #define BLOCK_SIZE_BITS 10
 #define BLOCK_SIZE      (1<<BLOCK_SIZE_BITS)
 
@@ -87,8 +90,11 @@ struct linux_binfmt;
 
 /* Has read method(s) */
 #define FMODE_CAN_READ  ((__force fmode_t)0x20000)
+#define FMODE_CAN_WRITE ((__force fmode_t)0x40000)
 #define FMODE_OPENED    ((__force fmode_t)0x80000)
 #define FMODE_CREATED   ((__force fmode_t)0x100000)
+/* File is stream-like */
+#define FMODE_STREAM    ((__force fmode_t)0x200000)
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY  ((__force fmode_t)0x4000000)
 
@@ -252,7 +258,9 @@ struct kiocb {
 struct file_operations {
     int (*open)(struct inode *, struct file *);
     ssize_t (*read)(struct file *, char *, size_t, loff_t *);
+    ssize_t (*write)(struct file *, const char *, size_t, loff_t *);
     ssize_t (*read_iter)(struct kiocb *, struct iov_iter *);
+    ssize_t (*write_iter)(struct kiocb *, struct iov_iter *);
     int (*mmap)(struct file *, struct vm_area_struct *);
 };
 
@@ -310,11 +318,15 @@ struct file {
     struct inode    *f_inode;   /* cached value */
     unsigned int    f_flags;
     fmode_t         f_mode;
+    loff_t          f_pos;
 
     struct file_ra_state f_ra;
 
     struct address_space *f_mapping;
     const struct file_operations *f_op;
+
+    /* needed for tty driver, and maybe others */
+    void *private_data;
 };
 
 extern bool rootfs_initialized;
@@ -529,5 +541,10 @@ int init_dup(struct file *file);
         struct file *__file = (f); \
         BUG_ON(!(__file->f_op = (fops))); \
     } while(0)
+
+ssize_t
+vfs_write(struct file *file, const char *buf, size_t count, loff_t *pos);
+
+int nonseekable_open(struct inode *inode, struct file *filp);
 
 #endif /* _LINUX_FS_H */

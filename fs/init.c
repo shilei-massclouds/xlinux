@@ -45,7 +45,8 @@ int init_dup(struct file *file)
 
     fd = get_unused_fd_flags(0);
     if (fd < 0)
-        return fd;
+        panic("bad fd(%d)!", fd);
+
     printk("%s: fd(%d)\n", __func__, fd);
     fd_install(fd, file);
     return 0;

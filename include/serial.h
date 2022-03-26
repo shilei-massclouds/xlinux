@@ -3,6 +3,16 @@
 
 #include <tty.h>
 #include <list.h>
+#include <circ_buf.h>
+
+#define UART_XMIT_SIZE  PAGE_SIZE
+
+#define UART_TX         0       /* Out: Transmit buffer */
+
+#define UART_LSR        5       /* In:  Line Status Register */
+#define UART_LSR_THRE   0x20    /* Transmit-hold-register empty */
+
+#define UART_LSR_BRK_ERROR_BITS 0x1E /* BI, FE, PE, OE bits */
 
 /*
  * These are the supported serial types.
@@ -34,7 +44,15 @@
 
 struct uart_port;
 
+struct serial8250_config {
+    const char  *name;
+    unsigned short  fifo_size;
+    unsigned short  tx_loadsz;
+};
+
 struct uart_ops {
+    void (*start_tx)(struct uart_port *);
+    int (*startup)(struct uart_port *);
     void (*config_port)(struct uart_port *, int);
 };
 
@@ -43,6 +61,8 @@ struct uart_ops {
  */
 struct uart_state {
     struct tty_port     port;
+    struct circ_buf     xmit;
+    struct uart_port    *uart_port;
 };
 
 struct uart_driver {
@@ -98,12 +118,24 @@ struct uart_port {
     resource_size_t mapbase;    /* for ioremap */
     resource_size_t mapsize;
 
+    unsigned char   regshift;   /* reg offset shift */
+
+    struct uart_state *state;   /* pointer to parent state */
+
+    int (*startup)(struct uart_port *port);
+    unsigned int (*serial_in)(struct uart_port *, int);
+    void (*serial_out)(struct uart_port *, int, int);
+
     const struct uart_ops *ops;
     const struct attribute_group **tty_groups;  /* all attributes (serial core use only) */
 };
 
 struct uart_8250_port {
     struct uart_port    port;
+    unsigned int        tx_loadsz;  /* transmit fifo load size */
+    unsigned char       cur_iotype; /* Running I/O type */
+#define LSR_SAVE_FLAGS UART_LSR_BRK_ERROR_BITS
+    unsigned char       lsr_saved_flags;
 };
 
 /*
@@ -135,6 +167,26 @@ void serial8250_init_port(struct uart_8250_port *up);
 static inline struct uart_8250_port *up_to_u8250p(struct uart_port *up)
 {
     return container_of(up, struct uart_8250_port, port);
+}
+
+#define uart_circ_empty(circ)   ((circ)->head == (circ)->tail)
+#define uart_circ_clear(circ)   ((circ)->head = (circ)->tail = 0)
+
+static inline int uart_tx_stopped(struct uart_port *port)
+{
+    return 0;
+}
+
+static inline int
+serial_in(struct uart_8250_port *up, int offset)
+{
+    return up->port.serial_in(&up->port, offset);
+}
+
+static inline void
+serial_out(struct uart_8250_port *up, int offset, int value)
+{
+    up->port.serial_out(&up->port, offset, value);
 }
 
 #endif /* _LINUX_SERIAL_8250_H */
