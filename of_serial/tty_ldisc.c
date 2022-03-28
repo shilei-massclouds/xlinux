@@ -54,7 +54,6 @@ static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
     ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL | __GFP_NOFAIL);
     ld->ops = ldops;
     ld->tty = tty;
-
     return ld;
 }
 

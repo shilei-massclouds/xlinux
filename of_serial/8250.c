@@ -396,7 +396,6 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
     retval = tty_port_open(&state->port, tty, filp);
     if (retval > 0)
         retval = 0;
-
     return retval;
 }
 
@@ -567,7 +566,6 @@ int uart_register_driver(struct uart_driver *drv)
         tty_port_init(port);
         port->ops = &uart_port_ops;
     }
-
     return 0;
 }
 

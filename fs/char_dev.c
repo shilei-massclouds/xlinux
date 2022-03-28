@@ -91,6 +91,8 @@ static int chrdev_open(struct inode *inode, struct file *filp)
             new = NULL;
         } else if (!cdev_get(p))
             ret = -ENXIO;
+
+        printk("%s: i_cdev(%lx)\n", __func__, inode->i_cdev);
     } else if (!cdev_get(p))
         ret = -ENXIO;
 
@@ -104,6 +106,7 @@ static int chrdev_open(struct inode *inode, struct file *filp)
 
     replace_fops(filp, fops);
     if (filp->f_op->open) {
+        printk("%s: open ...\n", __func__);
         ret = filp->f_op->open(inode, filp);
         if (ret)
             panic("no open!");
